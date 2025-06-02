@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,7 @@ const EditClient: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const isMultiUser = false; // Por enquanto fixo, pode ser configurável no futuro
 
   const { data: client, isLoading } = useQuery({
@@ -61,67 +62,9 @@ const EditClient: React.FC = () => {
     },
   });
 
-  useEffect(() => {
-    if (client) {
-      console.log('Client data loaded:', client);
-      form.reset({
-        // Profissional responsável (campos não existem na tabela, usar valores vazios)
-        responsibleProfessional: '',
-        group: '',
-        groupId: client.group_id || '',
-        
-        // Informações pessoais
-        name: client.name || '',
-        photoUrl: client.photo_url || '',
-        whatsapp: client.phone || '',
-        videoCallLink: client.video_call_link || '',
-        email: client.email || '',
-        cpf: client.cpf || '',
-        rg: client.rg || '',
-        
-        // Endereço
-        cep: client.cep || '',
-        address: client.address || '',
-        number: client.number || '',
-        neighborhood: client.neighborhood || '',
-        city: client.city || '',
-        state: client.state || '',
-        complement: client.complement || '',
-        
-        // Financeiro
-        sessionValue: client.session_value || '',
-        paymentDay: client.payment_day || '',
-        sendMonthlyReminder: client.send_monthly_reminder || false,
-        
-        // Responsável financeiro
-        financialResponsibleName: client.financial_responsible_name || '',
-        financialResponsibleWhatsapp: client.financial_responsible_whatsapp || '',
-        financialResponsibleEmail: client.financial_responsible_email || '',
-        financialResponsibleCpf: client.financial_responsible_cpf || '',
-        financialResponsibleRg: client.financial_responsible_rg || '',
-        
-        // Contato de emergência
-        emergencyContactName: client.emergency_contact_name || '',
-        emergencyContactWhatsapp: client.emergency_contact_whatsapp || '',
-        
-        // Dados adicionais
-        gender: client.gender || '',
-        birthDate: client.birth_date || '',
-        nationality: client.nationality || '',
-        education: client.education || '',
-        profession: client.profession || '',
-        referral: client.referral || '',
-        maritalStatus: client.marital_status || '',
-        observations: client.notes || '',
-        activateSessionReminder: client.activate_session_reminder || false,
-        activeRegistration: client.active_registration !== false,
-      });
-    }
-  }, [client, form]);
-
-  const onSubmit = async (data: ClientFormData) => {
-    try {
-      if (!id) return;
+  const updateClientMutation = useMutation({
+    mutationFn: async (data: ClientFormData) => {
+      if (!id) throw new Error('ID do cliente não fornecido');
 
       console.log('Submitting data:', data);
 
@@ -184,28 +127,93 @@ const EditClient: React.FC = () => {
 
       if (error) {
         console.error('Supabase error:', error);
-        toast({
-          title: "Erro ao atualizar",
-          description: `Erro: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
+        throw error;
       }
 
+      return clientData;
+    },
+    onSuccess: () => {
       toast({
         title: "Cliente atualizado",
         description: "Cliente atualizado com sucesso!",
       });
-
+      
+      // Invalidar cache e navegar
+      queryClient.invalidateQueries({ queryKey: ['client', id] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       navigate(`/clientes/${id}`);
-    } catch (error) {
+    },
+    onError: (error: any) => {
       console.error('Error updating client:', error);
       toast({
         title: "Erro ao atualizar",
-        description: "Ocorreu um erro ao atualizar o cliente.",
+        description: error.message || "Ocorreu um erro ao atualizar o cliente.",
         variant: "destructive",
       });
+    },
+  });
+
+  useEffect(() => {
+    if (client) {
+      console.log('Client data loaded:', client);
+      form.reset({
+        // Profissional responsável (campos não existem na tabela, usar valores vazios)
+        responsibleProfessional: '',
+        group: '',
+        groupId: client.group_id || '',
+        
+        // Informações pessoais
+        name: client.name || '',
+        photoUrl: client.photo_url || '',
+        whatsapp: client.phone || '',
+        videoCallLink: client.video_call_link || '',
+        email: client.email || '',
+        cpf: client.cpf || '',
+        rg: client.rg || '',
+        
+        // Endereço
+        cep: client.cep || '',
+        address: client.address || '',
+        number: client.number || '',
+        neighborhood: client.neighborhood || '',
+        city: client.city || '',
+        state: client.state || '',
+        complement: client.complement || '',
+        
+        // Financeiro
+        sessionValue: client.session_value || '',
+        paymentDay: client.payment_day || '',
+        sendMonthlyReminder: client.send_monthly_reminder || false,
+        
+        // Responsável financeiro
+        financialResponsibleName: client.financial_responsible_name || '',
+        financialResponsibleWhatsapp: client.financial_responsible_whatsapp || '',
+        financialResponsibleEmail: client.financial_responsible_email || '',
+        financialResponsibleCpf: client.financial_responsible_cpf || '',
+        financialResponsibleRg: client.financial_responsible_rg || '',
+        
+        // Contato de emergência
+        emergencyContactName: client.emergency_contact_name || '',
+        emergencyContactWhatsapp: client.emergency_contact_whatsapp || '',
+        
+        // Dados adicionais
+        gender: client.gender || '',
+        birthDate: client.birth_date || '',
+        nationality: client.nationality || '',
+        education: client.education || '',
+        profession: client.profession || '',
+        referral: client.referral || '',
+        maritalStatus: client.marital_status || '',
+        observations: client.notes || '',
+        activateSessionReminder: client.activate_session_reminder || false,
+        activeRegistration: client.active_registration !== false,
+      });
     }
+  }, [client, form]);
+
+  const onSubmit = (data: ClientFormData) => {
+    console.log('Form submitted with data:', data);
+    updateClientMutation.mutate(data);
   };
 
   if (isLoading) {
@@ -278,9 +286,10 @@ const EditClient: React.FC = () => {
             </Button>
             <Button
               type="submit"
+              disabled={updateClientMutation.isPending}
               className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
             >
-              Salvar Alterações
+              {updateClientMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </div>
         </form>
