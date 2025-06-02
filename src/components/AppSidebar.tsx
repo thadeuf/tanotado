@@ -80,7 +80,7 @@ export function AppSidebar() {
             />
           ) : (
             <img 
-              src="/lovable-uploads/3a5c9399-472b-4981-88b9-4a1355e474b0.png" 
+              src="/lovable-uploads/e257a8ed-f41d-4910-acd6-6c1ef051df1d.png" 
               alt="tanotado"
               className="w-8 h-8"
             />
