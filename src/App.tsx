@@ -167,7 +167,7 @@ const AppContent: React.FC = () => {
           } />
           <Route path="/clientes" element={
             <ProtectedRoute>
-              <div>Clientes (Em desenvolvimento)</div>
+              <Clients />
             </ProtectedRoute>
           } />
           <Route path="/prontuarios" element={
