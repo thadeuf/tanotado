@@ -1,11 +1,17 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, User, Plus } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Clock, MapPin, Video } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+interface Client {
+  id: string;
+  name: string;
+  photo_url?: string;
+}
 
 interface Appointment {
   id: string;
@@ -13,6 +19,8 @@ interface Appointment {
   start_time: string;
   end_time: string;
   status: string;
+  client?: Client;
+  appointment_type?: 'presencial' | 'remoto';
 }
 
 interface TimeSlotsProps {
@@ -21,19 +29,7 @@ interface TimeSlotsProps {
   appointments: Appointment[];
 }
 
-const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, onTimeSelect, appointments }) => {
-  // Gerar horários base (9h às 18h, intervalos de 1 hora) para botões de agendamento rápido
-  const generateQuickTimeSlots = () => {
-    const slots = [];
-    for (let hour = 9; hour < 18; hour++) {
-      const time = `${hour.toString().padStart(2, '0')}:00`;
-      slots.push(time);
-    }
-    return slots;
-  };
-
-  const quickTimeSlots = generateQuickTimeSlots();
-
+const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled':
@@ -60,6 +56,17 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, onTimeSelect, appoi
     }
   };
 
+  const getAppointmentTypeIcon = (type?: string) => {
+    if (type === 'remoto') {
+      return <Video className="h-4 w-4 text-tanotado-blue" />;
+    }
+    return <MapPin className="h-4 w-4 text-tanotado-green" />;
+  };
+
+  const getAppointmentTypeText = (type?: string) => {
+    return type === 'remoto' ? 'Remoto' : 'Presencial';
+  };
+
   // Ordenar agendamentos por horário
   const sortedAppointments = [...appointments].sort((a, b) => 
     new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
@@ -75,64 +82,56 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, onTimeSelect, appoi
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Agendamentos existentes */}
-        {sortedAppointments.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">Agendamentos</h4>
+        {sortedAppointments.length > 0 ? (
+          <div className="space-y-3">
             {sortedAppointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
+                className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
               >
-                <div className="flex items-center gap-3">
-                  <div className="font-medium text-sm">
-                    {format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}
+                {/* Avatar do cliente */}
+                <Avatar className="h-10 w-10">
+                  <AvatarImage 
+                    src={appointment.client?.photo_url} 
+                    alt={appointment.client?.name}
+                  />
+                  <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
+                    {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
+                  </AvatarFallback>
+                </Avatar>
+
+                {/* Informações do agendamento */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-sm">
+                      {format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}
+                    </span>
+                    <Badge 
+                      variant="secondary" 
+                      className={getStatusColor(appointment.status)}
+                    >
+                      {getStatusText(appointment.status)}
+                    </Badge>
                   </div>
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{appointment.title}</span>
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {appointment.client?.name || 'Cliente não informado'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {getAppointmentTypeIcon(appointment.appointment_type)}
+                      <span className="text-xs text-muted-foreground">
+                        {getAppointmentTypeText(appointment.appointment_type)}
+                      </span>
+                    </div>
                   </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {appointment.title}
+                  </p>
                 </div>
-                <Badge 
-                  variant="secondary" 
-                  className={getStatusColor(appointment.status)}
-                >
-                  {getStatusText(appointment.status)}
-                </Badge>
               </div>
             ))}
           </div>
-        )}
-
-        {/* Horários de agendamento rápido */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground">Agendamento Rápido</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {quickTimeSlots.map((time) => (
-              <Button
-                key={time}
-                variant="outline"
-                size="sm"
-                className="justify-start hover:bg-tanotado-purple/10 hover:border-tanotado-purple hover:text-tanotado-purple transition-colors"
-                onClick={() => onTimeSelect(time)}
-              >
-                <Plus className="h-3 w-3 mr-2" />
-                {time}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Botão para horário personalizado */}
-        <Button
-          variant="outline"
-          className="w-full justify-center hover:bg-tanotado-purple/10 hover:border-tanotado-purple hover:text-tanotado-purple transition-colors"
-          onClick={() => onTimeSelect('09:00')}
-        >
-          <Clock className="h-4 w-4 mr-2" />
-          Horário Personalizado
-        </Button>
-
-        {appointments.length === 0 && (
+        ) : (
           <div className="text-center py-6 text-muted-foreground">
             <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>Nenhum agendamento para este dia</p>
