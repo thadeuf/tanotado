@@ -5,18 +5,31 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
-import { Form } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { clientSchema, ClientFormData } from '@/schemas/clientSchema';
-import PersonalInformationSection from '@/components/client-form/PersonalInformationSection';
-import AddressSection from '@/components/client-form/AddressSection';
-import FinancialSection from '@/components/client-form/FinancialSection';
-import FinancialResponsibleSection from '@/components/client-form/FinancialResponsibleSection';
-import EmergencyContactSection from '@/components/client-form/EmergencyContactSection';
-import AdditionalDataSection from '@/components/client-form/AdditionalDataSection';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ImageUpload } from '@/components/ui/image-upload';
+import { PhoneInput } from '@/components/ui/phone-input';
+import * as z from 'zod';
+
+// Schema simplificado baseado nos campos reais do banco
+const editClientSchema = z.object({
+  name: z.string().min(1, 'Nome é obrigatório'),
+  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().optional(),
+  cpf: z.string().optional(),
+  birth_date: z.string().optional(),
+  address: z.string().optional(),
+  notes: z.string().optional(),
+  photo_url: z.string().optional(),
+});
+
+type EditClientFormData = z.infer<typeof editClientSchema>;
 
 const EditClient: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,47 +63,54 @@ const EditClient: React.FC = () => {
     enabled: !!id && !!user?.id,
   });
 
-  const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientSchema),
+  const form = useForm<EditClientFormData>({
+    resolver: zodResolver(editClientSchema),
     defaultValues: {
-      sendMonthlyReminder: false,
-      activateSessionReminder: false,
-      activeRegistration: true,
+      name: '',
+      email: '',
+      phone: '',
+      cpf: '',
+      birth_date: '',
+      address: '',
+      notes: '',
+      photo_url: '',
     },
   });
 
   useEffect(() => {
     if (client) {
+      console.log('Client data loaded:', client);
       form.reset({
         name: client.name || '',
         email: client.email || '',
-        whatsapp: client.phone || '',
+        phone: client.phone || '',
         cpf: client.cpf || '',
-        birthDate: client.birth_date || '',
+        birth_date: client.birth_date || '',
         address: client.address || '',
-        observations: client.notes || '',
-        photoUrl: client.photo_url || '',
-        sendMonthlyReminder: false,
-        activateSessionReminder: false,
-        activeRegistration: true,
+        notes: client.notes || '',
+        photo_url: client.photo_url || '',
       });
     }
   }, [client, form]);
 
-  const onSubmit = async (data: ClientFormData) => {
+  const onSubmit = async (data: EditClientFormData) => {
     try {
       if (!id) return;
+
+      console.log('Submitting data:', data);
 
       const clientData = {
         name: data.name,
         email: data.email || null,
-        phone: data.whatsapp || null,
+        phone: data.phone || null,
         cpf: data.cpf || null,
-        birth_date: data.birthDate || null,
+        birth_date: data.birth_date || null,
         address: data.address || null,
-        notes: data.observations || null,
-        photo_url: data.photoUrl || null,
+        notes: data.notes || null,
+        photo_url: data.photo_url || null,
       };
+
+      console.log('Prepared client data:', clientData);
 
       const { error } = await supabase
         .from('clients')
@@ -100,7 +120,12 @@ const EditClient: React.FC = () => {
 
       if (error) {
         console.error('Supabase error:', error);
-        throw error;
+        toast({
+          title: "Erro ao atualizar",
+          description: `Erro: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({
@@ -168,12 +193,135 @@ const EditClient: React.FC = () => {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <PersonalInformationSection control={form.control} />
-          <AddressSection control={form.control} />
-          <FinancialSection control={form.control} />
-          <FinancialResponsibleSection control={form.control} />
-          <EmergencyContactSection control={form.control} />
-          <AdditionalDataSection control={form.control} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações do Cliente</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="photo_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Foto</FormLabel>
+                    <FormControl>
+                      <ImageUpload
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome completo" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="email@exemplo.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>WhatsApp</FormLabel>
+                      <FormControl>
+                        <PhoneInput {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="cpf"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CPF</FormLabel>
+                      <FormControl>
+                        <Input placeholder="000.000.000-00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="birth_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data de Nascimento</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Endereço</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Endereço completo" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observações</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Observações sobre o cliente" 
+                        className="min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
           <div className="flex justify-end gap-4">
             <Button
