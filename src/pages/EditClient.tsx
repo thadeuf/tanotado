@@ -65,9 +65,9 @@ const EditClient: React.FC = () => {
     if (client) {
       console.log('Client data loaded:', client);
       form.reset({
-        // Profissional responsável
-        responsibleProfessional: client.responsible_professional || '',
-        group: client.group || '',
+        // Profissional responsável (campos não existem na tabela, usar valores vazios)
+        responsibleProfessional: '',
+        group: '',
         groupId: client.group_id || '',
         
         // Informações pessoais
@@ -250,7 +250,7 @@ const EditClient: React.FC = () => {
             Editar Cliente
           </h1>
           <p className="text-muted-foreground mt-1">
-            {client.name}
+            {client?.name}
           </p>
         </div>
       </div>
