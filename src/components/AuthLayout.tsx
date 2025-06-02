@@ -17,9 +17,8 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
             <img 
               src="/lovable-uploads/a142e49f-c405-4af5-96d0-7ae0ebbb6627.png" 
               alt="tanotado" 
-              className="w-32 h-32 mx-auto mb-4"
+              className="w-48 h-48 mx-auto mb-8"
             />
-            <h1 className="text-6xl font-bold text-white mb-6">tanotado</h1>
           </div>
           <p className="text-white/90 text-xl max-w-md">
             O sistema de agendamento mais completo para profissionais liberais
@@ -49,10 +48,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
               <img 
                 src="/lovable-uploads/a142e49f-c405-4af5-96d0-7ae0ebbb6627.png" 
                 alt="tanotado" 
-                className="w-16 h-16 mx-auto mb-2"
+                className="w-24 h-24 mx-auto mb-4"
               />
             </div>
-            <h1 className="lg:hidden tanotado-logo text-4xl mb-4">tanotado</h1>
             <h2 className="text-2xl font-bold text-tanotado-navy">{title}</h2>
             {subtitle && (
               <p className="text-muted-foreground mt-2">{subtitle}</p>
