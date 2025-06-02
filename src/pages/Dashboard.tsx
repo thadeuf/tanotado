@@ -134,24 +134,22 @@ const Dashboard: React.FC = () => {
               {appointment.confirmed ? 'Confirmado' : 'Confirmação pendente'}
             </span>
           </div>
+          {appointment.mode === 'online' && (
+            <Button
+              size="sm"
+              onClick={() => handleStartVideoCall(appointment.patient)}
+              className="bg-tanotado-blue hover:bg-tanotado-blue/90 text-white mt-2 h-6 px-2 text-xs"
+            >
+              <Play className="h-2 w-2 mr-1" />
+              Iniciar
+            </Button>
+          )}
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="text-right">
-          <span className="text-sm font-medium text-tanotado-navy">
-            {appointment.time}
-          </span>
-        </div>
-        {appointment.mode === 'online' && (
-          <Button
-            size="sm"
-            onClick={() => handleStartVideoCall(appointment.patient)}
-            className="bg-tanotado-blue hover:bg-tanotado-blue/90 text-white"
-          >
-            <Play className="h-3 w-3 mr-1" />
-            Iniciar
-          </Button>
-        )}
+      <div className="text-right">
+        <span className="text-sm font-medium text-tanotado-navy">
+          {appointment.time}
+        </span>
       </div>
     </div>
   );
