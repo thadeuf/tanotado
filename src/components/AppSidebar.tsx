@@ -38,7 +38,7 @@ const adminItem = { title: 'Admin', url: '/admin', icon: Shield };
 const configItem = { title: 'Configurações', url: '/configuracoes', icon: Settings };
 
 export function AppSidebar() {
-  const { state, setOpen, toggleSidebar } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -68,6 +68,7 @@ export function AppSidebar() {
 
   const handleMenuItemClick = (url: string) => {
     navigate(url);
+    // Fechar sidebar após seleção se estiver em modo hover
     if (isHovering) {
       setOpen(false);
     }
@@ -81,11 +82,6 @@ export function AppSidebar() {
   const handleMouseLeave = () => {
     setIsHovering(false);
     setOpen(false);
-  };
-
-  const handleToggleClick = () => {
-    setIsHovering(false);
-    toggleSidebar();
   };
 
   // Criar array de itens combinados baseado no papel do usuário
@@ -104,7 +100,6 @@ export function AppSidebar() {
       <Sidebar className="border-r" collapsible="icon">
         <SidebarTrigger 
           className={`m-2 ${isCollapsed ? 'self-center' : 'self-end'}`}
-          onClick={handleToggleClick}
         />
         
         <SidebarContent className={isCollapsed ? 'px-0' : 'px-2'}>
