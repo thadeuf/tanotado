@@ -17,6 +17,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Clients from './pages/Clients';
+import NewClient from './pages/NewClient';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -168,6 +169,11 @@ const AppContent: React.FC = () => {
           <Route path="/clientes" element={
             <ProtectedRoute>
               <Clients />
+            </ProtectedRoute>
+          } />
+          <Route path="/clientes/novo" element={
+            <ProtectedRoute>
+              <NewClient />
             </ProtectedRoute>
           } />
           <Route path="/prontuarios" element={

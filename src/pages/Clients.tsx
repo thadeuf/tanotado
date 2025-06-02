@@ -7,9 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, Filter, Plus, Phone, Edit } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Clients: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('active');
 
@@ -127,6 +129,7 @@ const Clients: React.FC = () => {
 
               {/* New Client Button */}
               <Button 
+                onClick={() => navigate('/clientes/novo')}
                 className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200 gap-2"
                 size="sm"
               >
