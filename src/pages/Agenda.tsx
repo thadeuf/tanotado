@@ -20,6 +20,7 @@ import DateSelector from '@/components/agenda/DateSelector';
 import TimeSlots from '@/components/agenda/TimeSlots';
 import AppointmentForm from '@/components/agenda/AppointmentForm';
 import { useAppointments } from '@/hooks/useAppointments';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Agenda: React.FC = () => {
   const { user } = useAuth();
@@ -28,6 +29,7 @@ const Agenda: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [filterStatus, setFilterStatus] = useState('all');
+  const isMobile = useIsMobile();
 
   const { data: appointments = [], isLoading } = useAppointments();
 
@@ -50,6 +52,14 @@ const Agenda: React.FC = () => {
     return appointments.filter(appointment => 
       isSameDay(new Date(appointment.start_time), date)
     );
+  };
+
+  const formatWeekDayName = (date: Date) => {
+    if (isMobile) {
+      const dayNames = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+      return dayNames[date.getDay()];
+    }
+    return format(date, 'EEE', { locale: ptBR });
   };
 
   if (isLoading) {
@@ -192,7 +202,7 @@ const Agenda: React.FC = () => {
                           <div className={`text-xs mb-1 ${
                             isSelected ? 'text-white' : 'text-muted-foreground'
                           }`}>
-                            {format(day, 'EEE', { locale: ptBR })}
+                            {formatWeekDayName(day)}
                           </div>
                           <div className="font-medium">
                             {format(day, 'd')}
