@@ -155,8 +155,10 @@ const EditClient: React.FC = () => {
 
   useEffect(() => {
     if (client) {
-      console.log('Client data loaded:', client);
-      form.reset({
+      console.log('Client data loaded for form reset:', client);
+      
+      // Reset form with proper values, ensuring dropdown fields get their values
+      const formData: ClientFormData = {
         // Profissional responsável (campos não existem na tabela, usar valores vazios)
         responsibleProfessional: '',
         group: '',
@@ -207,7 +209,10 @@ const EditClient: React.FC = () => {
         observations: client.notes || '',
         activateSessionReminder: client.activate_session_reminder || false,
         activeRegistration: client.active_registration !== false,
-      });
+      };
+
+      console.log('Form data being set:', formData);
+      form.reset(formData);
     }
   }, [client, form]);
 

@@ -38,6 +38,7 @@ const PersonalInformationSection: React.FC<PersonalInformationSectionProps> = ({
       if (error) {
         console.error('Error fetching groups:', error);
       } else {
+        console.log('Groups fetched:', data);
         setGroups(data || []);
       }
     };
@@ -92,7 +93,7 @@ const PersonalInformationSection: React.FC<PersonalInformationSectionProps> = ({
             <FormItem>
               <FormLabel>Grupo</FormLabel>
               <FormControl>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um grupo" />
                   </SelectTrigger>
