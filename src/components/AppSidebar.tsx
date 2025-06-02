@@ -75,7 +75,7 @@ export function AppSidebar() {
         <div className="px-4 py-6 border-b">
           {!collapsed ? (
             <img 
-              src="/lovable-uploads/a142e49f-c405-4af5-96d0-7ae0ebbb6627.png" 
+              src="/lovable-uploads/e9f368d9-2772-4192-8ba9-cb42acd149c0.png" 
               alt="tanotado"
               className="h-12 w-auto"
             />
