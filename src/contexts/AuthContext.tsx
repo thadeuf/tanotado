@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: profile.role || 'user',
           trialEndsAt: new Date(profile.trial_ends_at),
           isSubscribed: profile.is_subscribed,
-          subscriptionStatus: profile.subscription_status || 'trial',
+          subscriptionStatus: (profile.subscription_status as 'active' | 'trial' | 'expired' | 'cancelled') || 'trial',
           createdAt: new Date(profile.created_at)
         };
         
