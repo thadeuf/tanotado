@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import AdminRoute from './AdminRoute';
 import PublicRoute from './PublicRoute';
+import AppLayout from './AppLayout';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
@@ -30,61 +31,39 @@ const AppRoutes: React.FC = () => {
         </PublicRoute>
       } />
 
-      {/* Rotas protegidas */}
-      <Route path="/dashboard" element={
+      {/* Rotas protegidas com layout */}
+      <Route path="/*" element={
         <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      } />
-      
-      {/* Rota do Admin */}
-      <Route path="/admin" element={
-        <ProtectedRoute>
-          <AdminRoute>
-            <AdminDashboard />
-          </AdminRoute>
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/agenda" element={
-        <ProtectedRoute>
-          <Agenda />
-        </ProtectedRoute>
-      } />
-      <Route path="/clientes" element={
-        <ProtectedRoute>
-          <Clients />
-        </ProtectedRoute>
-      } />
-      <Route path="/clientes/novo" element={
-        <ProtectedRoute>
-          <NewClient />
-        </ProtectedRoute>
-      } />
-      <Route path="/clientes/:id" element={
-        <ProtectedRoute>
-          <ClientDetails />
-        </ProtectedRoute>
-      } />
-      <Route path="/clientes/:id/editar" element={
-        <ProtectedRoute>
-          <EditClient />
-        </ProtectedRoute>
-      } />
-      <Route path="/prontuarios" element={
-        <ProtectedRoute>
-          <div>Prontuários (Em desenvolvimento)</div>
-        </ProtectedRoute>
-      } />
-      <Route path="/configuracoes" element={
-        <ProtectedRoute>
-          <div>Configurações (Em desenvolvimento)</div>
-        </ProtectedRoute>
-      } />
+          <AppLayout>
+            <Routes>
+              <Route path="/dashboard" element={<Dashboard />} />
+              
+              {/* Rota do Admin */}
+              <Route path="/admin" element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              } />
+              
+              <Route path="/agenda" element={<Agenda />} />
+              <Route path="/clientes" element={<Clients />} />
+              <Route path="/clientes/novo" element={<NewClient />} />
+              <Route path="/clientes/:id" element={<ClientDetails />} />
+              <Route path="/clientes/:id/editar" element={<EditClient />} />
+              <Route path="/prontuarios" element={
+                <div>Prontuários (Em desenvolvimento)</div>
+              } />
+              <Route path="/configuracoes" element={
+                <div>Configurações (Em desenvolvimento)</div>
+              } />
 
-      {/* Redirecionamentos */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<NotFound />} />
+              {/* Redirecionamentos */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppLayout>
+        </ProtectedRoute>
+      } />
     </Routes>
   );
 };
