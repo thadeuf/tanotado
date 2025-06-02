@@ -38,10 +38,11 @@ const adminItem = { title: 'Admin', url: '/admin', icon: Shield };
 const configItem = { title: 'Configurações', url: '/configuracoes', icon: Settings };
 
 export function AppSidebar() {
-  const { state, setOpen } = useSidebar();
+  const { state, setOpen, toggleSidebar } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [isHovering, setIsHovering] = useState(false);
   const currentPath = location.pathname;
   const isCollapsed = state === 'collapsed';
 
@@ -67,15 +68,24 @@ export function AppSidebar() {
 
   const handleMenuItemClick = (url: string) => {
     navigate(url);
-    setOpen(false);
+    if (isHovering) {
+      setOpen(false);
+    }
   };
 
   const handleMouseEnter = () => {
+    setIsHovering(true);
     setOpen(true);
   };
 
   const handleMouseLeave = () => {
+    setIsHovering(false);
     setOpen(false);
+  };
+
+  const handleToggleClick = () => {
+    setIsHovering(false);
+    toggleSidebar();
   };
 
   // Criar array de itens combinados baseado no papel do usuário
@@ -92,7 +102,10 @@ export function AppSidebar() {
       className="relative z-50"
     >
       <Sidebar className="border-r" collapsible="icon">
-        <SidebarTrigger className={`m-2 ${isCollapsed ? 'self-center' : 'self-end'}`} />
+        <SidebarTrigger 
+          className={`m-2 ${isCollapsed ? 'self-center' : 'self-end'}`}
+          onClick={handleToggleClick}
+        />
         
         <SidebarContent className={isCollapsed ? 'px-0' : 'px-2'}>
           {/* Logo */}
