@@ -190,7 +190,9 @@ const Agenda: React.FC = () => {
                           }`}
                           onClick={() => setSelectedDate(day)}
                         >
-                          <div className="text-xs text-muted-foreground mb-1">
+                          <div className={`text-xs mb-1 ${
+                            isSelected ? 'text-white' : 'text-muted-foreground'
+                          }`}>
                             {format(day, 'EEE', { locale: ptBR })}
                           </div>
                           <div className="font-medium">
