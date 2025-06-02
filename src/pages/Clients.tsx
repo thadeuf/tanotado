@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, Filter, Plus, Phone, Edit, Import, Export } from 'lucide-react';
+import { Search, Filter, Plus, Phone, Edit, Upload, Download } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,11 +133,11 @@ const Clients: React.FC = () => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">
                   <DropdownMenuItem className="gap-2">
-                    <Import className="h-4 w-4" />
+                    <Upload className="h-4 w-4" />
                     Importar
                   </DropdownMenuItem>
                   <DropdownMenuItem className="gap-2">
-                    <Export className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
                     Exportar
                   </DropdownMenuItem>
                 </DropdownMenuContent>
