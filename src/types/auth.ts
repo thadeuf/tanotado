@@ -8,6 +8,7 @@ export interface User {
   hasCompletedOnboarding: boolean;
   clientNomenclature: string;
   specialty: string;
+  role: 'admin' | 'user';
   trialEndsAt: Date;
   isSubscribed: boolean;
   subscriptionStatus: 'active' | 'trial' | 'expired' | 'cancelled';
