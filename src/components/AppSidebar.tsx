@@ -42,7 +42,6 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [isHovered, setIsHovered] = useState(false);
   const currentPath = location.pathname;
   const isCollapsed = state === 'collapsed';
 
@@ -60,7 +59,7 @@ export function AppSidebar() {
   const handleLogout = async () => {
     try {
       await logout();
-      setOpen(false); // Fechar menu após logout
+      setOpen(false);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -68,16 +67,14 @@ export function AppSidebar() {
 
   const handleMenuItemClick = (url: string) => {
     navigate(url);
-    setOpen(false); // Fechar menu após seleção
+    setOpen(false);
   };
 
   const handleMouseEnter = () => {
-    setIsHovered(true);
     setOpen(true);
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
     setOpen(false);
   };
 
@@ -92,7 +89,7 @@ export function AppSidebar() {
     <div 
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="relative"
+      className="relative z-50"
     >
       <Sidebar className="border-r" collapsible="icon">
         <SidebarTrigger className={`m-2 ${isCollapsed ? 'self-center' : 'self-end'}`} />
@@ -118,16 +115,16 @@ export function AppSidebar() {
           {/* Menu Principal */}
           <SidebarGroup className="mt-4">
             <SidebarGroupContent>
-              <SidebarMenu className={isCollapsed ? 'px-0' : ''}>
+              <SidebarMenu>
                 {allMenuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
                       asChild 
-                      className={`h-12 w-full ${isCollapsed ? 'justify-center px-0 mx-0' : 'justify-start px-3'}`}
+                      className={`h-12 w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'}`}
                     >
                       <button
                         onClick={() => handleMenuItemClick(item.url)}
-                        className={`${getNavCls({ isActive: isActive(item.url) })} w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-start px-0'} cursor-pointer`}
+                        className={`${getNavCls({ isActive: isActive(item.url) })} w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'} cursor-pointer`}
                       >
                         <item.icon className="h-5 w-5 flex-shrink-0" />
                         {!isCollapsed && <span className="ml-3">{item.title}</span>}
@@ -146,12 +143,12 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton 
                 asChild 
-                className={`h-12 w-full ${isCollapsed ? 'justify-center px-0 mx-0' : 'justify-start px-3'}`}
+                className={`h-12 w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'}`}
               >
                 <Button 
                   variant="ghost" 
                   onClick={handleLogout}
-                  className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-0'}`}
+                  className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center' : 'justify-start'}`}
                 >
                   <LogOut className="h-5 w-5 flex-shrink-0" />
                   {!isCollapsed && <span className="ml-3">Sair</span>}
