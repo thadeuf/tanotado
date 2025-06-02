@@ -18,12 +18,12 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDate, onDateSelect 
           Selecionar Data
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3">
         <Calendar
           mode="single"
           selected={selectedDate}
           onSelect={(date) => date && onDateSelect(date)}
-          className="rounded-md border-0 p-0 pointer-events-auto"
+          className="rounded-md border-0 p-0 pointer-events-auto w-full"
           disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
         />
       </CardContent>
