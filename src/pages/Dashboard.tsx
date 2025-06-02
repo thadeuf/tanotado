@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Users, Clock, FileText } from 'lucide-react';
+import { Calendar, Users, Clock, UserX } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard: React.FC = () => {
@@ -9,27 +9,27 @@ const Dashboard: React.FC = () => {
 
   const stats = [
     {
-      title: 'Agendamentos Hoje',
-      value: '8',
-      icon: Calendar,
+      title: 'Próximo Agendamento',
+      value: '14:30',
+      icon: Clock,
       color: 'from-tanotado-pink to-tanotado-purple'
     },
     {
-      title: `${user?.clientNomenclature || 'Clientes'} Ativos`,
+      title: 'Atendimentos',
       value: '156',
       icon: Users,
       color: 'from-tanotado-blue to-tanotado-green'
     },
     {
-      title: 'Próximo Agendamento',
-      value: '14:30',
-      icon: Clock,
+      title: 'Agendamentos Hoje',
+      value: '8',
+      icon: Calendar,
       color: 'from-tanotado-orange to-tanotado-yellow'
     },
     {
-      title: 'Prontuários',
-      value: '89',
-      icon: FileText,
+      title: 'Faltas',
+      value: '3',
+      icon: UserX,
       color: 'from-tanotado-purple to-tanotado-pink'
     }
   ];
