@@ -11,9 +11,16 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
   return (
     <div className="min-h-screen flex">
       {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-bg items-center justify-center p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-orange-400 via-yellow-400 to-red-500 items-center justify-center p-12">
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-white mb-6">tanotado</h1>
+          <div className="mb-8">
+            <img 
+              src="/lovable-uploads/a142e49f-c405-4af5-96d0-7ae0ebbb6627.png" 
+              alt="tanotado" 
+              className="w-32 h-32 mx-auto mb-4"
+            />
+            <h1 className="text-6xl font-bold text-white mb-6">tanotado</h1>
+          </div>
           <p className="text-white/90 text-xl max-w-md">
             O sistema de agendamento mais completo para profissionais liberais
           </p>
@@ -38,6 +45,13 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
+            <div className="lg:hidden mb-4">
+              <img 
+                src="/lovable-uploads/a142e49f-c405-4af5-96d0-7ae0ebbb6627.png" 
+                alt="tanotado" 
+                className="w-16 h-16 mx-auto mb-2"
+              />
+            </div>
             <h1 className="lg:hidden tanotado-logo text-4xl mb-4">tanotado</h1>
             <h2 className="text-2xl font-bold text-tanotado-navy">{title}</h2>
             {subtitle && (
