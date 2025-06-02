@@ -5,7 +5,6 @@ import {
   User, 
   FileText, 
   Settings,
-  Plus,
   Shield,
   DollarSign,
   LayoutDashboard
@@ -23,7 +22,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '../contexts/AuthContext';
 
 const mainMenuItems = [
@@ -56,17 +54,6 @@ export function AppSidebar() {
       <SidebarTrigger className="m-2 self-end" />
       
       <SidebarContent className="px-2">
-        {/* Botão Novo Agendamento - no topo */}
-        <div className="px-2 my-4">
-          <NavLink 
-            to="/agenda/novo"
-            className="flex items-center justify-center h-12 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105"
-          >
-            <Plus className="h-5 w-5" />
-            {!collapsed && <span className="ml-2 font-medium">Novo Agendamento</span>}
-          </NavLink>
-        </div>
-
         {/* Logo */}
         <div className="px-4 py-6 border-b">
           {!collapsed ? (
@@ -81,30 +68,6 @@ export function AppSidebar() {
             </div>
           )}
         </div>
-
-        {/* Informações do usuário com foto */}
-        {!collapsed && user && (
-          <div className="px-4 py-3 border-b">
-            <div className="flex items-center space-x-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src="" alt={user.name} />
-                <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium">
-                  {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-foreground truncate">
-                  {user.name}
-                </div>
-                {user.role === 'admin' && (
-                  <div className="text-xs text-tanotado-purple flex items-center">
-                    👑 Administrador
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Menu Principal */}
         <SidebarGroup className="mt-4">
