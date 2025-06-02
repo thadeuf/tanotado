@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from './contexts/AuthContext';
 import SplashScreen from './components/SplashScreen';
+import AppLayout from './components/AppLayout';
 import AppRoutes from './components/AppRoutes';
 
 const queryClient = new QueryClient();
@@ -21,7 +22,9 @@ const AppContent: React.FC = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <AppLayout>
+          <AppRoutes />
+        </AppLayout>
       </BrowserRouter>
     </AuthProvider>
   );

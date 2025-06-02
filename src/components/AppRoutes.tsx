@@ -12,6 +12,7 @@ import Clients from '../pages/Clients';
 import NewClient from '../pages/NewClient';
 import ClientDetails from '../pages/ClientDetails';
 import EditClient from '../pages/EditClient';
+import Agenda from '../pages/Agenda';
 import NotFound from '../pages/NotFound';
 
 const AppRoutes: React.FC = () => {
@@ -47,7 +48,7 @@ const AppRoutes: React.FC = () => {
       
       <Route path="/agenda" element={
         <ProtectedRoute>
-          <div>Agenda (Em desenvolvimento)</div>
+          <Agenda />
         </ProtectedRoute>
       } />
       <Route path="/clientes" element={
