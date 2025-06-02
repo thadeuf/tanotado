@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Calendar, 
   User, 
@@ -46,11 +46,6 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const isCollapsed = state === 'collapsed';
 
-  // Inicializar sempre fechado
-  useEffect(() => {
-    setOpen(false);
-  }, [setOpen]);
-
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
@@ -60,7 +55,6 @@ export function AppSidebar() {
   const handleLogout = async () => {
     try {
       await logout();
-      setOpen(false);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -68,10 +62,6 @@ export function AppSidebar() {
 
   const handleMenuItemClick = (url: string) => {
     navigate(url);
-    // Fechar sidebar após seleção se estiver em modo hover
-    if (isHovering) {
-      setOpen(false);
-    }
   };
 
   const handleMouseEnter = () => {
