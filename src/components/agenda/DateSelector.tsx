@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
+import { ptBR } from 'date-fns/locale';
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -25,6 +26,7 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDate, onDateSelect 
           onSelect={(date) => date && onDateSelect(date)}
           className="rounded-md border-0 p-3 pointer-events-auto w-full"
           disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+          locale={ptBR}
         />
       </CardContent>
     </Card>

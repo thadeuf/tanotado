@@ -127,7 +127,7 @@ const Agenda: React.FC = () => {
 
       <div className="flex flex-col xl:flex-row gap-6">
         {/* Calendar and Date Selection */}
-        <div className="w-full xl:w-[300px] flex-shrink-0">
+        <div className="w-full xl:w-[280px] flex-shrink-0">
           <DateSelector 
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
