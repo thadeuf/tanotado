@@ -4,9 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, Users, Clock, UserX, FileText, Video, MapPin, AlertCircle, CheckCircle, Play } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const stats = [
     {
@@ -243,7 +245,10 @@ const Dashboard: React.FC = () => {
                 <Calendar className="h-8 w-8 text-tanotado-pink mx-auto mb-2" />
                 <span className="text-sm font-medium text-tanotado-pink">Novo Agendamento</span>
               </button>
-              <button className="p-4 rounded-lg border-2 border-dashed border-tanotado-blue/30 hover:border-tanotado-blue hover:bg-tanotado-blue/5 transition-all text-center">
+              <button 
+                onClick={() => navigate('/clientes/novo')}
+                className="p-4 rounded-lg border-2 border-dashed border-tanotado-blue/30 hover:border-tanotado-blue hover:bg-tanotado-blue/5 transition-all text-center"
+              >
                 <Users className="h-8 w-8 text-tanotado-blue mx-auto mb-2" />
                 <span className="text-sm font-medium text-tanotado-blue">Novo {user?.clientNomenclature || 'Cliente'}</span>
               </button>
