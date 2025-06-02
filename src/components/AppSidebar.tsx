@@ -7,7 +7,8 @@ import {
   Settings,
   Plus,
   Shield,
-  DollarSign
+  DollarSign,
+  LayoutDashboard
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -26,7 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '../contexts/AuthContext';
 
 const mainMenuItems = [
-  { title: 'Dashboard', url: '/dashboard', icon: Calendar },
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Clientes', url: '/clientes', icon: User },
   { title: 'Prontuários', url: '/prontuarios', icon: FileText },
@@ -55,18 +56,7 @@ export function AppSidebar() {
       <SidebarTrigger className="m-2 self-end" />
       
       <SidebarContent className="px-2">
-        {/* Logo */}
-        <div className="px-4 py-6 border-b">
-          {!collapsed ? (
-            <h1 className="tanotado-logo text-2xl">tanotado</h1>
-          ) : (
-            <div className="w-8 h-8 gradient-bg rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
-            </div>
-          )}
-        </div>
-
-        {/* Botão Novo Agendamento - movido para cima */}
+        {/* Botão Novo Agendamento - no topo */}
         <div className="px-2 my-4">
           <NavLink 
             to="/agenda/novo"
@@ -75,6 +65,21 @@ export function AppSidebar() {
             <Plus className="h-5 w-5" />
             {!collapsed && <span className="ml-2 font-medium">Novo Agendamento</span>}
           </NavLink>
+        </div>
+
+        {/* Logo */}
+        <div className="px-4 py-6 border-b">
+          {!collapsed ? (
+            <img 
+              src="/lovable-uploads/a142e49f-c405-4af5-96d0-7ae0ebbb6627.png" 
+              alt="tanotado"
+              className="h-8 w-auto"
+            />
+          ) : (
+            <div className="w-8 h-8 gradient-bg rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">T</span>
+            </div>
+          )}
         </div>
 
         {/* Informações do usuário com foto */}
