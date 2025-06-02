@@ -1,4 +1,5 @@
 
+
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "react-day-picker";
@@ -66,12 +67,14 @@ function Calendar({
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
       formatters={{
-        formatWeekdayName: (date, options) => {
+        formatWeekdayName: (date) => {
           if (isMobile) {
             const dayNames = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
             return dayNames[date.getDay()];
           }
-          return options?.locale?.localize?.day(date.getDay(), { width: 'abbreviated' }) || '';
+          // For desktop, use the date-fns format function directly
+          const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+          return dayNames[date.getDay()];
         },
       }}
       {...props}
@@ -81,3 +84,4 @@ function Calendar({
 Calendar.displayName = "Calendar";
 
 export { Calendar };
+
