@@ -45,7 +45,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-50/50">
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
           <header className="h-16 border-b bg-white flex items-center justify-between px-6 flex-shrink-0">
             <div className="flex items-center space-x-4">
               <SidebarTrigger className="lg:hidden" />

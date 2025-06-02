@@ -7,7 +7,8 @@ import {
   Settings,
   Shield,
   DollarSign,
-  LayoutDashboard
+  LayoutDashboard,
+  LogOut
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -20,9 +21,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
+  SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 const mainMenuItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -39,7 +42,7 @@ const configItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === 'collapsed';
 
@@ -49,8 +52,12 @@ export function AppSidebar() {
       ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium" 
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
+  const handleLogout = () => {
+    logout();
+  };
+
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-56"} collapsible="icon">
+    <Sidebar className="border-r" collapsible="icon">
       <SidebarTrigger className="m-2 self-end" />
       
       <SidebarContent className="px-2">
@@ -129,6 +136,24 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      {/* Footer com botão de logout */}
+      <SidebarFooter className="p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild className="h-12">
+              <Button 
+                variant="ghost" 
+                onClick={handleLogout}
+                className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              >
+                <LogOut className="h-5 w-5 flex-shrink-0" />
+                {!collapsed && <span className="ml-3">Sair</span>}
+              </Button>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }
