@@ -32,7 +32,7 @@ const AdditionalDataSection: React.FC<AdditionalDataSectionProps> = ({ control }
               <FormItem>
                 <FormLabel>Gênero</FormLabel>
                 <FormControl>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o gênero" />
                     </SelectTrigger>
@@ -86,7 +86,7 @@ const AdditionalDataSection: React.FC<AdditionalDataSectionProps> = ({ control }
               <FormItem>
                 <FormLabel>Escolaridade</FormLabel>
                 <FormControl>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a escolaridade" />
                     </SelectTrigger>
@@ -144,7 +144,7 @@ const AdditionalDataSection: React.FC<AdditionalDataSectionProps> = ({ control }
             <FormItem>
               <FormLabel>Estado Civil</FormLabel>
               <FormControl>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o estado civil" />
                   </SelectTrigger>

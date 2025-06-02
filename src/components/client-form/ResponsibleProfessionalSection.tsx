@@ -40,7 +40,7 @@ const ResponsibleProfessionalSection: React.FC<ResponsibleProfessionalSectionPro
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                   <SelectTrigger>
                     <SelectValue placeholder="Grupo" />
                   </SelectTrigger>
