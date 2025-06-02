@@ -34,6 +34,8 @@ const NewClient: React.FC = () => {
 
   const onSubmit = async (data: ClientFormData) => {
     try {
+      console.log('Form data:', data);
+
       const clientData = {
         name: data.name,
         email: data.email || null,
@@ -42,14 +44,20 @@ const NewClient: React.FC = () => {
         birth_date: data.birthDate || null,
         address: data.address || null,
         notes: data.observations || null,
+        group_id: data.groupId || null,
         user_id: user?.id,
       };
+
+      console.log('Client data to insert:', clientData);
 
       const { error } = await supabase
         .from('clients')
         .insert([clientData]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast({
         title: "Cliente cadastrado",

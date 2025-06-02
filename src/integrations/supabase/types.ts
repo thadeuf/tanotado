@@ -79,6 +79,7 @@ export type Database = {
           cpf: string | null
           created_at: string | null
           email: string | null
+          group_id: string | null
           id: string
           name: string
           notes: string | null
@@ -92,6 +93,7 @@ export type Database = {
           cpf?: string | null
           created_at?: string | null
           email?: string | null
+          group_id?: string | null
           id?: string
           name: string
           notes?: string | null
@@ -105,11 +107,44 @@ export type Database = {
           cpf?: string | null
           created_at?: string | null
           email?: string | null
+          group_id?: string | null
           id?: string
           name?: string
           notes?: string | null
           phone?: string | null
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
