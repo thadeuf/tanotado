@@ -45,6 +45,7 @@ const NewClient: React.FC = () => {
         address: data.address || null,
         notes: data.observations || null,
         group_id: data.groupId || null,
+        photo_url: data.photoUrl || null,
         user_id: user?.id,
       };
 

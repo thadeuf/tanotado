@@ -6,6 +6,7 @@ export const clientSchema = z.object({
   group: z.string().optional(),
   groupId: z.string().optional(),
   name: z.string().min(1, 'Nome é obrigatório'),
+  photoUrl: z.string().optional(),
   whatsapp: z.string().optional(),
   videoCallLink: z.string().url().optional().or(z.literal('')),
   email: z.string().email().optional().or(z.literal('')),

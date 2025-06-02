@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { User } from 'lucide-react';
 import { Control } from 'react-hook-form';
 import { ClientFormData } from '@/schemas/clientSchema';
@@ -53,6 +54,23 @@ const PersonalInformationSection: React.FC<PersonalInformationSectionProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <FormField
+          control={control}
+          name="photoUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Foto</FormLabel>
+              <FormControl>
+                <ImageUpload
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={control}
           name="name"
