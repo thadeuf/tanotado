@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   Calendar, 
@@ -34,9 +35,8 @@ const mainMenuItems = [
   { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
 ];
 
-const configItems = [
-  { title: 'Configurações', url: '/configuracoes', icon: Settings },
-];
+const adminItem = { title: 'Admin', url: '/admin', icon: Shield };
+const configItem = { title: 'Configurações', url: '/configuracoes', icon: Settings };
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -58,6 +58,13 @@ export function AppSidebar() {
       console.error('Logout error:', error);
     }
   };
+
+  // Criar array de itens combinados baseado no papel do usuário
+  const allMenuItems = [
+    ...mainMenuItems,
+    ...(user?.role === 'admin' ? [adminItem] : []),
+    configItem
+  ];
 
   return (
     <Sidebar className="border-r" collapsible="icon">
@@ -86,46 +93,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="h-12">
-                    <NavLink to={item.url} className={getNavCls}>
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                      {!collapsed && <span className="ml-3">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Menu Admin - Só aparece para admins */}
-        {user?.role === 'admin' && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-tanotado-navy font-semibold">
-              {!collapsed && "Administração"}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="h-12">
-                    <NavLink to="/admin" className={getNavCls}>
-                      <Shield className="h-5 w-5 flex-shrink-0" />
-                      {!collapsed && <span className="ml-3">Dashboard Admin</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Configurações */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {configItems.map((item) => (
+              {allMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="h-12">
                     <NavLink to={item.url} className={getNavCls}>
