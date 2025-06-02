@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,7 +125,7 @@ const Agenda: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Calendar and Date Selection */}
         <div className="lg:col-span-1">
           <DateSelector 
@@ -136,7 +135,7 @@ const Agenda: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-3 space-y-6">
           {viewMode === 'week' ? (
             <>
               {/* Week Navigation */}
