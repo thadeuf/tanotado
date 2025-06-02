@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Users, Clock, UserX, FileText } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar, Users, Clock, UserX, FileText, Video, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard: React.FC = () => {
@@ -34,11 +35,108 @@ const Dashboard: React.FC = () => {
     }
   ];
 
-  const upcomingAppointments = [
-    { time: '14:30', patient: 'Maria Silva', type: 'Consulta Inicial' },
-    { time: '15:30', patient: 'João Santos', type: 'Retorno' },
-    { time: '16:30', patient: 'Ana Costa', type: 'Terapia' },
+  const appointmentsToday = [
+    { 
+      time: '14:30 - 15:30', 
+      patient: 'Paciente Teste A', 
+      type: 'Consulta Inicial',
+      professional: 'Dr. Thadeu',
+      mode: 'presencial',
+      confirmed: false
+    },
+    { 
+      time: '15:30 - 16:30', 
+      patient: 'João Santos', 
+      type: 'Retorno',
+      professional: 'Dr. Thadeu',
+      mode: 'online',
+      confirmed: true
+    },
+    { 
+      time: '16:30 - 17:30', 
+      patient: 'Ana Costa', 
+      type: 'Terapia',
+      professional: 'Dra. Maria',
+      mode: 'presencial',
+      confirmed: true
+    },
   ];
+
+  const appointmentsTomorrow = [
+    { 
+      time: '09:00 - 10:00', 
+      patient: 'Carlos Silva', 
+      type: 'Avaliação',
+      professional: 'Dr. Thadeu',
+      mode: 'online',
+      confirmed: false
+    },
+    { 
+      time: '10:30 - 11:30', 
+      patient: 'Mariana Oliveira', 
+      type: 'Retorno',
+      professional: 'Dra. Maria',
+      mode: 'presencial',
+      confirmed: true
+    },
+  ];
+
+  const appointmentsWeek = [
+    ...appointmentsToday,
+    ...appointmentsTomorrow,
+    { 
+      time: 'Qui 14:00 - 15:00', 
+      patient: 'Pedro Costa', 
+      type: 'Consulta',
+      professional: 'Dr. Thadeu',
+      mode: 'presencial',
+      confirmed: true
+    },
+    { 
+      time: 'Sex 16:00 - 17:00', 
+      patient: 'Lucia Santos', 
+      type: 'Terapia',
+      professional: 'Dra. Maria',
+      mode: 'online',
+      confirmed: false
+    },
+  ];
+
+  const renderAppointment = (appointment: any, index: number) => (
+    <div key={index} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors">
+      <div className="flex items-center space-x-3">
+        <div className="w-2 h-2 bg-tanotado-pink rounded-full"></div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <p className="font-medium text-tanotado-navy">{appointment.patient}</p>
+            {appointment.mode === 'online' && (
+              <Video className="h-4 w-4 text-tanotado-blue" />
+            )}
+            {appointment.mode === 'presencial' && (
+              <MapPin className="h-4 w-4 text-tanotado-green" />
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{appointment.professional}</p>
+          <p className="text-sm text-muted-foreground">{appointment.type}</p>
+          <div className="flex items-center gap-1 mt-1">
+            {appointment.confirmed ? (
+              <CheckCircle className="h-3 w-3 text-green-500" />
+            ) : (
+              <AlertCircle className="h-3 w-3 text-yellow-500" />
+            )}
+            <span className="text-xs text-muted-foreground">
+              {appointment.confirmed ? 'Confirmado' : 'Confirmação pendente'}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="text-right">
+        <span className="text-sm font-medium text-tanotado-navy">
+          {appointment.time}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -90,28 +188,31 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Próximos Agendamentos */}
+        {/* Próximos Agendamentos com Abas */}
         <Card>
           <CardHeader>
             <CardTitle className="text-tanotado-navy">Próximos Agendamentos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {upcomingAppointments.map((appointment, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-tanotado-pink rounded-full"></div>
-                    <div>
-                      <p className="font-medium">{appointment.patient}</p>
-                      <p className="text-sm text-muted-foreground">{appointment.type}</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-medium text-tanotado-navy">
-                    {appointment.time}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <Tabs defaultValue="hoje" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="hoje">Hoje</TabsTrigger>
+                <TabsTrigger value="amanha">Amanhã</TabsTrigger>
+                <TabsTrigger value="semana">Esta Semana</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="hoje" className="space-y-4 mt-4">
+                {appointmentsToday.map((appointment, index) => renderAppointment(appointment, index))}
+              </TabsContent>
+              
+              <TabsContent value="amanha" className="space-y-4 mt-4">
+                {appointmentsTomorrow.map((appointment, index) => renderAppointment(appointment, index))}
+              </TabsContent>
+              
+              <TabsContent value="semana" className="space-y-4 mt-4">
+                {appointmentsWeek.map((appointment, index) => renderAppointment(appointment, index))}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
