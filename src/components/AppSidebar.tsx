@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Calendar, 
@@ -53,10 +52,8 @@ export function AppSidebar() {
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
   const handleLogout = async () => {
-    console.log('Logout button clicked');
     try {
       await logout();
-      console.log('Logout successful');
     } catch (error) {
       console.error('Logout error:', error);
     }
