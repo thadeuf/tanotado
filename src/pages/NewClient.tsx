@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { ArrowLeft, User, MapPin, DollarSign, Users, Heart, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -208,9 +208,9 @@ const NewClient: React.FC = () => {
                   name="whatsapp"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>🇧🇷+55 WhatsApp</FormLabel>
+                      <FormLabel>WhatsApp</FormLabel>
                       <FormControl>
-                        <Input placeholder="(11) 99999-9999" {...field} />
+                        <PhoneInput {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -481,9 +481,9 @@ const NewClient: React.FC = () => {
                   name="financialResponsibleWhatsapp"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>🇧🇷+55 WhatsApp</FormLabel>
+                      <FormLabel>WhatsApp</FormLabel>
                       <FormControl>
-                        <Input placeholder="(11) 99999-9999" {...field} />
+                        <PhoneInput {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -566,9 +566,9 @@ const NewClient: React.FC = () => {
                   name="emergencyContactWhatsapp"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>🇧🇷+55 WhatsApp</FormLabel>
+                      <FormLabel>WhatsApp</FormLabel>
                       <FormControl>
-                        <Input placeholder="(11) 99999-9999" {...field} />
+                        <PhoneInput {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
