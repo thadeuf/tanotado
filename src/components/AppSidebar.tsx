@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   User, 
@@ -10,7 +10,7 @@ import {
   LayoutDashboard,
   LogOut
 } from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -38,11 +38,18 @@ const adminItem = { title: 'Admin', url: '/admin', icon: Shield };
 const configItem = { title: 'Configurações', url: '/configuracoes', icon: Settings };
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [isHovered, setIsHovered] = useState(false);
   const currentPath = location.pathname;
   const isCollapsed = state === 'collapsed';
+
+  // Inicializar sempre fechado
+  useEffect(() => {
+    setOpen(false);
+  }, [setOpen]);
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
@@ -53,9 +60,25 @@ export function AppSidebar() {
   const handleLogout = async () => {
     try {
       await logout();
+      setOpen(false); // Fechar menu após logout
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+
+  const handleMenuItemClick = (url: string) => {
+    navigate(url);
+    setOpen(false); // Fechar menu após seleção
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setOpen(false);
   };
 
   // Criar array de itens combinados baseado no papel do usuário
@@ -66,69 +89,78 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar className="border-r" collapsible="icon">
-      <SidebarTrigger className={`m-2 ${isCollapsed ? 'self-center' : 'self-end'}`} />
-      
-      <SidebarContent className={isCollapsed ? 'px-0' : 'px-2'}>
-        {/* Logo */}
-        <div className="py-8 flex justify-center items-center">
-          {!isCollapsed ? (
-            <img 
-              src="/lovable-uploads/e9f368d9-2772-4192-8ba9-cb42acd149c0.png" 
-              alt="tanotado"
-              className="h-24 w-auto"
-            />
-          ) : (
-            <img 
-              src="/lovable-uploads/e257a8ed-f41d-4910-acd6-6c1ef051df1d.png" 
-              alt="tanotado"
-              className="w-8 h-8"
-            />
-          )}
-        </div>
+    <div 
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="relative"
+    >
+      <Sidebar className="border-r" collapsible="icon">
+        <SidebarTrigger className={`m-2 ${isCollapsed ? 'self-center' : 'self-end'}`} />
+        
+        <SidebarContent className={isCollapsed ? 'px-0' : 'px-2'}>
+          {/* Logo */}
+          <div className="py-8 flex justify-center items-center">
+            {!isCollapsed ? (
+              <img 
+                src="/lovable-uploads/e9f368d9-2772-4192-8ba9-cb42acd149c0.png" 
+                alt="tanotado"
+                className="h-24 w-auto"
+              />
+            ) : (
+              <img 
+                src="/lovable-uploads/e257a8ed-f41d-4910-acd6-6c1ef051df1d.png" 
+                alt="tanotado"
+                className="w-8 h-8"
+              />
+            )}
+          </div>
 
-        {/* Menu Principal */}
-        <SidebarGroup className="mt-4">
-          <SidebarGroupContent>
-            <SidebarMenu className={isCollapsed ? 'px-0' : ''}>
-              {allMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    className={`h-12 w-full ${isCollapsed ? 'justify-center px-0 mx-0' : 'justify-start px-3'}`}
-                  >
-                    <NavLink to={item.url} className={`${getNavCls} w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-start px-0'}`}>
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                      {!isCollapsed && <span className="ml-3">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+          {/* Menu Principal */}
+          <SidebarGroup className="mt-4">
+            <SidebarGroupContent>
+              <SidebarMenu className={isCollapsed ? 'px-0' : ''}>
+                {allMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      className={`h-12 w-full ${isCollapsed ? 'justify-center px-0 mx-0' : 'justify-start px-3'}`}
+                    >
+                      <button
+                        onClick={() => handleMenuItemClick(item.url)}
+                        className={`${getNavCls({ isActive: isActive(item.url) })} w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-start px-0'} cursor-pointer`}
+                      >
+                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                      </button>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
 
-      {/* Footer com botão de logout */}
-      <SidebarFooter className={isCollapsed ? 'p-0' : 'p-2'}>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              asChild 
-              className={`h-12 w-full ${isCollapsed ? 'justify-center px-0 mx-0' : 'justify-start px-3'}`}
-            >
-              <Button 
-                variant="ghost" 
-                onClick={handleLogout}
-                className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-0'}`}
+        {/* Footer com botão de logout */}
+        <SidebarFooter className={isCollapsed ? 'p-0' : 'p-2'}>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                asChild 
+                className={`h-12 w-full ${isCollapsed ? 'justify-center px-0 mx-0' : 'justify-start px-3'}`}
               >
-                <LogOut className="h-5 w-5 flex-shrink-0" />
-                {!isCollapsed && <span className="ml-3">Sair</span>}
-              </Button>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </Sidebar>
+                <Button 
+                  variant="ghost" 
+                  onClick={handleLogout}
+                  className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-0'}`}
+                >
+                  <LogOut className="h-5 w-5 flex-shrink-0" />
+                  {!isCollapsed && <span className="ml-3">Sair</span>}
+                </Button>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+    </div>
   );
 }
