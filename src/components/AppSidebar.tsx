@@ -42,7 +42,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const currentPath = location.pathname;
-  const collapsed = state === 'collapsed';
+  const isCollapsed = state === 'collapsed';
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
@@ -72,7 +72,7 @@ export function AppSidebar() {
       <SidebarContent className="px-2">
         {/* Logo */}
         <div className="px-4 py-8 flex justify-center">
-          {!collapsed ? (
+          {!isCollapsed ? (
             <img 
               src="/lovable-uploads/e9f368d9-2772-4192-8ba9-cb42acd149c0.png" 
               alt="tanotado"
@@ -96,7 +96,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild className="h-12">
                     <NavLink to={item.url} className={getNavCls}>
                       <item.icon className="h-5 w-5 flex-shrink-0" />
-                      {!collapsed && <span className="ml-3">{item.title}</span>}
+                      {!isCollapsed && <span className="ml-3">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -117,7 +117,7 @@ export function AppSidebar() {
                 className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted/50"
               >
                 <LogOut className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span className="ml-3">Sair</span>}
+                {!isCollapsed && <span className="ml-3">Sair</span>}
               </Button>
             </SidebarMenuButton>
           </SidebarMenuItem>
