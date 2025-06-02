@@ -67,9 +67,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r" collapsible="icon">
-      <SidebarTrigger className="m-2 self-end" />
+      <SidebarTrigger className={`m-2 ${isCollapsed ? 'self-center' : 'self-end'}`} />
       
-      <SidebarContent className="px-2">
+      <SidebarContent className={isCollapsed ? 'px-0' : 'px-2'}>
         {/* Logo */}
         <div className="py-8 flex justify-center items-center">
           {!isCollapsed ? (
@@ -90,11 +90,14 @@ export function AppSidebar() {
         {/* Menu Principal */}
         <SidebarGroup className="mt-4">
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className={isCollapsed ? 'px-0' : ''}>
               {allMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className={`h-12 ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`}>
-                    <NavLink to={item.url} className={getNavCls}>
+                  <SidebarMenuButton 
+                    asChild 
+                    className={`h-12 w-full ${isCollapsed ? 'justify-center px-0 mx-0' : 'justify-start px-3'}`}
+                  >
+                    <NavLink to={item.url} className={`${getNavCls} w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-start px-0'}`}>
                       <item.icon className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="ml-3">{item.title}</span>}
                     </NavLink>
@@ -107,14 +110,17 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* Footer com botão de logout */}
-      <SidebarFooter className="p-2">
+      <SidebarFooter className={isCollapsed ? 'p-0' : 'p-2'}>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className={`h-12 ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`}>
+            <SidebarMenuButton 
+              asChild 
+              className={`h-12 w-full ${isCollapsed ? 'justify-center px-0 mx-0' : 'justify-start px-3'}`}
+            >
               <Button 
                 variant="ghost" 
                 onClick={handleLogout}
-                className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`}
+                className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-0'}`}
               >
                 <LogOut className="h-5 w-5 flex-shrink-0" />
                 {!isCollapsed && <span className="ml-3">Sair</span>}
