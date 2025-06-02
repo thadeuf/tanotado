@@ -71,8 +71,8 @@ function Calendar({
             const dayNames = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
             return dayNames[date.getDay()];
           }
-          // For desktop, use the default Portuguese locale formatting
-          const dayNames = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+          // For desktop, use full Portuguese weekday names
+          const dayNames = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
           return dayNames[date.getDay()];
         },
       }}
