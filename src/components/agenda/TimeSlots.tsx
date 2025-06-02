@@ -195,43 +195,6 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
       </CardContent>
     </Card>
   );
-
-  function getStatusColor(status: string) {
-    switch (status) {
-      case 'scheduled':
-        return 'bg-tanotado-blue/10 text-tanotado-blue';
-      case 'completed':
-        return 'bg-tanotado-green/10 text-tanotado-green';
-      case 'cancelled':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  }
-
-  function getStatusText(status: string) {
-    switch (status) {
-      case 'scheduled':
-        return 'Agendado';
-      case 'completed':
-        return 'Concluído';
-      case 'cancelled':
-        return 'Cancelado';
-      default:
-        return status;
-    }
-  }
-
-  function getAppointmentTypeIcon(type?: string) {
-    if (type === 'remoto') {
-      return <Video className="h-4 w-4 text-tanotado-blue" />;
-    }
-    return <MapPin className="h-4 w-4 text-tanotado-green" />;
-  }
-
-  function getAppointmentTypeText(type?: string) {
-    return type === 'remoto' ? 'Remoto' : 'Presencial';
-  }
 };
 
 export default TimeSlots;
