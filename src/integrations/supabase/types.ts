@@ -74,49 +74,127 @@ export type Database = {
       }
       clients: {
         Row: {
+          activate_session_reminder: boolean | null
+          active_registration: boolean | null
           address: string | null
           birth_date: string | null
+          cep: string | null
+          city: string | null
+          complement: string | null
           cpf: string | null
           created_at: string | null
+          education: string | null
           email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_whatsapp: string | null
+          financial_responsible_cpf: string | null
+          financial_responsible_email: string | null
+          financial_responsible_name: string | null
+          financial_responsible_rg: string | null
+          financial_responsible_whatsapp: string | null
+          gender: string | null
           group_id: string | null
           id: string
+          marital_status: string | null
           name: string
+          nationality: string | null
+          neighborhood: string | null
           notes: string | null
+          number: string | null
+          payment_day: string | null
           phone: string | null
           photo_url: string | null
+          profession: string | null
+          referral: string | null
+          rg: string | null
+          send_monthly_reminder: boolean | null
+          session_value: string | null
+          state: string | null
           updated_at: string | null
           user_id: string
+          video_call_link: string | null
         }
         Insert: {
+          activate_session_reminder?: boolean | null
+          active_registration?: boolean | null
           address?: string | null
           birth_date?: string | null
+          cep?: string | null
+          city?: string | null
+          complement?: string | null
           cpf?: string | null
           created_at?: string | null
+          education?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_whatsapp?: string | null
+          financial_responsible_cpf?: string | null
+          financial_responsible_email?: string | null
+          financial_responsible_name?: string | null
+          financial_responsible_rg?: string | null
+          financial_responsible_whatsapp?: string | null
+          gender?: string | null
           group_id?: string | null
           id?: string
+          marital_status?: string | null
           name: string
+          nationality?: string | null
+          neighborhood?: string | null
           notes?: string | null
+          number?: string | null
+          payment_day?: string | null
           phone?: string | null
           photo_url?: string | null
+          profession?: string | null
+          referral?: string | null
+          rg?: string | null
+          send_monthly_reminder?: boolean | null
+          session_value?: string | null
+          state?: string | null
           updated_at?: string | null
           user_id: string
+          video_call_link?: string | null
         }
         Update: {
+          activate_session_reminder?: boolean | null
+          active_registration?: boolean | null
           address?: string | null
           birth_date?: string | null
+          cep?: string | null
+          city?: string | null
+          complement?: string | null
           cpf?: string | null
           created_at?: string | null
+          education?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_whatsapp?: string | null
+          financial_responsible_cpf?: string | null
+          financial_responsible_email?: string | null
+          financial_responsible_name?: string | null
+          financial_responsible_rg?: string | null
+          financial_responsible_whatsapp?: string | null
+          gender?: string | null
           group_id?: string | null
           id?: string
+          marital_status?: string | null
           name?: string
+          nationality?: string | null
+          neighborhood?: string | null
           notes?: string | null
+          number?: string | null
+          payment_day?: string | null
           phone?: string | null
           photo_url?: string | null
+          profession?: string | null
+          referral?: string | null
+          rg?: string | null
+          send_monthly_reminder?: boolean | null
+          session_value?: string | null
+          state?: string | null
           updated_at?: string | null
           user_id?: string
+          video_call_link?: string | null
         }
         Relationships: [
           {

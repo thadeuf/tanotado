@@ -65,18 +65,56 @@ const EditClient: React.FC = () => {
     if (client) {
       console.log('Client data loaded:', client);
       form.reset({
-        name: client.name || '',
-        email: client.email || '',
-        whatsapp: client.phone || '',
-        cpf: client.cpf || '',
-        birthDate: client.birth_date || '',
-        address: client.address || '',
-        observations: client.notes || '',
-        photoUrl: client.photo_url || '',
+        // Profissional responsável
+        responsibleProfessional: client.responsible_professional || '',
+        group: client.group || '',
         groupId: client.group_id || '',
-        sendMonthlyReminder: false,
-        activateSessionReminder: false,
-        activeRegistration: true,
+        
+        // Informações pessoais
+        name: client.name || '',
+        photoUrl: client.photo_url || '',
+        whatsapp: client.phone || '',
+        videoCallLink: client.video_call_link || '',
+        email: client.email || '',
+        cpf: client.cpf || '',
+        rg: client.rg || '',
+        
+        // Endereço
+        cep: client.cep || '',
+        address: client.address || '',
+        number: client.number || '',
+        neighborhood: client.neighborhood || '',
+        city: client.city || '',
+        state: client.state || '',
+        complement: client.complement || '',
+        
+        // Financeiro
+        sessionValue: client.session_value || '',
+        paymentDay: client.payment_day || '',
+        sendMonthlyReminder: client.send_monthly_reminder || false,
+        
+        // Responsável financeiro
+        financialResponsibleName: client.financial_responsible_name || '',
+        financialResponsibleWhatsapp: client.financial_responsible_whatsapp || '',
+        financialResponsibleEmail: client.financial_responsible_email || '',
+        financialResponsibleCpf: client.financial_responsible_cpf || '',
+        financialResponsibleRg: client.financial_responsible_rg || '',
+        
+        // Contato de emergência
+        emergencyContactName: client.emergency_contact_name || '',
+        emergencyContactWhatsapp: client.emergency_contact_whatsapp || '',
+        
+        // Dados adicionais
+        gender: client.gender || '',
+        birthDate: client.birth_date || '',
+        nationality: client.nationality || '',
+        education: client.education || '',
+        profession: client.profession || '',
+        referral: client.referral || '',
+        maritalStatus: client.marital_status || '',
+        observations: client.notes || '',
+        activateSessionReminder: client.activate_session_reminder || false,
+        activeRegistration: client.active_registration !== false,
       });
     }
   }, [client, form]);
@@ -88,15 +126,52 @@ const EditClient: React.FC = () => {
       console.log('Submitting data:', data);
 
       const clientData = {
+        // Informações básicas
         name: data.name,
         email: data.email || null,
         phone: data.whatsapp || null,
         cpf: data.cpf || null,
+        rg: data.rg || null,
         birth_date: data.birthDate || null,
-        address: data.address || null,
         notes: data.observations || null,
         group_id: data.groupId || null,
         photo_url: data.photoUrl || null,
+        video_call_link: data.videoCallLink || null,
+        
+        // Endereço
+        cep: data.cep || null,
+        address: data.address || null,
+        number: data.number || null,
+        neighborhood: data.neighborhood || null,
+        city: data.city || null,
+        state: data.state || null,
+        complement: data.complement || null,
+        
+        // Financeiro
+        session_value: data.sessionValue || null,
+        payment_day: data.paymentDay || null,
+        send_monthly_reminder: data.sendMonthlyReminder || false,
+        
+        // Responsável financeiro
+        financial_responsible_name: data.financialResponsibleName || null,
+        financial_responsible_whatsapp: data.financialResponsibleWhatsapp || null,
+        financial_responsible_email: data.financialResponsibleEmail || null,
+        financial_responsible_cpf: data.financialResponsibleCpf || null,
+        financial_responsible_rg: data.financialResponsibleRg || null,
+        
+        // Contato de emergência
+        emergency_contact_name: data.emergencyContactName || null,
+        emergency_contact_whatsapp: data.emergencyContactWhatsapp || null,
+        
+        // Dados adicionais
+        gender: data.gender || null,
+        nationality: data.nationality || null,
+        education: data.education || null,
+        profession: data.profession || null,
+        referral: data.referral || null,
+        marital_status: data.maritalStatus || null,
+        activate_session_reminder: data.activateSessionReminder || false,
+        active_registration: data.activeRegistration !== false,
       };
 
       console.log('Prepared client data:', clientData);
