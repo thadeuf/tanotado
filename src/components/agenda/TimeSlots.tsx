@@ -3,9 +3,11 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Clock, MapPin, Video } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, MapPin, Video, Edit, Trash2 } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from '@/hooks/use-toast';
 
 interface Client {
   id: string;
@@ -67,6 +69,23 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
     return type === 'remoto' ? 'Remoto' : 'Presencial';
   };
 
+  const handleEdit = (appointmentId: string) => {
+    // TODO: Implementar edição do agendamento
+    toast({
+      title: "Editar agendamento",
+      description: "Funcionalidade em desenvolvimento",
+    });
+  };
+
+  const handleDelete = (appointmentId: string) => {
+    // TODO: Implementar exclusão do agendamento
+    toast({
+      title: "Excluir agendamento",
+      description: "Funcionalidade em desenvolvimento",
+      variant: "destructive",
+    });
+  };
+
   // Ordenar agendamentos por horário
   const sortedAppointments = [...appointments].sort((a, b) => 
     new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
@@ -87,7 +106,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
             {sortedAppointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
+                className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30 group hover:bg-muted/50 transition-colors"
               >
                 {/* Avatar do cliente */}
                 <Avatar className="h-10 w-10">
@@ -127,6 +146,26 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                   <p className="text-xs text-muted-foreground truncate">
                     {appointment.title}
                   </p>
+                </div>
+
+                {/* Ações */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-tanotado-blue"
+                    onClick={() => handleEdit(appointment.id)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                    onClick={() => handleDelete(appointment.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}
