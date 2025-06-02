@@ -3,7 +3,8 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardStats from '../components/dashboard/DashboardStats';
 import AppointmentsSection from '../components/dashboard/AppointmentsSection';
-import QuickActions from '../components/dashboard/QuickActions';
+import QuickActionsBar from '../components/dashboard/QuickActionsBar';
+import BirthdaysSection from '../components/dashboard/BirthdaysSection';
 import SubscriptionBanner from '../components/dashboard/SubscriptionBanner';
 
 const Dashboard: React.FC = () => {
@@ -24,9 +25,11 @@ const Dashboard: React.FC = () => {
 
       <DashboardStats />
 
+      <QuickActionsBar />
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AppointmentsSection />
-        <QuickActions />
+        <BirthdaysSection />
       </div>
     </div>
   );
