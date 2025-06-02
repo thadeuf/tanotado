@@ -26,6 +26,10 @@ export const useClients = () => {
   return useQuery({
     queryKey: ['clients', user?.id],
     queryFn: async () => {
+      if (!user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
+
       console.log('Fetching clients for user:', user?.id);
       
       const { data, error } = await supabase
@@ -48,5 +52,7 @@ export const useClients = () => {
       return data as Client[];
     },
     enabled: !!user?.id && !authLoading,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false,
   });
 };

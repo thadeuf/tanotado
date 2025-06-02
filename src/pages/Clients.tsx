@@ -28,12 +28,13 @@ const Clients: React.FC = () => {
 
   const { data: clients = [], isLoading, error } = useClients();
 
-  const filteredClients = clients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
-    // Por enquanto todos os clientes são considerados ativos
-    const matchesFilter = activeFilter === 'all' || activeFilter === 'active';
-    return matchesSearch && matchesFilter;
-  });
+  const filteredClients = React.useMemo(() => {
+    return clients.filter(client => {
+      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = activeFilter === 'all' || activeFilter === 'active';
+      return matchesSearch && matchesFilter;
+    });
+  }, [clients, searchTerm, activeFilter]);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
@@ -72,6 +73,18 @@ const Clients: React.FC = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tanotado-purple mx-auto mb-4"></div>
             <p className="text-muted-foreground">Carregando clientes...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <p className="text-muted-foreground">Erro ao carregar clientes. Tente novamente.</p>
           </div>
         </div>
       </div>
