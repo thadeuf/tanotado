@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -125,9 +126,9 @@ const Agenda: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="flex flex-col xl:flex-row gap-6">
         {/* Calendar and Date Selection */}
-        <div className="lg:col-span-1">
+        <div className="w-full xl:w-80 flex-shrink-0">
           <DateSelector 
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
@@ -135,7 +136,7 @@ const Agenda: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="flex-1 min-w-0 space-y-6">
           {viewMode === 'week' ? (
             <>
               {/* Week Navigation */}
