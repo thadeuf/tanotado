@@ -93,7 +93,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {allMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="h-12 justify-center data-[state=collapsed]:justify-center">
+                  <SidebarMenuButton asChild className={`h-12 ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`}>
                     <NavLink to={item.url} className={getNavCls}>
                       <item.icon className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="ml-3">{item.title}</span>}
@@ -110,11 +110,11 @@ export function AppSidebar() {
       <SidebarFooter className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="h-12 justify-center data-[state=collapsed]:justify-center">
+            <SidebarMenuButton asChild className={`h-12 ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`}>
               <Button 
                 variant="ghost" 
                 onClick={handleLogout}
-                className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted/50 data-[state=collapsed]:justify-center"
+                className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`}
               >
                 <LogOut className="h-5 w-5 flex-shrink-0" />
                 {!isCollapsed && <span className="ml-3">Sair</span>}
