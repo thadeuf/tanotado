@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+
+interface Client {
+  id: string;
+  name: string;
+  cpf: string | null;
+  phone: string | null;
+  email: string | null;
+  photo_url: string | null;
+  created_at: string;
+}
 
 const Clients: React.FC = () => {
   const { user } = useAuth();
@@ -24,37 +38,37 @@ const Clients: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('active');
 
-  // Mock data - será substituído por dados reais do Supabase
-  const mockClients = [
-    {
-      id: '1',
-      name: 'José',
-      cpf: '-',
-      whatsapp: '-',
-      status: 'active',
-      avatar: null
-    },
-    {
-      id: '2',
-      name: 'Paciente teste A',
-      cpf: '-',
-      whatsapp: '(21) 99999-9999',
-      status: 'active',
-      avatar: null
-    },
-    {
-      id: '3',
-      name: 'Paciente teste A1',
-      cpf: '-',
-      whatsapp: '(21) 96686-1333',
-      status: 'active',
-      avatar: null
-    }
-  ];
+  const { data: clients = [], isLoading, error } = useQuery({
+    queryKey: ['clients', user?.id],
+    queryFn: async () => {
+      console.log('Fetching clients for user:', user?.id);
+      
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, cpf, phone, email, photo_url, created_at')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
 
-  const filteredClients = mockClients.filter(client => {
+      if (error) {
+        console.error('Error fetching clients:', error);
+        toast({
+          title: "Erro ao carregar clientes",
+          description: "Não foi possível carregar a lista de clientes.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+
+      console.log('Clients fetched:', data);
+      return data as Client[];
+    },
+    enabled: !!user?.id,
+  });
+
+  const filteredClients = clients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = activeFilter === 'all' || client.status === activeFilter;
+    // Por enquanto todos os clientes são considerados ativos
+    const matchesFilter = activeFilter === 'all' || activeFilter === 'active';
     return matchesSearch && matchesFilter;
   });
 
@@ -73,6 +87,24 @@ const Clients: React.FC = () => {
     const index = name.length % colors.length;
     return colors[index];
   };
+
+  const formatPhone = (phone: string | null) => {
+    if (!phone) return '-';
+    return phone;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tanotado-purple mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Carregando clientes...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -171,54 +203,77 @@ const Clients: React.FC = () => {
 
           {/* Table Body */}
           <div className="divide-y">
-            {filteredClients.map((client) => (
-              <div key={client.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/20 transition-colors">
-                {/* Name */}
-                <div className="col-span-4 flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={client.avatar} alt={client.name} />
-                    <AvatarFallback className={`${getAvatarColor(client.name)} text-white font-medium`}>
-                      {getInitials(client.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-tanotado-navy">{client.name}</span>
-                </div>
-
-                {/* CPF */}
-                <div className="col-span-2 text-center text-muted-foreground">
-                  {client.cpf}
-                </div>
-
-                {/* WhatsApp */}
-                <div className="col-span-2 text-center">
-                  {client.whatsapp !== '-' ? (
-                    <div className="flex items-center justify-center gap-1 text-tanotado-blue">
-                      <Phone className="h-4 w-4" />
-                      <span className="text-sm">{client.whatsapp}</span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </div>
-
-                {/* Status */}
-                <div className="col-span-2 text-center">
-                  <Badge 
-                    variant="secondary"
-                    className="bg-tanotado-blue/10 text-tanotado-blue hover:bg-tanotado-blue/20"
-                  >
-                    Ativo
-                  </Badge>
-                </div>
-
-                {/* Actions */}
-                <div className="col-span-2 text-center">
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </div>
+            {filteredClients.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                {searchTerm ? (
+                  <div>
+                    <p>Nenhum cliente encontrado para "{searchTerm}"</p>
+                    <p className="text-sm mt-1">Tente ajustar os filtros ou termo de busca</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p>Nenhum cliente cadastrado ainda</p>
+                    <Button 
+                      onClick={() => navigate('/clientes/novo')}
+                      className="mt-4 bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Cadastrar primeiro cliente
+                    </Button>
+                  </div>
+                )}
               </div>
-            ))}
+            ) : (
+              filteredClients.map((client) => (
+                <div key={client.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/20 transition-colors">
+                  {/* Name */}
+                  <div className="col-span-4 flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={client.photo_url || undefined} alt={client.name} />
+                      <AvatarFallback className={`${getAvatarColor(client.name)} text-white font-medium`}>
+                        {getInitials(client.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium text-tanotado-navy">{client.name}</span>
+                  </div>
+
+                  {/* CPF */}
+                  <div className="col-span-2 text-center text-muted-foreground">
+                    {client.cpf || '-'}
+                  </div>
+
+                  {/* WhatsApp */}
+                  <div className="col-span-2 text-center">
+                    {client.phone ? (
+                      <div className="flex items-center justify-center gap-1 text-tanotado-blue">
+                        <Phone className="h-4 w-4" />
+                        <span className="text-sm">{formatPhone(client.phone)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  <div className="col-span-2 text-center">
+                    <Badge 
+                      variant="secondary"
+                      className="bg-tanotado-blue/10 text-tanotado-blue hover:bg-tanotado-blue/20"
+                    >
+                      Ativo
+                    </Badge>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="col-span-2 text-center">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
