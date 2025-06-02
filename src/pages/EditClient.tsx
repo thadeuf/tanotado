@@ -5,36 +5,25 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ImageUpload } from '@/components/ui/image-upload';
-import { PhoneInput } from '@/components/ui/phone-input';
-import * as z from 'zod';
-
-// Schema simplificado baseado nos campos reais do banco
-const editClientSchema = z.object({
-  name: z.string().min(1, 'Nome é obrigatório'),
-  email: z.string().email().optional().or(z.literal('')),
-  phone: z.string().optional(),
-  cpf: z.string().optional(),
-  birth_date: z.string().optional(),
-  address: z.string().optional(),
-  notes: z.string().optional(),
-  photo_url: z.string().optional(),
-});
-
-type EditClientFormData = z.infer<typeof editClientSchema>;
+import { clientSchema, ClientFormData } from '@/schemas/clientSchema';
+import ResponsibleProfessionalSection from '@/components/client-form/ResponsibleProfessionalSection';
+import PersonalInformationSection from '@/components/client-form/PersonalInformationSection';
+import AddressSection from '@/components/client-form/AddressSection';
+import FinancialSection from '@/components/client-form/FinancialSection';
+import FinancialResponsibleSection from '@/components/client-form/FinancialResponsibleSection';
+import EmergencyContactSection from '@/components/client-form/EmergencyContactSection';
+import AdditionalDataSection from '@/components/client-form/AdditionalDataSection';
 
 const EditClient: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isMultiUser = false; // Por enquanto fixo, pode ser configurável no futuro
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', id],
@@ -63,17 +52,12 @@ const EditClient: React.FC = () => {
     enabled: !!id && !!user?.id,
   });
 
-  const form = useForm<EditClientFormData>({
-    resolver: zodResolver(editClientSchema),
+  const form = useForm<ClientFormData>({
+    resolver: zodResolver(clientSchema),
     defaultValues: {
-      name: '',
-      email: '',
-      phone: '',
-      cpf: '',
-      birth_date: '',
-      address: '',
-      notes: '',
-      photo_url: '',
+      sendMonthlyReminder: false,
+      activateSessionReminder: false,
+      activeRegistration: true,
     },
   });
 
@@ -83,17 +67,21 @@ const EditClient: React.FC = () => {
       form.reset({
         name: client.name || '',
         email: client.email || '',
-        phone: client.phone || '',
+        whatsapp: client.phone || '',
         cpf: client.cpf || '',
-        birth_date: client.birth_date || '',
+        birthDate: client.birth_date || '',
         address: client.address || '',
-        notes: client.notes || '',
-        photo_url: client.photo_url || '',
+        observations: client.notes || '',
+        photoUrl: client.photo_url || '',
+        groupId: client.group_id || '',
+        sendMonthlyReminder: false,
+        activateSessionReminder: false,
+        activeRegistration: true,
       });
     }
   }, [client, form]);
 
-  const onSubmit = async (data: EditClientFormData) => {
+  const onSubmit = async (data: ClientFormData) => {
     try {
       if (!id) return;
 
@@ -102,12 +90,13 @@ const EditClient: React.FC = () => {
       const clientData = {
         name: data.name,
         email: data.email || null,
-        phone: data.phone || null,
+        phone: data.whatsapp || null,
         cpf: data.cpf || null,
-        birth_date: data.birth_date || null,
+        birth_date: data.birthDate || null,
         address: data.address || null,
-        notes: data.notes || null,
-        photo_url: data.photo_url || null,
+        notes: data.observations || null,
+        group_id: data.groupId || null,
+        photo_url: data.photoUrl || null,
       };
 
       console.log('Prepared client data:', clientData);
@@ -193,135 +182,16 @@ const EditClient: React.FC = () => {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações do Cliente</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="photo_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Foto</FormLabel>
-                    <FormControl>
-                      <ImageUpload
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          {isMultiUser && (
+            <ResponsibleProfessionalSection control={form.control} />
+          )}
 
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nome completo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="email@exemplo.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>WhatsApp</FormLabel>
-                      <FormControl>
-                        <PhoneInput {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="cpf"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>CPF</FormLabel>
-                      <FormControl>
-                        <Input placeholder="000.000.000-00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="birth_date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data de Nascimento</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Endereço completo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Observações</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Observações sobre o cliente" 
-                        className="min-h-[100px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+          <PersonalInformationSection control={form.control} />
+          <AddressSection control={form.control} />
+          <FinancialSection control={form.control} />
+          <FinancialResponsibleSection control={form.control} />
+          <EmergencyContactSection control={form.control} />
+          <AdditionalDataSection control={form.control} />
 
           <div className="flex justify-end gap-4">
             <Button
