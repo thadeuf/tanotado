@@ -18,6 +18,7 @@ export interface Client {
   group_id: string | null;
   updated_at: string;
   user_id: string;
+  active_registration: boolean | null;
 }
 
 export const useClients = () => {

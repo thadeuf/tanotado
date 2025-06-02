@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,16 @@ const Clients: React.FC = () => {
   const filteredClients = React.useMemo(() => {
     return clients.filter(client => {
       const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = activeFilter === 'all' || activeFilter === 'active';
+      
+      // Filtrar baseado no status de cadastro ativo
+      let matchesFilter = true;
+      if (activeFilter === 'active') {
+        matchesFilter = client.active_registration !== false; // Ativo se não for explicitamente false
+      } else if (activeFilter === 'inactive') {
+        matchesFilter = client.active_registration === false; // Inativo se for explicitamente false
+      }
+      // Para 'all', mostrar todos
+      
       return matchesSearch && matchesFilter;
     });
   }, [clients, searchTerm, activeFilter]);
@@ -248,9 +256,13 @@ const Clients: React.FC = () => {
                   <div className="col-span-2 text-center">
                     <Badge 
                       variant="secondary"
-                      className="bg-tanotado-blue/10 text-tanotado-blue hover:bg-tanotado-blue/20"
+                      className={
+                        client.active_registration === false 
+                          ? "bg-red-100 text-red-700 hover:bg-red-200"
+                          : "bg-tanotado-blue/10 text-tanotado-blue hover:bg-tanotado-blue/20"
+                      }
                     >
-                      Ativo
+                      {client.active_registration === false ? 'Inativo' : 'Ativo'}
                     </Badge>
                   </div>
 

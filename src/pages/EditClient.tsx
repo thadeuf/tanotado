@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -67,6 +66,7 @@ const EditClient: React.FC = () => {
       if (!id) throw new Error('ID do cliente não fornecido');
 
       console.log('Submitting data:', data);
+      console.log('Active registration value:', data.activeRegistration);
 
       const clientData = {
         // Informações básicas
@@ -114,10 +114,11 @@ const EditClient: React.FC = () => {
         referral: data.referral || null,
         marital_status: data.maritalStatus || null,
         activate_session_reminder: data.activateSessionReminder || false,
-        active_registration: data.activeRegistration !== false,
+        active_registration: data.activeRegistration, // Removido o fallback para garantir que false seja preservado
       };
 
       console.log('Prepared client data:', clientData);
+      console.log('Active registration being saved:', clientData.active_registration);
 
       const { error } = await supabase
         .from('clients')
@@ -156,6 +157,7 @@ const EditClient: React.FC = () => {
   useEffect(() => {
     if (client) {
       console.log('Client data loaded for form reset:', client);
+      console.log('Active registration from DB:', client.active_registration);
       
       // Reset form with proper values, ensuring dropdown fields get their values
       const formData: ClientFormData = {
@@ -208,16 +210,18 @@ const EditClient: React.FC = () => {
         maritalStatus: client.marital_status || '',
         observations: client.notes || '',
         activateSessionReminder: client.activate_session_reminder || false,
-        activeRegistration: client.active_registration !== false,
+        activeRegistration: client.active_registration, // Preservar o valor exato do banco
       };
 
       console.log('Form data being set:', formData);
+      console.log('Active registration in form data:', formData.activeRegistration);
       form.reset(formData);
     }
   }, [client, form]);
 
   const onSubmit = (data: ClientFormData) => {
     console.log('Form submitted with data:', data);
+    console.log('Active registration on submit:', data.activeRegistration);
     updateClientMutation.mutate(data);
   };
 
