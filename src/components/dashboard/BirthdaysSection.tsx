@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Cake, Gift, Phone, MessageCircle } from 'lucide-react';
+import { Cake, Gift, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const BirthdaysSection: React.FC = () => {
@@ -25,10 +25,6 @@ const BirthdaysSection: React.FC = () => {
       profileImage: null
     }
   ];
-
-  const handleCall = (phone: string, name: string) => {
-    console.log(`Ligando para ${name}: ${phone}`);
-  };
 
   const handleWhatsApp = (phone: string, name: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
@@ -68,14 +64,6 @@ const BirthdaysSection: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleCall(person.phone, person.name)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Phone className="h-3 w-3" />
-                  </Button>
                   <Button
                     size="sm"
                     onClick={() => handleWhatsApp(person.phone, person.name)}
