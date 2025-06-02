@@ -4,6 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
+export interface Client {
+  id: string;
+  name: string;
+  photo_url?: string;
+}
+
 export interface Appointment {
   id: string;
   user_id: string;
@@ -19,6 +25,8 @@ export interface Appointment {
   recurrence_end_date: string | null;
   created_at: string;
   updated_at: string;
+  appointment_type?: 'presencial' | 'remoto';
+  client?: Client;
 }
 
 export const useAppointments = () => {
@@ -35,7 +43,14 @@ export const useAppointments = () => {
       
       const { data, error } = await supabase
         .from('appointments')
-        .select('*')
+        .select(`
+          *,
+          client:clients(
+            id,
+            name,
+            photo_url
+          )
+        `)
         .eq('user_id', user?.id)
         .order('start_time', { ascending: true });
 
