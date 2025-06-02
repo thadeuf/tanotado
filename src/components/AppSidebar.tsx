@@ -5,7 +5,8 @@ import {
   User, 
   FileText, 
   Settings,
-  Plus
+  Plus,
+  Shield
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -83,6 +84,27 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Menu Admin - Só aparece para admins */}
+        {user?.role === 'admin' && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-tanotado-navy font-semibold">
+              {!collapsed && "Administração"}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="h-12">
+                    <NavLink to="/admin" className={getNavCls}>
+                      <Shield className="h-5 w-5 flex-shrink-0" />
+                      {!collapsed && <span className="ml-3">Dashboard Admin</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {/* Botão Novo Agendamento */}
         <div className="px-2 my-4">
           <NavLink 
@@ -127,6 +149,11 @@ export function AppSidebar() {
               {user.subscriptionStatus === 'active' && 'Assinante Ativo'}
               {user.subscriptionStatus === 'expired' && 'Assinatura Expirada'}
             </div>
+            {user.role === 'admin' && (
+              <div className="mt-2 px-3 py-1 rounded-lg text-xs font-medium bg-tanotado-purple/20 text-tanotado-purple">
+                👑 Administrador
+              </div>
+            )}
           </div>
         )}
       </SidebarContent>

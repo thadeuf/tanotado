@@ -13,6 +13,7 @@ import { AppSidebar } from './components/AppSidebar';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
             <div className="ml-auto flex items-center space-x-4">
               <div className="text-sm text-muted-foreground">
                 {user.name}
+                {user.role === 'admin' && <span className="ml-2 text-tanotado-purple">👑 Admin</span>}
               </div>
             </div>
           </header>
@@ -57,6 +59,17 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
       </div>
     </SidebarProvider>
   );
+};
+
+// Componente para rotas de admin
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 // Componente para rotas públicas (já logado redireciona)
@@ -107,6 +120,16 @@ const AppContent: React.FC = () => {
               <Dashboard />
             </ProtectedRoute>
           } />
+          
+          {/* Rota do Admin */}
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/agenda" element={
             <ProtectedRoute>
               <div>Agenda (Em desenvolvimento)</div>
