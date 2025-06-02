@@ -52,8 +52,14 @@ export function AppSidebar() {
       ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium" 
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    console.log('Logout button clicked');
+    try {
+      await logout();
+      console.log('Logout successful');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
