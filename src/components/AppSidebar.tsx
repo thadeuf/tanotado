@@ -71,16 +71,16 @@ export function AppSidebar() {
       
       <SidebarContent className="px-2">
         {/* Logo */}
-        <div className="px-4 py-8 flex justify-center">
+        <div className="py-8 flex justify-center items-center">
           {!isCollapsed ? (
             <img 
               src="/lovable-uploads/e9f368d9-2772-4192-8ba9-cb42acd149c0.png" 
               alt="tanotado"
-              className="h-20 w-auto"
+              className="h-24 w-auto"
             />
           ) : (
             <img 
-              src="/lovable-uploads/e257a8ed-f41d-4910-acd6-6c1ef051df1d.png" 
+              src="/lovable-uploads/3a5c9399-472b-4981-88b9-4a1355e474b0.png" 
               alt="tanotado"
               className="w-8 h-8"
             />
@@ -93,7 +93,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {allMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="h-12">
+                  <SidebarMenuButton asChild className="h-12 justify-center data-[state=collapsed]:justify-center">
                     <NavLink to={item.url} className={getNavCls}>
                       <item.icon className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="ml-3">{item.title}</span>}
@@ -110,11 +110,11 @@ export function AppSidebar() {
       <SidebarFooter className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="h-12">
+            <SidebarMenuButton asChild className="h-12 justify-center data-[state=collapsed]:justify-center">
               <Button 
                 variant="ghost" 
                 onClick={handleLogout}
-                className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted/50 data-[state=collapsed]:justify-center"
               >
                 <LogOut className="h-5 w-5 flex-shrink-0" />
                 {!isCollapsed && <span className="ml-3">Sair</span>}
