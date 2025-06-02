@@ -3,7 +3,6 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import DashboardStats from '../components/dashboard/DashboardStats';
 import AppointmentsSection from '../components/dashboard/AppointmentsSection';
-import QuickActionsBar from '../components/dashboard/QuickActionsBar';
 import BirthdaysSection from '../components/dashboard/BirthdaysSection';
 import SubscriptionBanner from '../components/dashboard/SubscriptionBanner';
 
@@ -24,8 +23,6 @@ const Dashboard: React.FC = () => {
       <SubscriptionBanner />
 
       <DashboardStats />
-
-      <QuickActionsBar />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3">
