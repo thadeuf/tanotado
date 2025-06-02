@@ -73,7 +73,7 @@ export function AppSidebar() {
             <img 
               src="/lovable-uploads/a142e49f-c405-4af5-96d0-7ae0ebbb6627.png" 
               alt="tanotado"
-              className="h-8 w-auto"
+              className="h-12 w-auto"
             />
           ) : (
             <div className="w-8 h-8 gradient-bg rounded-full flex items-center justify-center">
