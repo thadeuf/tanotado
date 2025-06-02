@@ -6,7 +6,8 @@ import {
   FileText, 
   Settings,
   Plus,
-  Shield
+  Shield,
+  DollarSign
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -21,6 +22,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '../contexts/AuthContext';
 
 const mainMenuItems = [
@@ -28,6 +30,7 @@ const mainMenuItems = [
   { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Clientes', url: '/clientes', icon: User },
   { title: 'Prontuários', url: '/prontuarios', icon: FileText },
+  { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
 ];
 
 const configItems = [
@@ -44,7 +47,7 @@ export function AppSidebar() {
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
-      ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium border-r-2 border-tanotado-pink" 
+      ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium" 
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
   return (
@@ -62,6 +65,41 @@ export function AppSidebar() {
             </div>
           )}
         </div>
+
+        {/* Botão Novo Agendamento - movido para cima */}
+        <div className="px-2 my-4">
+          <NavLink 
+            to="/agenda/novo"
+            className="flex items-center justify-center h-12 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105"
+          >
+            <Plus className="h-5 w-5" />
+            {!collapsed && <span className="ml-2 font-medium">Novo Agendamento</span>}
+          </NavLink>
+        </div>
+
+        {/* Informações do usuário com foto */}
+        {!collapsed && user && (
+          <div className="px-4 py-3 border-b">
+            <div className="flex items-center space-x-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src="" alt={user.name} />
+                <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium">
+                  {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-foreground truncate">
+                  {user.name}
+                </div>
+                {user.role === 'admin' && (
+                  <div className="text-xs text-tanotado-purple flex items-center">
+                    👑 Administrador
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Menu Principal */}
         <SidebarGroup className="mt-4">
@@ -105,17 +143,6 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Botão Novo Agendamento */}
-        <div className="px-2 my-4">
-          <NavLink 
-            to="/agenda/novo"
-            className="flex items-center justify-center h-12 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105"
-          >
-            <Plus className="h-5 w-5" />
-            {!collapsed && <span className="ml-2 font-medium">Novo Agendamento</span>}
-          </NavLink>
-        </div>
-
         {/* Configurações */}
         <SidebarGroup>
           <SidebarGroupContent>
@@ -133,29 +160,6 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Status da Assinatura */}
-        {!collapsed && user && (
-          <div className="mt-auto p-4 border-t">
-            <div className="text-xs text-muted-foreground mb-2">Status da Conta</div>
-            <div className={`px-3 py-2 rounded-lg text-xs font-medium ${
-              user.subscriptionStatus === 'trial' 
-                ? 'bg-tanotado-yellow/20 text-tanotado-navy' 
-                : user.subscriptionStatus === 'active'
-                ? 'bg-tanotado-green/20 text-tanotado-green'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              {user.subscriptionStatus === 'trial' && 'Teste Gratuito'}
-              {user.subscriptionStatus === 'active' && 'Assinante Ativo'}
-              {user.subscriptionStatus === 'expired' && 'Assinatura Expirada'}
-            </div>
-            {user.role === 'admin' && (
-              <div className="mt-2 px-3 py-1 rounded-lg text-xs font-medium bg-tanotado-purple/20 text-tanotado-purple">
-                👑 Administrador
-              </div>
-            )}
-          </div>
-        )}
       </SidebarContent>
     </Sidebar>
   );
