@@ -3,7 +3,6 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import OnboardingFlow from './OnboardingFlow';
-import AppLayout from './AppLayout';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -28,7 +27,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <OnboardingFlow />;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;
