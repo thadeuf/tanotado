@@ -5,7 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, Filter, Plus, Phone, Edit } from 'lucide-react';
+import { Search, Filter, Plus, Phone, Edit, Import, Export } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '@/components/ui/dropdown-menu';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -96,36 +106,43 @@ const Clients: React.FC = () => {
 
             {/* Filters and Actions */}
             <div className="flex items-center gap-3">
-              {/* Filter Icon */}
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="h-4 w-4" />
-                Filtros
-              </Button>
+              {/* Filter Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filtros
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel>Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={activeFilter} onValueChange={setActiveFilter}>
+                    <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="active">Ativos</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="inactive">Inativos</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-              {/* Status Filters */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={activeFilter === 'active' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveFilter('active')}
-                  className={activeFilter === 'active' ? 'bg-tanotado-blue hover:bg-tanotado-blue/90' : ''}
-                >
-                  Ativos
-                </Button>
-                <Button
-                  variant={activeFilter === 'inactive' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveFilter('inactive')}
-                  className={activeFilter === 'inactive' ? 'bg-gray-500 hover:bg-gray-500/90' : ''}
-                >
-                  Inativos
-                </Button>
-              </div>
-
-              {/* Options Button */}
-              <Button variant="outline" size="sm">
-                Opções
-              </Button>
+              {/* Options Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Opções
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuItem className="gap-2">
+                    <Import className="h-4 w-4" />
+                    Importar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2">
+                    <Export className="h-4 w-4" />
+                    Exportar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* New Client Button */}
               <Button 
