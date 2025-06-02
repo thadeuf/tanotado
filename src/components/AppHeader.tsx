@@ -65,7 +65,7 @@ const AppHeader: React.FC = () => {
       {showAppointmentForm && (
         <AppointmentForm
           selectedDate={new Date()}
-          selectedTime="09:00"
+          selectedTime=""
           onClose={handleFormClose}
         />
       )}

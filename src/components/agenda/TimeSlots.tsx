@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, User } from 'lucide-react';
+import { Clock, User, Plus } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -22,8 +22,8 @@ interface TimeSlotsProps {
 }
 
 const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, onTimeSelect, appointments }) => {
-  // Gerar horários disponíveis (9h às 18h, intervalos de 1 hora)
-  const generateTimeSlots = () => {
+  // Gerar horários base (9h às 18h, intervalos de 1 hora) para botões de agendamento rápido
+  const generateQuickTimeSlots = () => {
     const slots = [];
     for (let hour = 9; hour < 18; hour++) {
       const time = `${hour.toString().padStart(2, '0')}:00`;
@@ -32,21 +32,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, onTimeSelect, appoi
     return slots;
   };
 
-  const timeSlots = generateTimeSlots();
-
-  const isSlotBooked = (time: string) => {
-    return appointments.some(appointment => {
-      const appointmentTime = format(new Date(appointment.start_time), 'HH:mm');
-      return appointmentTime === time;
-    });
-  };
-
-  const getAppointmentForSlot = (time: string) => {
-    return appointments.find(appointment => {
-      const appointmentTime = format(new Date(appointment.start_time), 'HH:mm');
-      return appointmentTime === time;
-    });
-  };
+  const quickTimeSlots = generateQuickTimeSlots();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -74,6 +60,11 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, onTimeSelect, appoi
     }
   };
 
+  // Ordenar agendamentos por horário
+  const sortedAppointments = [...appointments].sort((a, b) => 
+    new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+  );
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -82,55 +73,71 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, onTimeSelect, appoi
           {isToday(selectedDate) ? 'Hoje' : format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {timeSlots.map((time) => {
-            const isBooked = isSlotBooked(time);
-            const appointment = getAppointmentForSlot(time);
-            
-            if (isBooked && appointment) {
-              return (
-                <div
-                  key={time}
-                  className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="font-medium text-sm">{time}</div>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{appointment.title}</span>
-                    </div>
+      <CardContent className="space-y-4">
+        {/* Agendamentos existentes */}
+        {sortedAppointments.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-muted-foreground">Agendamentos</h4>
+            {sortedAppointments.map((appointment) => (
+              <div
+                key={appointment.id}
+                className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="font-medium text-sm">
+                    {format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}
                   </div>
-                  <Badge 
-                    variant="secondary" 
-                    className={getStatusColor(appointment.status)}
-                  >
-                    {getStatusText(appointment.status)}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{appointment.title}</span>
+                  </div>
                 </div>
-              );
-            }
-            
-            return (
+                <Badge 
+                  variant="secondary" 
+                  className={getStatusColor(appointment.status)}
+                >
+                  {getStatusText(appointment.status)}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Horários de agendamento rápido */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-muted-foreground">Agendamento Rápido</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {quickTimeSlots.map((time) => (
               <Button
                 key={time}
                 variant="outline"
-                className="w-full justify-start hover:bg-tanotado-purple/10 hover:border-tanotado-purple hover:text-tanotado-purple transition-colors"
+                size="sm"
+                className="justify-start hover:bg-tanotado-purple/10 hover:border-tanotado-purple hover:text-tanotado-purple transition-colors"
                 onClick={() => onTimeSelect(time)}
               >
-                <Clock className="h-4 w-4 mr-2" />
-                {time} - Disponível
+                <Plus className="h-3 w-3 mr-2" />
+                {time}
               </Button>
-            );
-          })}
-          
-          {timeSlots.every(time => isSlotBooked(time)) && (
-            <div className="text-center py-6 text-muted-foreground">
-              <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Não há horários disponíveis para este dia</p>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
+
+        {/* Botão para horário personalizado */}
+        <Button
+          variant="outline"
+          className="w-full justify-center hover:bg-tanotado-purple/10 hover:border-tanotado-purple hover:text-tanotado-purple transition-colors"
+          onClick={() => onTimeSelect('09:00')}
+        >
+          <Clock className="h-4 w-4 mr-2" />
+          Horário Personalizado
+        </Button>
+
+        {appointments.length === 0 && (
+          <div className="text-center py-6 text-muted-foreground">
+            <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>Nenhum agendamento para este dia</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

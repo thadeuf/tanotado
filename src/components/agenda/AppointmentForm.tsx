@@ -27,7 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, User, X } from 'lucide-react';
+import { Calendar, Clock, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
@@ -41,6 +41,17 @@ const appointmentSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
   description: z.string().optional(),
   price: z.string().optional(),
+  startTime: z.string().min(1, 'Horário de início é obrigatório'),
+  endTime: z.string().min(1, 'Horário de fim é obrigatório'),
+}).refine((data) => {
+  const start = data.startTime.split(':').map(Number);
+  const end = data.endTime.split(':').map(Number);
+  const startMinutes = start[0] * 60 + start[1];
+  const endMinutes = end[0] * 60 + end[1];
+  return endMinutes > startMinutes;
+}, {
+  message: "Horário de fim deve ser posterior ao horário de início",
+  path: ["endTime"]
 });
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
@@ -61,6 +72,13 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Calcular horário de fim padrão (1 hora após o início)
+  const getDefaultEndTime = (startTime: string) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const endHours = hours + 1;
+    return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
@@ -68,6 +86,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       title: '',
       description: '',
       price: '',
+      startTime: selectedTime || '09:00',
+      endTime: selectedTime ? getDefaultEndTime(selectedTime) : '10:00',
     },
   });
 
@@ -76,12 +96,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       if (!user?.id) throw new Error('Usuário não autenticado');
 
       // Criar datetime para início e fim do agendamento
-      const [hours, minutes] = selectedTime.split(':').map(Number);
-      const startDateTime = new Date(selectedDate);
-      startDateTime.setHours(hours, minutes, 0, 0);
+      const [startHours, startMinutes] = data.startTime.split(':').map(Number);
+      const [endHours, endMinutes] = data.endTime.split(':').map(Number);
       
-      const endDateTime = new Date(startDateTime);
-      endDateTime.setHours(hours + 1, minutes, 0, 0); // 1 hora de duração
+      const startDateTime = new Date(selectedDate);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
+      
+      const endDateTime = new Date(selectedDate);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
 
       const appointmentData = {
         user_id: user.id,
@@ -133,6 +155,15 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   };
 
+  // Watch startTime to update endTime automatically
+  const startTime = form.watch('startTime');
+  React.useEffect(() => {
+    if (startTime) {
+      const defaultEnd = getDefaultEndTime(startTime);
+      form.setValue('endTime', defaultEnd);
+    }
+  }, [startTime, form]);
+
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -143,16 +174,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Date and Time Info */}
-        <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg mb-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="h-4 w-4 text-tanotado-blue" />
-            <span>{format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="h-4 w-4 text-tanotado-purple" />
-            <span>{selectedTime}</span>
-          </div>
+        {/* Date Info */}
+        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg mb-4">
+          <Calendar className="h-4 w-4 text-tanotado-blue" />
+          <span className="text-sm">{format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}</span>
         </div>
 
         <Form {...form}>
@@ -198,6 +223,45 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 </FormItem>
               )}
             />
+
+            {/* Time Fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="startTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Horário de Início</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="time" 
+                        {...field} 
+                        className="w-full"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Horário de Fim</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="time" 
+                        {...field} 
+                        className="w-full"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
