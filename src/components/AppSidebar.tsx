@@ -16,7 +16,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -72,12 +71,12 @@ export function AppSidebar() {
       
       <SidebarContent className="px-2">
         {/* Logo */}
-        <div className="px-4 py-6 border-b">
+        <div className="px-4 py-6 flex justify-center">
           {!collapsed ? (
             <img 
               src="/lovable-uploads/e9f368d9-2772-4192-8ba9-cb42acd149c0.png" 
               alt="tanotado"
-              className="h-12 w-auto"
+              className="h-16 w-auto"
             />
           ) : (
             <div className="w-8 h-8 gradient-bg rounded-full flex items-center justify-center">
@@ -88,9 +87,6 @@ export function AppSidebar() {
 
         {/* Menu Principal */}
         <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="text-tanotado-navy font-semibold">
-            {!collapsed && "Menu Principal"}
-          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {allMenuItems.map((item) => (
