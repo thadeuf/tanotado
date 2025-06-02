@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Users, Clock, UserX, FileText, Video, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, Users, Clock, UserX, FileText, Video, MapPin, AlertCircle, CheckCircle, Play } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard: React.FC = () => {
@@ -102,6 +102,12 @@ const Dashboard: React.FC = () => {
     },
   ];
 
+  const handleStartVideoCall = (patientName: string) => {
+    // Aqui você pode integrar com sua plataforma de videochamada preferida
+    console.log(`Iniciando videochamada com ${patientName}`);
+    // Exemplo: window.open('https://meet.google.com/nova-sala', '_blank');
+  };
+
   const renderAppointment = (appointment: any, index: number) => (
     <div key={index} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors">
       <div className="flex items-center space-x-3">
@@ -130,10 +136,22 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-      <div className="text-right">
-        <span className="text-sm font-medium text-tanotado-navy">
-          {appointment.time}
-        </span>
+      <div className="flex items-center gap-3">
+        <div className="text-right">
+          <span className="text-sm font-medium text-tanotado-navy">
+            {appointment.time}
+          </span>
+        </div>
+        {appointment.mode === 'online' && (
+          <Button
+            size="sm"
+            onClick={() => handleStartVideoCall(appointment.patient)}
+            className="bg-tanotado-blue hover:bg-tanotado-blue/90 text-white"
+          >
+            <Play className="h-3 w-3 mr-1" />
+            Iniciar
+          </Button>
+        )}
       </div>
     </div>
   );
