@@ -50,7 +50,7 @@ export function AppSidebar() {
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible="icon">
+    <Sidebar className={collapsed ? "w-16" : "w-56"} collapsible="icon">
       <SidebarTrigger className="m-2 self-end" />
       
       <SidebarContent className="px-2">

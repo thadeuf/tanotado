@@ -15,16 +15,16 @@ const Dashboard: React.FC = () => {
       color: 'from-tanotado-pink to-tanotado-purple'
     },
     {
-      title: 'Atendimentos',
-      value: '156',
-      icon: Users,
-      color: 'from-tanotado-blue to-tanotado-green'
-    },
-    {
       title: 'Agendamentos Hoje',
       value: '8',
       icon: Calendar,
       color: 'from-tanotado-orange to-tanotado-yellow'
+    },
+    {
+      title: 'Atendimentos',
+      value: '156',
+      icon: Users,
+      color: 'from-tanotado-blue to-tanotado-green'
     },
     {
       title: 'Faltas',
