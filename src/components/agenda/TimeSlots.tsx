@@ -8,6 +8,8 @@ import { Clock, MapPin, Video, Edit, Trash2 } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Client {
   id: string;
@@ -32,6 +34,8 @@ interface TimeSlotsProps {
 }
 
 const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => {
+  const queryClient = useQueryClient();
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled':
@@ -69,6 +73,37 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
     return type === 'remoto' ? 'Remoto' : 'Presencial';
   };
 
+  const deleteAppointmentMutation = useMutation({
+    mutationFn: async (appointmentId: string) => {
+      console.log('Deleting appointment:', appointmentId);
+      
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', appointmentId);
+
+      if (error) {
+        console.error('Error deleting appointment:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Agendamento excluído",
+        description: "O agendamento foi excluído com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+    onError: (error) => {
+      console.error('Error deleting appointment:', error);
+      toast({
+        title: "Erro ao excluir agendamento",
+        description: "Não foi possível excluir o agendamento. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (appointmentId: string) => {
     // TODO: Implementar edição do agendamento
     toast({
@@ -78,12 +113,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   };
 
   const handleDelete = (appointmentId: string) => {
-    // TODO: Implementar exclusão do agendamento
-    toast({
-      title: "Excluir agendamento",
-      description: "Funcionalidade em desenvolvimento",
-      variant: "destructive",
-    });
+    deleteAppointmentMutation.mutate(appointmentId);
   };
 
   // Ordenar agendamentos por horário
@@ -106,7 +136,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
             {sortedAppointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30 group hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 {/* Avatar do cliente */}
                 <Avatar className="h-10 w-10">
@@ -148,8 +178,8 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                   </p>
                 </div>
 
-                {/* Ações */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Ações - sempre visíveis */}
+                <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -163,6 +193,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-red-600"
                     onClick={() => handleDelete(appointment.id)}
+                    disabled={deleteAppointmentMutation.isPending}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
