@@ -71,17 +71,19 @@ export function AppSidebar() {
       
       <SidebarContent className="px-2">
         {/* Logo */}
-        <div className="px-4 py-6 flex justify-center">
+        <div className="px-4 py-8 flex justify-center">
           {!collapsed ? (
             <img 
               src="/lovable-uploads/e9f368d9-2772-4192-8ba9-cb42acd149c0.png" 
               alt="tanotado"
-              className="h-16 w-auto"
+              className="h-20 w-auto"
             />
           ) : (
-            <div className="w-8 h-8 gradient-bg rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
-            </div>
+            <img 
+              src="/lovable-uploads/e257a8ed-f41d-4910-acd6-6c1ef051df1d.png" 
+              alt="tanotado"
+              className="w-8 h-8"
+            />
           )}
         </div>
 
