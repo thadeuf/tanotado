@@ -90,16 +90,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         description: data.description || null,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
-        status: 'scheduled',
+        status: 'scheduled' as const,
         price: data.price ? parseFloat(data.price) : null,
-        payment_status: 'pending',
+        payment_status: 'pending' as const,
       };
 
       console.log('Creating appointment:', appointmentData);
 
       const { error } = await supabase
         .from('appointments')
-        .insert([appointmentData]);
+        .insert(appointmentData);
 
       if (error) {
         console.error('Error creating appointment:', error);
