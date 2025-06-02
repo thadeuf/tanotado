@@ -10,6 +10,8 @@ import Dashboard from '../pages/Dashboard';
 import AdminDashboard from '../pages/AdminDashboard';
 import Clients from '../pages/Clients';
 import NewClient from '../pages/NewClient';
+import ClientDetails from '../pages/ClientDetails';
+import EditClient from '../pages/EditClient';
 import NotFound from '../pages/NotFound';
 
 const AppRoutes: React.FC = () => {
@@ -56,6 +58,16 @@ const AppRoutes: React.FC = () => {
       <Route path="/clientes/novo" element={
         <ProtectedRoute>
           <NewClient />
+        </ProtectedRoute>
+      } />
+      <Route path="/clientes/:id" element={
+        <ProtectedRoute>
+          <ClientDetails />
+        </ProtectedRoute>
+      } />
+      <Route path="/clientes/:id/editar" element={
+        <ProtectedRoute>
+          <EditClient />
         </ProtectedRoute>
       } />
       <Route path="/prontuarios" element={

@@ -16,10 +16,12 @@ export interface Client {
   address: string | null;
   notes: string | null;
   group_id: string | null;
+  updated_at: string;
+  user_id: string;
 }
 
 export const useClients = () => {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   return useQuery({
     queryKey: ['clients', user?.id],
@@ -45,6 +47,6 @@ export const useClients = () => {
       console.log('Clients fetched:', data);
       return data as Client[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !authLoading,
   });
 };

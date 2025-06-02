@@ -56,6 +56,15 @@ const Clients: React.FC = () => {
     return phone;
   };
 
+  const handleClientClick = (clientId: string) => {
+    navigate(`/clientes/${clientId}`);
+  };
+
+  const handleEditClick = (e: React.MouseEvent, clientId: string) => {
+    e.stopPropagation();
+    navigate(`/clientes/${clientId}/editar`);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
@@ -189,7 +198,11 @@ const Clients: React.FC = () => {
               </div>
             ) : (
               filteredClients.map((client) => (
-                <div key={client.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/20 transition-colors">
+                <div 
+                  key={client.id} 
+                  className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/20 transition-colors cursor-pointer"
+                  onClick={() => handleClientClick(client.id)}
+                >
                   {/* Name */}
                   <div className="col-span-4 flex items-center gap-3">
                     <Avatar className="h-10 w-10">
@@ -198,7 +211,7 @@ const Clients: React.FC = () => {
                         {getInitials(client.name)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium text-tanotado-navy">{client.name}</span>
+                    <span className="font-medium text-tanotado-navy hover:text-tanotado-purple transition-colors">{client.name}</span>
                   </div>
 
                   {/* CPF */}
@@ -230,7 +243,12 @@ const Clients: React.FC = () => {
 
                   {/* Actions */}
                   <div className="col-span-2 text-center">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => handleEditClick(e, client.id)}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                   </div>
