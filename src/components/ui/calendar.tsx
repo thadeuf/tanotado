@@ -68,12 +68,7 @@ function Calendar({
       }}
       formatters={{
         formatWeekdayName: (date) => {
-          if (isMobile) {
-            const dayNames = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-            return dayNames[date.getDay()];
-          }
-          // For desktop, use the date-fns format function directly
-          const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+          const dayNames = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
           return dayNames[date.getDay()];
         },
       }}
