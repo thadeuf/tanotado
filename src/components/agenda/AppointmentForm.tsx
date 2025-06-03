@@ -28,8 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Calendar, Clock, User, Video, MapPin, DollarSign, Users } from 'lucide-react';
+import { Calendar, Clock, User, Video, MapPin, DollarSign, Users, Palette } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
@@ -87,14 +86,21 @@ interface AppointmentFormProps {
   onClose: () => void;
 }
 
-const colorOptions = [
+const COLORS = [
   { value: '#8B5CF6', label: 'Roxo', color: 'bg-purple-500' },
-  { value: '#EF4444', label: 'Vermelho', color: 'bg-red-500' },
-  { value: '#10B981', label: 'Verde', color: 'bg-green-500' },
   { value: '#3B82F6', label: 'Azul', color: 'bg-blue-500' },
+  { value: '#10B981', label: 'Verde', color: 'bg-green-500' },
   { value: '#F59E0B', label: 'Amarelo', color: 'bg-yellow-500' },
+  { value: '#EF4444', label: 'Vermelho', color: 'bg-red-500' },
   { value: '#EC4899', label: 'Rosa', color: 'bg-pink-500' },
-  { value: '#6B7280', label: 'Cinza', color: 'bg-gray-500' },
+  { value: '#6366F1', label: 'Índigo', color: 'bg-indigo-500' },
+  { value: '#8B5A2B', label: 'Marrom', color: 'bg-amber-700' },
+];
+
+const APPOINTMENT_TYPES = [
+  { value: 'unique', label: 'Sessão Única', icon: Calendar },
+  { value: 'recurring', label: 'Sessão Recorrente', icon: Calendar },
+  { value: 'personal', label: 'Compromisso Pessoal', icon: User },
 ];
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({ 
@@ -221,7 +227,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -236,49 +242,31 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Tipo de Sessão */}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Tipo de Agendamento */}
             <FormField
               control={form.control}
               name="sessionType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Sessão</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-wrap gap-2"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="unique" id="unique" />
-                        <label htmlFor="unique" className="text-sm cursor-pointer">
-                          <div className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-muted/50">
-                            <Clock className="h-4 w-4" />
-                            Único
-                          </div>
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="recurring" id="recurring" />
-                        <label htmlFor="recurring" className="text-sm cursor-pointer">
-                          <div className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-muted/50">
-                            <Users className="h-4 w-4" />
-                            Recorrente
-                          </div>
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="personal" id="personal" />
-                        <label htmlFor="personal" className="text-sm cursor-pointer">
-                          <div className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-muted/50">
-                            <User className="h-4 w-4" />
-                            Pessoal
-                          </div>
-                        </label>
-                      </div>
-                    </RadioGroup>
-                  </FormControl>
+                  <FormLabel>Tipo de Agendamento</FormLabel>
+                  <div className="grid grid-cols-3 gap-2">
+                    {APPOINTMENT_TYPES.map((type) => {
+                      const Icon = type.icon;
+                      return (
+                        <Button
+                          key={type.value}
+                          type="button"
+                          variant={field.value === type.value ? "default" : "outline"}
+                          className="h-20 flex flex-col gap-2"
+                          onClick={() => field.onChange(type.value)}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="text-xs text-center">{type.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -327,7 +315,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     <Input 
                       placeholder={
                         sessionType === 'personal' 
-                          ? "Ex: Reunião, Compromisso..." 
+                          ? "Ex: Reunião, Consulta médica..." 
                           : "Ex: Consulta inicial, Retorno..."
                       } 
                       {...field} 
@@ -377,61 +365,118 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               />
             </div>
 
-            {/* Tipo de Atendimento */}
-            <div className="space-y-3">
+            {/* Modalidade da Sessão */}
+            <FormField
+              control={form.control}
+              name="appointmentType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Video className="h-4 w-4" />
+                    Modalidade da Sessão
+                  </FormLabel>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={field.value === 'remoto'}
+                        onCheckedChange={(checked) => 
+                          field.onChange(checked ? 'remoto' : 'presencial')
+                        }
+                      />
+                      <div className="flex items-center gap-2">
+                        {field.value === 'remoto' ? (
+                          <>
+                            <Video className="h-4 w-4 text-blue-500" />
+                            <span>Online</span>
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="h-4 w-4 text-green-500" />
+                            <span>Presencial</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Link da Videochamada (se online) */}
+            {appointmentType === 'remoto' && (
               <FormField
                 control={form.control}
-                name="appointmentType"
+                name="videoCallLink"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Atendimento</FormLabel>
+                    <FormLabel>Link da Reunião Online</FormLabel>
                     <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex gap-4"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="presencial" id="presencial" />
-                          <label htmlFor="presencial" className="text-sm cursor-pointer flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-tanotado-green" />
-                            Presencial
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="remoto" id="remoto" />
-                          <label htmlFor="remoto" className="text-sm cursor-pointer flex items-center gap-2">
-                            <Video className="h-4 w-4 text-tanotado-blue" />
-                            Online
-                          </label>
-                        </div>
-                      </RadioGroup>
+                      <Input 
+                        placeholder="https://meet.google.com/..."
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+            )}
 
-              {/* Link da Videochamada */}
-              {appointmentType === 'remoto' && (
-                <FormField
-                  control={form.control}
-                  name="videoCallLink"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Link da Reunião Online</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="https://meet.google.com/..." 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            {/* Lançar Financeiro */}
+            <FormField
+              control={form.control}
+              name="createFinancialRecord"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Lançar no Financeiro
+                  </FormLabel>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
+                    </span>
+                  </div>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
+            />
+
+            {/* Cor do Agendamento */}
+            <FormField
+              control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Palette className="h-4 w-4" />
+                    Cor do Agendamento
+                  </FormLabel>
+                  <div className="grid grid-cols-4 gap-2">
+                    {COLORS.map((color) => (
+                      <Button
+                        key={color.value}
+                        type="button"
+                        variant="outline"
+                        className={`h-12 flex items-center gap-2 ${
+                          field.value === color.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+                        }`}
+                        onClick={() => field.onChange(color.value)}
+                      >
+                        <div className={`w-4 h-4 rounded-full ${color.color}`} />
+                        <span className="text-xs">{color.label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -468,60 +513,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                       placeholder="0,00"
                       {...field} 
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Lançar Financeiro */}
-            <FormField
-              control={form.control}
-              name="createFinancialRecord"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Lançar no Financeiro
-                    </FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Criar registro financeiro para este agendamento
-                    </div>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            {/* Seletor de Cor */}
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cor do Agendamento</FormLabel>
-                  <FormControl>
-                    <div className="flex flex-wrap gap-2">
-                      {colorOptions.map((color) => (
-                        <button
-                          key={color.value}
-                          type="button"
-                          onClick={() => field.onChange(color.value)}
-                          className={`w-8 h-8 rounded-full ${color.color} border-2 ${
-                            field.value === color.value 
-                              ? 'border-foreground scale-110' 
-                              : 'border-muted-foreground/20'
-                          } transition-all hover:scale-105`}
-                          title={color.label}
-                        />
-                      ))}
-                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
