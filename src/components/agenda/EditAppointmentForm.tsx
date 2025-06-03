@@ -3,23 +3,9 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Calendar, User } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Form } from '@/components/ui/form';
+import { Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
@@ -32,6 +18,10 @@ import AppointmentModalitySection from './forms/AppointmentModalitySection';
 import AppointmentStatusSelector from './forms/AppointmentStatusSelector';
 import AppointmentFinancialSection from './forms/AppointmentFinancialSection';
 import AppointmentColorSelector from './forms/AppointmentColorSelector';
+import AppointmentObservations from './forms/AppointmentObservations';
+import AppointmentDateTimeInfo from './forms/AppointmentDateTimeInfo';
+import AppointmentClientInfoDisplay from './forms/AppointmentClientInfoDisplay';
+import AppointmentFormActions from './forms/AppointmentFormActions';
 
 const editAppointmentSchema = z.object({
   description: z.string().optional(),
@@ -166,33 +156,17 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Date Info */}
-        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg mb-4">
-          <Calendar className="h-4 w-4 text-tanotado-blue" />
-          <span className="text-sm">{format(appointmentDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}</span>
-        </div>
+        <AppointmentDateTimeInfo date={appointmentDate} />
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Cliente (apenas exibição e apenas se não for compromisso pessoal) */}
-            {appointment.session_type !== 'personal' && (
-              <div className="p-3 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <User className="h-4 w-4 text-tanotado-blue" />
-                  <span className="text-sm font-medium">Cliente</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {selectedClient?.name || 'Cliente não encontrado'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  O cliente não pode ser alterado após o agendamento ser criado
-                </p>
-              </div>
-            )}
+            <AppointmentClientInfoDisplay 
+              client={selectedClient} 
+              sessionType={appointment.session_type} 
+            />
 
             <AppointmentTimeFields control={form.control} />
 
-            {/* Modalidade (apenas se não for compromisso pessoal) */}
             {appointment.session_type !== 'personal' && (
               <AppointmentModalitySection 
                 control={form.control} 
@@ -202,7 +176,6 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
 
             <AppointmentStatusSelector control={form.control} />
 
-            {/* Financeiro (apenas se não for compromisso pessoal) */}
             {appointment.session_type !== 'personal' && (
               <AppointmentFinancialSection 
                 control={form.control} 
@@ -211,42 +184,15 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
             )}
 
             <AppointmentColorSelector control={form.control} />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações (opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Adicione observações sobre a consulta..."
-                      className="min-h-[80px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <AppointmentObservations 
+              control={form.control} 
+              sessionType={appointment.session_type || 'unique'} 
             />
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="flex-1 bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
-              >
-                {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
-              </Button>
-            </div>
+            <AppointmentFormActions 
+              onCancel={onClose} 
+              isSubmitting={isSubmitting} 
+              submitLabel="Salvar Alterações" 
+            />
           </form>
         </Form>
       </DialogContent>

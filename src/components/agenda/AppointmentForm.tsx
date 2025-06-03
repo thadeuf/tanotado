@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -38,7 +37,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import AppointmentTypeSelector from './forms/AppointmentTypeSelector';
+import AppointmentClientSelector from './forms/AppointmentClientSelector';
+import AppointmentTimeFields from './forms/AppointmentTimeFields';
+import AppointmentModalitySection from './forms/AppointmentModalitySection';
 import AppointmentFinancialSection from './forms/AppointmentFinancialSection';
+import AppointmentColorSelector from './forms/AppointmentColorSelector';
+import AppointmentObservations from './forms/AppointmentObservations';
+import AppointmentDateTimeInfo from './forms/AppointmentDateTimeInfo';
+import AppointmentConflictAlert from './forms/AppointmentConflictAlert';
+import AppointmentFormActions from './forms/AppointmentFormActions';
 
 const appointmentSchema = z.object({
   clientId: z.string().optional(),
@@ -52,7 +60,6 @@ const appointmentSchema = z.object({
   color: z.string(),
   sessionType: z.enum(['unique', 'recurring', 'personal']),
 }).refine((data) => {
-  // Validar se cliente foi selecionado quando não é compromisso pessoal
   if (data.sessionType !== 'personal' && !data.clientId) {
     return false;
   }
@@ -70,7 +77,6 @@ const appointmentSchema = z.object({
   message: "Horário de fim deve ser posterior ao horário de início",
   path: ["endTime"]
 }).refine((data) => {
-  // Validar link de videochamada quando é remoto E não é compromisso pessoal
   if (data.sessionType !== 'personal' && data.appointmentType === 'remoto' && !data.videoCallLink?.trim()) {
     return false;
   }
@@ -88,23 +94,6 @@ interface AppointmentFormProps {
   onClose: () => void;
 }
 
-const COLORS = [
-  { value: '#8B5CF6', color: 'bg-purple-500' },
-  { value: '#3B82F6', color: 'bg-blue-500' },
-  { value: '#10B981', color: 'bg-green-500' },
-  { value: '#F59E0B', color: 'bg-yellow-500' },
-  { value: '#EF4444', color: 'bg-red-500' },
-  { value: '#EC4899', color: 'bg-pink-500' },
-  { value: '#6366F1', color: 'bg-indigo-500' },
-  { value: '#8B5A2B', color: 'bg-amber-700' },
-];
-
-const APPOINTMENT_TYPES = [
-  { value: 'unique', label: 'Sessão Única', icon: Calendar },
-  { value: 'recurring', label: 'Sessão Recorrente', icon: Calendar },
-  { value: 'personal', label: 'Compromisso Pessoal', icon: User },
-];
-
 const AppointmentForm: React.FC<AppointmentFormProps> = ({ 
   selectedDate, 
   selectedTime, 
@@ -117,7 +106,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeConflictWarning, setTimeConflictWarning] = useState<string>('');
 
-  // Calcular horário de fim padrão (1 hora após o início)
   const getDefaultEndTime = (startTime: string) => {
     const [hours, minutes] = startTime.split(':').map(Number);
     const endHours = hours + 1;
@@ -147,7 +135,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const startTime = form.watch('startTime');
   const endTime = form.watch('endTime');
 
-  // Função para verificar conflitos de horário
   const checkTimeConflict = (startTime: string, endTime: string) => {
     const [startHours, startMinutes] = startTime.split(':').map(Number);
     const [endHours, endMinutes] = endTime.split(':').map(Number);
@@ -162,12 +149,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       const appointmentDate = new Date(appointment.start_time);
       const appointmentEndDate = new Date(appointment.end_time);
       
-      // Verificar se é no mesmo dia
       if (!isSameDay(appointmentDate, selectedDate)) {
         return false;
       }
 
-      // Verificar sobreposição de horários
       return (
         (newStartDateTime >= appointmentDate && newStartDateTime < appointmentEndDate) ||
         (newEndDateTime > appointmentDate && newEndDateTime <= appointmentEndDate) ||
@@ -188,7 +173,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     mutationFn: async (data: AppointmentFormData) => {
       if (!user?.id) throw new Error('Usuário não autenticado');
 
-      // Criar datetime para início e fim do agendamento
       const [startHours, startMinutes] = data.startTime.split(':').map(Number);
       const [endHours, endMinutes] = data.endTime.split(':').map(Number);
       
@@ -198,13 +182,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       const endDateTime = new Date(selectedDate);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      // Definir título automaticamente baseado no tipo de sessão
-      const title = data.sessionType === 'personal' ? 'Compromisso Pessoal' : 'Consulta';
-
       const appointmentData = {
         user_id: user.id,
         client_id: data.sessionType === 'personal' ? null : data.clientId,
-        title: title,
         description: data.description || null,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
@@ -217,8 +197,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         color: data.color,
         session_type: data.sessionType,
       };
-
-      console.log('Creating appointment:', appointmentData);
 
       const { error } = await supabase
         .from('appointments')
@@ -256,7 +234,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   };
 
-  // Watch startTime to update endTime automatically
   React.useEffect(() => {
     if (startTime) {
       const defaultEnd = getDefaultEndTime(startTime);
@@ -264,7 +241,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   }, [startTime, form]);
 
-  // Reset client and financial settings when switching to personal
   React.useEffect(() => {
     if (sessionType === 'personal') {
       form.setValue('clientId', '');
@@ -275,7 +251,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   }, [sessionType, form]);
 
-  // Update price when client is selected
   React.useEffect(() => {
     if (selectedClientId && sessionType !== 'personal') {
       const selectedClient = clients.find(client => client.id === selectedClientId);
@@ -285,7 +260,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   }, [selectedClientId, clients, sessionType, form]);
 
-  // Check for time conflicts when start or end time changes
   React.useEffect(() => {
     if (startTime && endTime) {
       const conflict = checkTimeConflict(startTime, endTime);
@@ -303,186 +277,22 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Date Info */}
-        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg mb-4">
-          <Calendar className="h-4 w-4 text-tanotado-blue" />
-          <span className="text-sm">{format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}</span>
-        </div>
-
-        {/* Time Conflict Warning */}
-        {timeConflictWarning && (
-          <Alert className="mb-4 border-yellow-200 bg-yellow-50">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-800">
-              {timeConflictWarning}
-            </AlertDescription>
-          </Alert>
-        )}
+        <AppointmentDateTimeInfo date={selectedDate} />
+        <AppointmentConflictAlert conflictMessage={timeConflictWarning} />
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Tipo de Agendamento */}
-            <FormField
-              control={form.control}
-              name="sessionType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Agendamento</FormLabel>
-                  <div className="grid grid-cols-3 gap-2">
-                    {APPOINTMENT_TYPES.map((type) => {
-                      const Icon = type.icon;
-                      return (
-                        <Button
-                          key={type.value}
-                          type="button"
-                          variant={field.value === type.value ? "default" : "outline"}
-                          className="h-20 flex flex-col gap-2"
-                          onClick={() => field.onChange(type.value)}
-                        >
-                          <Icon className="h-5 w-5" />
-                          <span className="text-xs text-center">{type.label}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Cliente (apenas se não for compromisso pessoal) */}
+            <AppointmentTypeSelector control={form.control} />
+            <AppointmentClientSelector control={form.control} sessionType={sessionType} />
+            <AppointmentTimeFields control={form.control} />
+            
             {sessionType !== 'personal' && (
-              <FormField
-                control={form.control}
-                name="clientId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cliente</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um cliente" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              {client.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <AppointmentModalitySection 
+                control={form.control} 
+                watchAppointmentType={appointmentType} 
               />
             )}
 
-            {/* Time Fields */}
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="startTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horário de Início</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="time" 
-                        {...field} 
-                        className="w-full"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="endTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horário de Fim</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="time" 
-                        {...field} 
-                        className="w-full"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Modalidade da Sessão (apenas se não for compromisso pessoal) */}
-            {sessionType !== 'personal' && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="appointmentType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Video className="h-4 w-4" />
-                        Modalidade da Sessão
-                      </FormLabel>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={field.value === 'remoto'}
-                            onCheckedChange={(checked) => 
-                              field.onChange(checked ? 'remoto' : 'presencial')
-                            }
-                          />
-                          <div className="flex items-center gap-2">
-                            {field.value === 'remoto' ? (
-                              <>
-                                <Video className="h-4 w-4 text-blue-500" />
-                                <span>Online</span>
-                              </>
-                            ) : (
-                              <>
-                                <MapPin className="h-4 w-4 text-green-500" />
-                                <span>Presencial</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Link da Videochamada (se online) */}
-                {appointmentType === 'remoto' && (
-                  <FormField
-                    control={form.control}
-                    name="videoCallLink"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Link da Reunião Online</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="https://meet.google.com/..."
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </>
-            )}
-
-            {/* Lançar Financeiro e Valor (apenas se não for compromisso pessoal) */}
             {sessionType !== 'personal' && (
               <AppointmentFinancialSection 
                 control={form.control} 
@@ -490,75 +300,13 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               />
             )}
 
-            {/* Cor do Agendamento */}
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Palette className="h-4 w-4" />
-                    Cor do Agendamento
-                  </FormLabel>
-                  <div className="flex gap-1">
-                    {COLORS.map((color) => (
-                      <Button
-                        key={color.value}
-                        type="button"
-                        variant="outline"
-                        className={`h-8 w-8 p-0 rounded-full border-2 ${
-                          field.value === color.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
-                        }`}
-                        onClick={() => field.onChange(color.value)}
-                      >
-                        <div className={`w-6 h-6 rounded-full ${color.color}`} />
-                      </Button>
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <AppointmentColorSelector control={form.control} />
+            <AppointmentObservations control={form.control} sessionType={sessionType} />
+            <AppointmentFormActions 
+              onCancel={onClose} 
+              isSubmitting={isSubmitting} 
+              submitLabel="Criar Agendamento" 
             />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações (opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder={
-                        sessionType === 'personal' 
-                          ? "Adicione observações sobre o compromisso..." 
-                          : "Adicione observações sobre a consulta..."
-                      }
-                      className="min-h-[80px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="flex-1 bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
-              >
-                {isSubmitting ? 'Criando...' : 'Criar Agendamento'}
-              </Button>
-            </div>
           </form>
         </Form>
       </DialogContent>
