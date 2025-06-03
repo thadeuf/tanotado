@@ -15,7 +15,12 @@ const AppointmentClientSelector: React.FC<AppointmentClientSelectorProps> = ({
   control, 
   sessionType 
 }) => {
-  const { data: clients = [] } = useClients();
+  const { data: clients = [], isLoading, error } = useClients();
+
+  console.log('AppointmentClientSelector - clients:', clients);
+  console.log('AppointmentClientSelector - isLoading:', isLoading);
+  console.log('AppointmentClientSelector - sessionType:', sessionType);
+  console.log('AppointmentClientSelector - error:', error);
 
   if (sessionType === 'personal') return null;
 
@@ -26,21 +31,31 @@ const AppointmentClientSelector: React.FC<AppointmentClientSelectorProps> = ({
       render={({ field }) => (
         <FormItem>
           <FormLabel>Cliente</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <Select onValueChange={field.onChange} value={field.value || ''}>
             <FormControl>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione um cliente" />
+                <SelectValue placeholder={isLoading ? "Carregando clientes..." : "Selecione um cliente"} />
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              {clients.map((client) => (
-                <SelectItem key={client.id} value={client.id}>
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    {client.name}
-                  </div>
+              {isLoading ? (
+                <SelectItem value="" disabled>
+                  Carregando clientes...
                 </SelectItem>
-              ))}
+              ) : clients.length === 0 ? (
+                <SelectItem value="" disabled>
+                  Nenhum cliente encontrado
+                </SelectItem>
+              ) : (
+                clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      {client.name}
+                    </div>
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
           <FormMessage />

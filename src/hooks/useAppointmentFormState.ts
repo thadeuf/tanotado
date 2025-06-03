@@ -25,6 +25,8 @@ export const useAppointmentFormState = ({
   const [recurrenceDates, setRecurrenceDates] = useState<Date[]>([]);
   const [pendingFormData, setPendingFormData] = useState<AppointmentFormData | null>(null);
 
+  console.log('useAppointmentFormState - clients loaded:', clients?.length || 0);
+
   const getDefaultEndTime = (startTime: string) => {
     const [hours, minutes] = startTime.split(':').map(Number);
     const endHours = hours + 1;
@@ -58,6 +60,9 @@ export const useAppointmentFormState = ({
   const endTime = form.watch('endTime');
   const recurrenceType = form.watch('recurrenceType');
   const recurrenceCount = form.watch('recurrenceCount');
+
+  console.log('useAppointmentFormState - sessionType:', sessionType);
+  console.log('useAppointmentFormState - selectedClientId:', selectedClientId);
 
   const checkTimeConflict = (startTime: string, endTime: string) => {
     const [startHours, startMinutes] = startTime.split(':').map(Number);
@@ -102,6 +107,7 @@ export const useAppointmentFormState = ({
   }, [startTime, form]);
 
   useEffect(() => {
+    console.log('useAppointmentFormState - sessionType effect:', sessionType);
     if (sessionType === 'personal') {
       form.setValue('clientId', '');
       form.setValue('createFinancialRecord', false);
