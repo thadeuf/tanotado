@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -61,19 +62,19 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   };
 
   const deleteAppointmentMutation = useMutation({
-    mutationFn: async ({ appointmentId, deleteType }: { appointmentId: string; deleteType: 'single' | 'series' }) => {
+    mutationFn: async ({ appointment, deleteType }: { appointment: Appointment; deleteType: 'single' | 'series' }) => {
       console.log('=== DELETION DEBUG ===');
-      console.log('Deleting appointment:', appointmentId, 'Type:', deleteType);
-      console.log('Deleting appointment object:', deletingAppointment);
+      console.log('Deleting appointment:', appointment.id, 'Type:', deleteType);
+      console.log('Appointment object:', appointment);
       
-      if (deleteType === 'series' && deletingAppointment?.recurrence_group_id) {
-        console.log('Deleting series with recurrence_group_id:', deletingAppointment.recurrence_group_id);
+      if (deleteType === 'series' && appointment.recurrence_group_id) {
+        console.log('Deleting series with recurrence_group_id:', appointment.recurrence_group_id);
         
         // First, let's check what appointments exist with this recurrence_group_id
         const { data: seriesAppointments, error: queryError } = await supabase
           .from('appointments')
           .select('*')
-          .eq('recurrence_group_id', deletingAppointment.recurrence_group_id);
+          .eq('recurrence_group_id', appointment.recurrence_group_id);
 
         console.log('Found appointments in series:', seriesAppointments);
         console.log('Query error (if any):', queryError);
@@ -87,7 +88,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
         const { data: deletedData, error } = await supabase
           .from('appointments')
           .delete()
-          .eq('recurrence_group_id', deletingAppointment.recurrence_group_id)
+          .eq('recurrence_group_id', appointment.recurrence_group_id)
           .select();
 
         console.log('Deletion result:', deletedData);
@@ -100,13 +101,13 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
 
         console.log('Successfully deleted', deletedData?.length || 0, 'appointments from series');
       } else {
-        console.log('Deleting single appointment with ID:', appointmentId);
+        console.log('Deleting single appointment with ID:', appointment.id);
         
         // Delete only the single appointment
         const { data: deletedData, error } = await supabase
           .from('appointments')
           .delete()
-          .eq('id', appointmentId)
+          .eq('id', appointment.id)
           .select();
 
         console.log('Single deletion result:', deletedData);
@@ -154,7 +155,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
     } else {
       // For non-recurring appointments, delete directly
       deleteAppointmentMutation.mutate({ 
-        appointmentId: appointment.id, 
+        appointment, 
         deleteType: 'single' 
       });
     }
@@ -163,7 +164,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   const handleDeleteSingle = () => {
     if (deletingAppointment) {
       deleteAppointmentMutation.mutate({ 
-        appointmentId: deletingAppointment.id, 
+        appointment: deletingAppointment, 
         deleteType: 'single' 
       });
     }
@@ -172,7 +173,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   const handleDeleteSeries = () => {
     if (deletingAppointment) {
       deleteAppointmentMutation.mutate({ 
-        appointmentId: deletingAppointment.id, 
+        appointment: deletingAppointment, 
         deleteType: 'series' 
       });
     }
