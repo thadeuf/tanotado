@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -478,18 +477,18 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     <Palette className="h-4 w-4" />
                     Cor do Agendamento
                   </FormLabel>
-                  <div className="grid grid-cols-8 gap-2">
+                  <div className="flex gap-1">
                     {COLORS.map((color) => (
                       <Button
                         key={color.value}
                         type="button"
                         variant="outline"
-                        className={`h-12 w-12 p-0 ${
+                        className={`h-8 w-8 p-0 rounded-full border-2 ${
                           field.value === color.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
                         }`}
                         onClick={() => field.onChange(color.value)}
                       >
-                        <div className={`w-8 h-8 rounded-full ${color.color}`} />
+                        <div className={`w-6 h-6 rounded-full ${color.color}`} />
                       </Button>
                     ))}
                   </div>
