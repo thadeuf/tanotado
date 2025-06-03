@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,6 +12,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Appointment } from '@/hooks/useAppointments';
 import { useIsMobile } from '@/hooks/use-mobile';
+import EditAppointmentForm from './EditAppointmentForm';
 
 interface TimeSlotsProps {
   selectedDate: Date;
@@ -22,6 +23,7 @@ interface TimeSlotsProps {
 const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -91,16 +93,16 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
     },
   });
 
-  const handleEdit = (appointmentId: string) => {
-    // TODO: Implementar edição do agendamento
-    toast({
-      title: "Editar agendamento",
-      description: "Funcionalidade em desenvolvimento",
-    });
+  const handleEdit = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
   };
 
   const handleDelete = (appointmentId: string) => {
     deleteAppointmentMutation.mutate(appointmentId);
+  };
+
+  const handleCloseEdit = () => {
+    setEditingAppointment(null);
   };
 
   // Ordenar agendamentos por horário
@@ -109,108 +111,29 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   );
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          {isToday(selectedDate) ? 'Hoje' : format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Agendamentos existentes */}
-        {sortedAppointments.length > 0 ? (
-          <div className="space-y-3">
-            {sortedAppointments.map((appointment) => (
-              <div
-                key={appointment.id}
-                className="p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                {isMobile ? (
-                  // Layout mobile: cada informação em uma linha
-                  <div className="space-y-2">
-                    {/* Linha 1: Horário e status */}
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-base">
-                        {format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}
-                      </span>
-                      <Badge 
-                        variant="secondary" 
-                        className={getStatusColor(appointment.status)}
-                      >
-                        {getStatusText(appointment.status)}
-                      </Badge>
-                    </div>
-
-                    {/* Linha 2: Nome do cliente com avatar */}
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage 
-                          src={appointment.client?.photo_url} 
-                          alt={appointment.client?.name}
-                        />
-                        <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-xs">
-                          {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium text-foreground">
-                        {appointment.client?.name || 'Cliente não informado'}
-                      </span>
-                    </div>
-
-                    {/* Linha 3: Tipo de atendimento */}
-                    <div className="flex items-center gap-2">
-                      {getAppointmentTypeIcon(appointment.appointment_type)}
-                      <span className="text-sm text-muted-foreground">
-                        {getAppointmentTypeText(appointment.appointment_type)}
-                      </span>
-                    </div>
-
-                    {/* Linha 4: Título do agendamento */}
-                    <p className="text-sm text-muted-foreground">
-                      {appointment.title}
-                    </p>
-
-                    {/* Linha 5: Ações */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-muted-foreground hover:text-tanotado-blue"
-                        onClick={() => handleEdit(appointment.id)}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-muted-foreground hover:text-red-600"
-                        onClick={() => handleDelete(appointment.id)}
-                        disabled={deleteAppointmentMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Excluir
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  // Layout desktop: layout horizontal compacto
-                  <div className="flex items-center gap-3">
-                    {/* Avatar do cliente */}
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage 
-                        src={appointment.client?.photo_url} 
-                        alt={appointment.client?.name}
-                      />
-                      <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
-                        {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    {/* Informações do agendamento */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-sm">
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            {isToday(selectedDate) ? 'Hoje' : format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Agendamentos existentes */}
+          {sortedAppointments.length > 0 ? (
+            <div className="space-y-3">
+              {sortedAppointments.map((appointment) => (
+                <div
+                  key={appointment.id}
+                  className="p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  {isMobile ? (
+                    // Layout mobile: cada informação em uma linha
+                    <div className="space-y-2">
+                      {/* Linha 1: Horário e status */}
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-base">
                           {format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}
                         </span>
                         <Badge 
@@ -220,55 +143,144 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                           {getStatusText(appointment.status)}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground truncate">
+
+                      {/* Linha 2: Nome do cliente com avatar */}
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage 
+                            src={appointment.client?.photo_url} 
+                            alt={appointment.client?.name}
+                          />
+                          <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-xs">
+                            {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium text-foreground">
                           {appointment.client?.name || 'Cliente não informado'}
                         </span>
-                        <div className="flex items-center gap-1">
-                          {getAppointmentTypeIcon(appointment.appointment_type)}
-                          <span className="text-xs text-muted-foreground">
-                            {getAppointmentTypeText(appointment.appointment_type)}
-                          </span>
-                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
+
+                      {/* Linha 3: Tipo de atendimento */}
+                      <div className="flex items-center gap-2">
+                        {getAppointmentTypeIcon(appointment.appointment_type)}
+                        <span className="text-sm text-muted-foreground">
+                          {getAppointmentTypeText(appointment.appointment_type)}
+                        </span>
+                      </div>
+
+                      {/* Linha 4: Título do agendamento */}
+                      <p className="text-sm text-muted-foreground">
                         {appointment.title}
                       </p>
-                    </div>
 
-                    {/* Ações */}
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-tanotado-blue"
-                        onClick={() => handleEdit(appointment.id)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-red-600"
-                        onClick={() => handleDelete(appointment.id)}
-                        disabled={deleteAppointmentMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {/* Linha 5: Ações */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-muted-foreground hover:text-tanotado-blue"
+                          onClick={() => handleEdit(appointment)}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-muted-foreground hover:text-red-600"
+                          onClick={() => handleDelete(appointment.id)}
+                          disabled={deleteAppointmentMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Excluir
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-6 text-muted-foreground">
-            <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>Nenhum agendamento para este dia</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                  ) : (
+                    // Layout desktop: layout horizontal compacto
+                    <div className="flex items-center gap-3">
+                      {/* Avatar do cliente */}
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage 
+                          src={appointment.client?.photo_url} 
+                          alt={appointment.client?.name}
+                        />
+                        <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
+                          {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      {/* Informações do agendamento */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">
+                            {format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}
+                          </span>
+                          <Badge 
+                            variant="secondary" 
+                            className={getStatusColor(appointment.status)}
+                          >
+                            {getStatusText(appointment.status)}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {appointment.client?.name || 'Cliente não informado'}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {getAppointmentTypeIcon(appointment.appointment_type)}
+                            <span className="text-xs text-muted-foreground">
+                              {getAppointmentTypeText(appointment.appointment_type)}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {appointment.title}
+                        </p>
+                      </div>
+
+                      {/* Ações */}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-tanotado-blue"
+                          onClick={() => handleEdit(appointment)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                          onClick={() => handleDelete(appointment.id)}
+                          disabled={deleteAppointmentMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>Nenhum agendamento para este dia</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Appointment Modal */}
+      {editingAppointment && (
+        <EditAppointmentForm
+          appointment={editingAppointment}
+          onClose={handleCloseEdit}
+        />
+      )}
+    </>
   );
 };
 
