@@ -13,6 +13,7 @@ const queryClient = new QueryClient();
 
 const AppContent: React.FC = () => {
   const [showSplash, setShowSplash] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     // Verifica se é o primeiro acesso
@@ -21,12 +22,17 @@ const AppContent: React.FC = () => {
     if (!hasSeenSplash) {
       setShowSplash(true);
     }
+    setIsChecking(false);
   }, []);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
     localStorage.setItem('hasSeenSplash', 'true');
   };
+
+  if (isChecking) {
+    return null; // ou um loader simples
+  }
 
   if (showSplash) {
     return <SplashScreen onComplete={handleSplashComplete} />;

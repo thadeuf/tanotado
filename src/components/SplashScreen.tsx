@@ -24,11 +24,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
           <img 
             src="/lovable-uploads/997559be-cbfa-4975-a3c3-c43bc9ffa421.png" 
             alt="tanotado"
-            className="w-24 h-24 mx-auto mb-4 animate-pulse"
+            className="w-48 h-48 mx-auto mb-8 animate-pulse"
           />
-          <div className="w-16 h-1 bg-white/30 rounded-full mx-auto">
-            <div className="w-full h-full bg-white rounded-full animate-pulse"></div>
-          </div>
+          <p className="text-white/70 mt-4 text-lg">Agendamento Inteligente</p>
         </div>
       </div>
     );
@@ -40,11 +38,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
         <img 
           src="/lovable-uploads/997559be-cbfa-4975-a3c3-c43bc9ffa421.png" 
           alt="tanotado"
-          className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-8"
+          className="w-64 h-64 md:w-80 md:h-80 mx-auto mb-8"
         />
-        <div className="w-24 h-1 bg-white/30 rounded-full mx-auto">
-          <div className="w-full h-full bg-white rounded-full animate-pulse"></div>
-        </div>
         <p className="text-white/70 mt-4 text-lg">Agendamento Inteligente</p>
       </div>
     </div>
