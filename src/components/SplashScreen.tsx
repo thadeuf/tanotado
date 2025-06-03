@@ -21,10 +21,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
     return (
       <div className="fixed inset-0 splash-screen flex items-center justify-center z-50 opacity-0 transition-opacity duration-300">
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-white mb-4 animate-pulse">tanotado</h1>
-          <div className="w-16 h-1 bg-white/30 rounded-full mx-auto">
-            <div className="w-full h-full bg-white rounded-full animate-pulse"></div>
-          </div>
+          <img 
+            src="/lovable-uploads/c8922f24-5bf7-4be8-a02f-2d0937d79070.png" 
+            alt="tanotado" 
+            className="w-32 h-32 mx-auto mb-4 animate-pulse"
+          />
+          <p className="text-white/70 text-lg">Agendamento Inteligente</p>
         </div>
       </div>
     );
@@ -33,13 +35,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   return (
     <div className="fixed inset-0 splash-screen flex items-center justify-center z-50 transition-opacity duration-300">
       <div className="text-center animate-fade-in">
-        <h1 className="text-6xl md:text-8xl font-bold text-white mb-8 tracking-tight">
-          tanotado
-        </h1>
-        <div className="w-24 h-1 bg-white/30 rounded-full mx-auto">
-          <div className="w-full h-full bg-white rounded-full animate-pulse"></div>
-        </div>
-        <p className="text-white/70 mt-4 text-lg">Agendamento Inteligente</p>
+        <img 
+          src="/lovable-uploads/c8922f24-5bf7-4be8-a02f-2d0937d79070.png" 
+          alt="tanotado" 
+          className="w-48 h-48 md:w-64 md:h-64 mx-auto mb-8"
+        />
+        <p className="text-white/70 text-lg">Agendamento Inteligente</p>
       </div>
     </div>
   );
