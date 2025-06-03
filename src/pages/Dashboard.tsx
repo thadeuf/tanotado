@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSessionManager } from '../hooks/useSessionManager';
 import DashboardStats from '../components/dashboard/DashboardStats';
 import AppointmentsSection from '../components/dashboard/AppointmentsSection';
 import BirthdaysSection from '../components/dashboard/BirthdaysSection';
@@ -8,6 +9,9 @@ import SubscriptionBanner from '../components/dashboard/SubscriptionBanner';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  
+  // Initialize session management
+  useSessionManager();
 
   return (
     <div className="space-y-6 animate-fade-in">

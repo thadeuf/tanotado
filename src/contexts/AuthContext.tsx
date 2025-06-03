@@ -4,6 +4,7 @@ import { AuthContextType, User, RegisterData } from '../types/auth';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
+import { getGenericErrorMessage } from '@/utils/security';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -20,21 +21,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Configurar listener de autenticação
+    // Configure authentication listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth event:', event, session);
         
         if (session?.user) {
           await loadUserProfile(session);
+          // Update last activity on successful auth
+          localStorage.setItem('lastActivity', new Date().toISOString());
         } else {
           setUser(null);
+          localStorage.removeItem('lastActivity');
         }
         setIsLoading(false);
       }
     );
 
-    // Verificar sessão existente
+    // Check existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         loadUserProfile(session);
@@ -87,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
 
@@ -101,9 +105,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } catch (error: any) {
       console.error('Login error:', error);
+      const errorMessage = getGenericErrorMessage(error);
       toast({
         title: "Erro no login",
-        description: error.message || "Verifique suas credenciais e tente novamente",
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
@@ -116,13 +121,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
-        email: userData.email,
+        email: userData.email.trim().toLowerCase(),
         password: userData.password,
         options: {
           data: {
-            name: userData.name,
-            whatsapp: userData.whatsapp,
-            cpf: userData.cpf,
+            name: userData.name.trim(),
+            whatsapp: userData.whatsapp.replace(/\D/g, ''),
+            cpf: userData.cpf.replace(/\D/g, ''),
           },
           emailRedirectTo: `${window.location.origin}/`
         }
@@ -138,9 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } catch (error: any) {
       console.error('Register error:', error);
+      const errorMessage = getGenericErrorMessage(error);
       toast({
         title: "Erro no cadastro",
-        description: error.message || "Tente novamente em alguns instantes",
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
@@ -155,9 +161,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const profileUpdates: any = {};
       
-      if (updates.name !== undefined) profileUpdates.name = updates.name;
-      if (updates.whatsapp !== undefined) profileUpdates.whatsapp = updates.whatsapp;
-      if (updates.cpf !== undefined) profileUpdates.cpf = updates.cpf;
+      if (updates.name !== undefined) profileUpdates.name = updates.name.trim();
+      if (updates.whatsapp !== undefined) profileUpdates.whatsapp = updates.whatsapp.replace(/\D/g, '');
+      if (updates.cpf !== undefined) profileUpdates.cpf = updates.cpf.replace(/\D/g, '');
       if (updates.hasCompletedOnboarding !== undefined) profileUpdates.has_completed_onboarding = updates.hasCompletedOnboarding;
       if (updates.clientNomenclature !== undefined) profileUpdates.client_nomenclature = updates.clientNomenclature;
       if (updates.specialty !== undefined) profileUpdates.specialty = updates.specialty;
@@ -176,9 +182,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(updatedUser);
     } catch (error) {
       console.error('Error updating user:', error);
+      const errorMessage = getGenericErrorMessage(error);
       toast({
         title: "Erro ao atualizar perfil",
-        description: "Tente novamente em alguns instantes",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -191,15 +198,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       setUser(null);
+      localStorage.removeItem('lastActivity');
       toast({
         title: "Logout realizado",
         description: "Até a próxima!",
       });
     } catch (error) {
       console.error('Logout error:', error);
+      const errorMessage = getGenericErrorMessage(error);
       toast({
         title: "Erro no logout",
-        description: "Tente novamente",
+        description: errorMessage,
         variant: "destructive",
       });
     }
