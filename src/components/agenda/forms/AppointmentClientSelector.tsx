@@ -39,11 +39,11 @@ const AppointmentClientSelector: React.FC<AppointmentClientSelectorProps> = ({
             </FormControl>
             <SelectContent>
               {isLoading ? (
-                <SelectItem value="" disabled>
+                <SelectItem value="loading" disabled>
                   Carregando clientes...
                 </SelectItem>
               ) : clients.length === 0 ? (
-                <SelectItem value="" disabled>
+                <SelectItem value="no-clients" disabled>
                   Nenhum cliente encontrado
                 </SelectItem>
               ) : (
