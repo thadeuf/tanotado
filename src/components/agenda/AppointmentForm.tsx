@@ -27,10 +27,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Calendar, Clock, User, Video, MapPin, DollarSign, Users, Palette } from 'lucide-react';
-import { format } from 'date-fns';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Calendar, Clock, User, Video, MapPin, DollarSign, Users, Palette, AlertTriangle } from 'lucide-react';
+import { format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
+import { useAppointments } from '@/hooks/useAppointments';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -110,8 +112,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 }) => {
   const { user } = useAuth();
   const { data: clients = [] } = useClients();
+  const { data: appointments = [] } = useAppointments();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timeConflictWarning, setTimeConflictWarning] = useState<string>('');
 
   // Calcular horário de fim padrão (1 hora após o início)
   const getDefaultEndTime = (startTime: string) => {
@@ -141,6 +145,45 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const appointmentType = form.watch('appointmentType');
   const selectedClientId = form.watch('clientId');
   const watchCreateFinancialRecord = form.watch('createFinancialRecord');
+  const startTime = form.watch('startTime');
+  const endTime = form.watch('endTime');
+
+  // Função para verificar conflitos de horário
+  const checkTimeConflict = (startTime: string, endTime: string) => {
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
+    const [endHours, endMinutes] = endTime.split(':').map(Number);
+    
+    const newStartDateTime = new Date(selectedDate);
+    newStartDateTime.setHours(startHours, startMinutes, 0, 0);
+    
+    const newEndDateTime = new Date(selectedDate);
+    newEndDateTime.setHours(endHours, endMinutes, 0, 0);
+
+    const conflictingAppointment = appointments.find(appointment => {
+      const appointmentDate = new Date(appointment.start_time);
+      const appointmentEndDate = new Date(appointment.end_time);
+      
+      // Verificar se é no mesmo dia
+      if (!isSameDay(appointmentDate, selectedDate)) {
+        return false;
+      }
+
+      // Verificar sobreposição de horários
+      return (
+        (newStartDateTime >= appointmentDate && newStartDateTime < appointmentEndDate) ||
+        (newEndDateTime > appointmentDate && newEndDateTime <= appointmentEndDate) ||
+        (newStartDateTime <= appointmentDate && newEndDateTime >= appointmentEndDate)
+      );
+    });
+
+    if (conflictingAppointment) {
+      const conflictStart = format(new Date(conflictingAppointment.start_time), 'HH:mm');
+      const conflictEnd = format(new Date(conflictingAppointment.end_time), 'HH:mm');
+      return `Já existe um agendamento neste horário: ${conflictingAppointment.title} (${conflictStart} - ${conflictEnd})`;
+    }
+
+    return '';
+  };
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
@@ -212,7 +255,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   };
 
   // Watch startTime to update endTime automatically
-  const startTime = form.watch('startTime');
   React.useEffect(() => {
     if (startTime) {
       const defaultEnd = getDefaultEndTime(startTime);
@@ -237,6 +279,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   }, [selectedClientId, clients, sessionType, form]);
 
+  // Check for time conflicts when start or end time changes
+  React.useEffect(() => {
+    if (startTime && endTime) {
+      const conflict = checkTimeConflict(startTime, endTime);
+      setTimeConflictWarning(conflict);
+    }
+  }, [startTime, endTime, appointments, selectedDate]);
+
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -252,6 +302,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           <Calendar className="h-4 w-4 text-tanotado-blue" />
           <span className="text-sm">{format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}</span>
         </div>
+
+        {/* Time Conflict Warning */}
+        {timeConflictWarning && (
+          <Alert className="mb-4 border-yellow-200 bg-yellow-50">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">
+              {timeConflictWarning}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
