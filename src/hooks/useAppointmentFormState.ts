@@ -3,6 +3,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect, useMemo } from 'react';
 import { useAppointments } from '@/hooks/useAppointments';
+import { useClients } from '@/hooks/useClients';
 import { isSameDay, format } from 'date-fns';
 import { appointmentSchema, AppointmentFormData } from '@/schemas/appointmentSchema';
 
@@ -23,6 +24,7 @@ export const useAppointmentFormState = ({
   const [pendingFormData, setPendingFormData] = useState<AppointmentFormData | null>(null);
 
   const { data: appointments = [] } = useAppointments();
+  const { data: clients = [] } = useClients();
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
@@ -46,6 +48,20 @@ export const useAppointmentFormState = ({
   const recurrenceType = useWatch({ control: form.control, name: 'recurrenceType' });
   const startTime = useWatch({ control: form.control, name: 'startTime' });
   const endTime = useWatch({ control: form.control, name: 'endTime' });
+  const clientId = useWatch({ control: form.control, name: 'clientId' });
+
+  // Preencher automaticamente o valor da sessão quando cliente é selecionado
+  useEffect(() => {
+    if (clientId && clients.length > 0) {
+      const selectedClient = clients.find(client => client.id === clientId);
+      console.log('Client selected:', clientId, 'Client data:', selectedClient);
+      
+      if (selectedClient?.session_value) {
+        console.log('Setting price from client session_value:', selectedClient.session_value);
+        form.setValue('price', selectedClient.session_value);
+      }
+    }
+  }, [clientId, clients, form]);
 
   // Memoize appointments for the selected date to avoid unnecessary recalculations
   const dayAppointments = useMemo(() => {
