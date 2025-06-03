@@ -10,6 +10,8 @@ export const useAppointmentMutations = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  console.log('useAppointmentMutations - user:', user?.id);
+
   const generateRecurrenceDates = (
     startDate: Date,
     type: 'weekly' | 'biweekly' | 'monthly',
@@ -39,12 +41,21 @@ export const useAppointmentMutations = () => {
 
   const createAppointmentMutation = useMutation({
     mutationFn: async ({ data, selectedDate }: { data: AppointmentFormData; selectedDate: Date }) => {
-      if (!user?.id) throw new Error('Usuário não autenticado');
+      console.log('createAppointmentMutation - Starting mutation with data:', data);
+      console.log('createAppointmentMutation - selectedDate:', selectedDate);
+      console.log('createAppointmentMutation - user:', user);
+
+      if (!user?.id) {
+        console.error('createAppointmentMutation - No user ID found');
+        throw new Error('Usuário não autenticado');
+      }
 
       const appointments = [];
       const dates = data.sessionType === 'recurring' && data.recurrenceType && data.recurrenceCount
         ? generateRecurrenceDates(selectedDate, data.recurrenceType, data.recurrenceCount)
         : [selectedDate];
+
+      console.log('createAppointmentMutation - dates to create:', dates);
 
       const recurrenceGroupId = data.sessionType === 'recurring' ? crypto.randomUUID() : null;
 
@@ -58,9 +69,13 @@ export const useAppointmentMutations = () => {
         const endDateTime = new Date(date);
         endDateTime.setHours(endHours, endMinutes, 0, 0);
 
+        console.log('createAppointmentMutation - Processing date:', date);
+        console.log('createAppointmentMutation - startDateTime:', startDateTime);
+        console.log('createAppointmentMutation - endDateTime:', endDateTime);
+
         const appointmentData = {
           user_id: user.id,
-          client_id: data.sessionType === 'personal' ? null : data.clientId || null,
+          client_id: data.sessionType === 'personal' ? null : (data.clientId || null),
           description: data.description || null,
           title: data.title || null,
           start_time: startDateTime.toISOString(),
@@ -78,23 +93,31 @@ export const useAppointmentMutations = () => {
           recurrence_group_id: recurrenceGroupId,
         };
 
+        console.log('createAppointmentMutation - appointmentData:', appointmentData);
         appointments.push(appointmentData);
       }
 
-      console.log('Creating appointments:', appointments);
+      console.log('createAppointmentMutation - Final appointments array:', appointments);
+      console.log('createAppointmentMutation - About to insert into database...');
 
-      const { error } = await supabase
+      const { data: insertResult, error } = await supabase
         .from('appointments')
-        .insert(appointments);
+        .insert(appointments)
+        .select();
+
+      console.log('createAppointmentMutation - Insert result:', insertResult);
+      console.log('createAppointmentMutation - Insert error:', error);
 
       if (error) {
-        console.error('Error creating appointments:', error);
+        console.error('createAppointmentMutation - Database error:', error);
         throw error;
       }
 
+      console.log('createAppointmentMutation - Success! Created appointments:', insertResult?.length);
       return appointments.length;
     },
     onSuccess: (count) => {
+      console.log('createAppointmentMutation - onSuccess called with count:', count);
       toast({
         title: "Agendamento(s) criado(s)",
         description: `${count} agendamento(s) ${count > 1 ? 'foram criados' : 'foi criado'} com sucesso.`,
@@ -102,7 +125,7 @@ export const useAppointmentMutations = () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
     },
     onError: (error) => {
-      console.error('Error creating appointments:', error);
+      console.error('createAppointmentMutation - onError called with error:', error);
       toast({
         title: "Erro ao criar agendamento(s)",
         description: "Não foi possível criar o(s) agendamento(s). Tente novamente.",
@@ -110,6 +133,8 @@ export const useAppointmentMutations = () => {
       });
     },
   });
+
+  console.log('useAppointmentMutations - mutation object:', createAppointmentMutation);
 
   return {
     createAppointmentMutation,

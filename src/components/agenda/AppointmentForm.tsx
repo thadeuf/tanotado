@@ -41,6 +41,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const { createAppointmentMutation } = useAppointmentMutations();
   const { generateRecurrenceDates, checkRecurrenceConflicts } = useAppointmentRecurrence();
 
+  console.log('AppointmentForm - Rendering with props:', { initialSelectedDate, selectedTime });
+
   const {
     form,
     selectedDate,
@@ -63,44 +65,72 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     initialSelectedDate 
   });
 
-  const onSubmit = async (data: AppointmentFormData) => {
-    if (data.sessionType === 'recurring' && data.recurrenceType && data.recurrenceCount) {
-      const dates = generateRecurrenceDates(selectedDate, data.recurrenceType, data.recurrenceCount);
-      const conflicts = checkRecurrenceConflicts(dates, data.startTime, data.endTime);
-      
-      setRecurrenceDates(dates);
-      setRecurrenceConflicts(conflicts);
-      setPendingFormData(data);
-      setShowRecurrenceDialog(true);
-      return;
-    }
+  console.log('AppointmentForm - Form state:', {
+    sessionType,
+    appointmentType,
+    selectedDate,
+    isSubmitting
+  });
 
-    setIsSubmitting(true);
+  const onSubmit = async (data: AppointmentFormData) => {
+    console.log('AppointmentForm - onSubmit called with data:', data);
+    console.log('AppointmentForm - selectedDate:', selectedDate);
+    
     try {
+      setIsSubmitting(true);
+
+      if (data.sessionType === 'recurring' && data.recurrenceType && data.recurrenceCount) {
+        console.log('AppointmentForm - Processing recurring appointment');
+        const dates = generateRecurrenceDates(selectedDate, data.recurrenceType, data.recurrenceCount);
+        const conflicts = checkRecurrenceConflicts(dates, data.startTime, data.endTime);
+        
+        setRecurrenceDates(dates);
+        setRecurrenceConflicts(conflicts);
+        setPendingFormData(data);
+        setShowRecurrenceDialog(true);
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log('AppointmentForm - Processing single appointment, calling mutation...');
       await createAppointmentMutation.mutateAsync({ data, selectedDate });
+      console.log('AppointmentForm - Mutation completed successfully');
       onClose();
+    } catch (error) {
+      console.error('AppointmentForm - Error in onSubmit:', error);
     } finally {
+      console.log('AppointmentForm - Setting isSubmitting to false');
       setIsSubmitting(false);
     }
   };
 
   const handleRecurrenceConfirm = async () => {
-    if (!pendingFormData) return;
+    console.log('AppointmentForm - handleRecurrenceConfirm called');
+    if (!pendingFormData) {
+      console.log('AppointmentForm - No pending form data');
+      return;
+    }
     
     setIsSubmitting(true);
     setShowRecurrenceDialog(false);
     
     try {
+      console.log('AppointmentForm - Creating recurring appointments...');
       await createAppointmentMutation.mutateAsync({ 
         data: pendingFormData, 
         selectedDate 
       });
+      console.log('AppointmentForm - Recurring appointments created successfully');
       onClose();
+    } catch (error) {
+      console.error('AppointmentForm - Error in handleRecurrenceConfirm:', error);
     } finally {
       setIsSubmitting(false);
       setPendingFormData(null);
     }
   };
+
+  console.log('AppointmentForm - About to render form');
 
   return (
     <>
