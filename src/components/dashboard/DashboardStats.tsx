@@ -2,30 +2,56 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Users, Clock, UserX } from 'lucide-react';
+import { useAppointments } from '../../hooks/useAppointments';
+import { useClients } from '../../hooks/useClients';
+import { format, isToday, parseISO } from 'date-fns';
 
 const DashboardStats: React.FC = () => {
+  const { data: appointments = [] } = useAppointments();
+  const { data: clients = [] } = useClients();
+
+  // Filtrar agendamentos de hoje
+  const todayAppointments = appointments.filter(apt => 
+    isToday(parseISO(apt.start_time))
+  );
+
+  // Próximo agendamento
+  const nextAppointment = appointments
+    .filter(apt => new Date(apt.start_time) > new Date() && apt.status !== 'cancelled')
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
+
+  // Contar atendimentos completados
+  const completedAppointments = appointments.filter(apt => 
+    apt.status === 'completed' || apt.status === 'confirmed'
+  ).length;
+
+  // Contar faltas
+  const missedAppointments = appointments.filter(apt => 
+    apt.status === 'cancelled'
+  ).length;
+
   const stats = [
     {
       title: 'Próximo Agendamento',
-      value: '14:30',
+      value: nextAppointment ? format(parseISO(nextAppointment.start_time), 'HH:mm') : '--:--',
       icon: Clock,
       color: 'from-tanotado-pink to-tanotado-purple'
     },
     {
       title: 'Agendamentos Hoje',
-      value: '8',
+      value: todayAppointments.length.toString(),
       icon: Calendar,
       color: 'from-tanotado-orange to-tanotado-yellow'
     },
     {
       title: 'Atendimentos',
-      value: '156',
+      value: completedAppointments.toString(),
       icon: Users,
       color: 'from-tanotado-blue to-tanotado-green'
     },
     {
       title: 'Faltas',
-      value: '3',
+      value: missedAppointments.toString(),
       icon: UserX,
       color: 'from-tanotado-purple to-tanotado-pink'
     }
