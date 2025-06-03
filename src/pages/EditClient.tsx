@@ -32,9 +32,13 @@ const EditClient: React.FC = () => {
   console.log('EditClient: User ID:', user?.id);
 
   // Hook para buscar estatísticas do cliente
-  const { data: clientStats, isLoading: statsLoading } = useClientStats(id || '');
+  const { 
+    data: clientStats, 
+    isLoading: statsLoading, 
+    error: statsError 
+  } = useClientStats(id || '');
 
-  const { data: client, isLoading, error } = useQuery({
+  const { data: client, isLoading, error, isSuccess } = useQuery({
     queryKey: ['client', id],
     queryFn: async () => {
       if (!id) {
@@ -47,35 +51,58 @@ const EditClient: React.FC = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('EditClient: Fetching client with ID:', id, 'for user:', user?.id);
+      console.log('EditClient: Starting client fetch with ID:', id, 'for user:', user?.id);
       
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', id)
-        .eq('user_id', user?.id)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', user?.id)
+          .maybeSingle();
 
-      if (error) {
-        console.error('EditClient: Supabase error:', error);
-        toast({
-          title: "Erro ao carregar cliente",
-          description: "Não foi possível carregar os dados do cliente.",
-          variant: "destructive",
-        });
+        if (error) {
+          console.error('EditClient: Supabase error:', error);
+          throw error;
+        }
+
+        console.log('EditClient: Client fetch completed. Data found:', !!data);
+        
+        if (!data) {
+          console.error('EditClient: Client not found');
+          throw new Error('Cliente não encontrado');
+        }
+
+        console.log('EditClient: Client data fetched successfully:', data.name);
+        return data;
+      } catch (error) {
+        console.error('EditClient: Error in client fetch:', error);
         throw error;
       }
-
-      if (!data) {
-        console.error('EditClient: Client not found');
-        throw new Error('Cliente não encontrado');
-      }
-
-      console.log('EditClient: Client data fetched:', data);
-      return data;
     },
     enabled: !!id && !!user?.id,
+    retry: (failureCount, error) => {
+      console.log('EditClient: Query retry attempt', failureCount, error);
+      return failureCount < 2;
+    },
+    retryDelay: attemptIndex => {
+      const delay = Math.min(1000 * 2 ** attemptIndex, 5000);
+      console.log('EditClient: Retrying client fetch in', delay, 'ms');
+      return delay;
+    },
   });
+
+  // Log dos estados da query
+  useEffect(() => {
+    console.log('EditClient: Query states changed:', {
+      isLoading,
+      isSuccess,
+      hasData: !!client,
+      error: error?.message,
+      clientId: id,
+      userId: user?.id
+    });
+  }, [isLoading, isSuccess, client, error, id, user?.id]);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -185,8 +212,7 @@ const EditClient: React.FC = () => {
 
   useEffect(() => {
     if (client) {
-      console.log('EditClient: Client data loaded for form reset:', client);
-      console.log('EditClient: Active registration from DB:', client.active_registration);
+      console.log('EditClient: Setting form data from client:', client.name);
       
       const formData: ClientFormData = {
         // Profissional responsável
@@ -241,7 +267,7 @@ const EditClient: React.FC = () => {
         activeRegistration: client.active_registration,
       };
 
-      console.log('EditClient: Form data being set:', formData);
+      console.log('EditClient: Resetting form with data');
       form.reset(formData);
     }
   }, [client, form]);
@@ -259,7 +285,6 @@ const EditClient: React.FC = () => {
   };
 
   const handleViewRecords = () => {
-    // TODO: Implementar visualização de prontuários
     toast({
       title: "Em desenvolvimento",
       description: "Funcionalidade de prontuários em desenvolvimento.",
@@ -267,7 +292,6 @@ const EditClient: React.FC = () => {
   };
 
   const handleViewNotes = () => {
-    // TODO: Implementar visualização de anotações
     toast({
       title: "Em desenvolvimento", 
       description: "Funcionalidade de anotações em desenvolvimento.",
@@ -275,19 +299,29 @@ const EditClient: React.FC = () => {
   };
 
   const handleViewFinancial = () => {
-    // TODO: Implementar visualização financeira
     toast({
       title: "Em desenvolvimento",
       description: "Funcionalidade financeira em desenvolvimento.",
     });
   };
 
-  console.log('EditClient: Render state - isLoading:', isLoading, 'error:', error, 'client:', !!client);
+  console.log('EditClient: Current render state - isLoading:', isLoading, 'error:', !!error, 'client:', !!client);
 
+  // Loading state
   if (isLoading) {
     console.log('EditClient: Showing loading state');
     return (
       <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => navigate('/clientes')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+          <div>
+            <div className="h-8 bg-gray-200 rounded animate-pulse w-48 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+          </div>
+        </div>
         <div className="flex items-center justify-center p-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tanotado-purple mx-auto mb-4"></div>
@@ -298,6 +332,7 @@ const EditClient: React.FC = () => {
     );
   }
 
+  // Error state
   if (error) {
     console.error('EditClient: Showing error state:', error);
     return (
@@ -321,6 +356,7 @@ const EditClient: React.FC = () => {
     );
   }
 
+  // No client found state
   if (!client) {
     console.log('EditClient: Showing client not found state');
     return (
@@ -338,7 +374,7 @@ const EditClient: React.FC = () => {
     );
   }
 
-  console.log('EditClient: Rendering main form');
+  console.log('EditClient: Rendering main form for client:', client.name);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -362,7 +398,11 @@ const EditClient: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left Column - Client Stats and Options */}
         <div className="lg:col-span-1 space-y-4">
-          {clientStats && !statsLoading ? (
+          {statsError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-600">Erro ao carregar estatísticas</p>
+            </div>
+          ) : clientStats && !statsLoading ? (
             <ClientStatsCard
               totalSessions={clientStats.totalSessions}
               attendedSessions={clientStats.attendedSessions}
