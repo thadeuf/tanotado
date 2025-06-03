@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -312,11 +311,10 @@ const EditClient: React.FC = () => {
     console.log('EditClient: Current mutation states:', {
       isPending: updateClientMutation.isPending,
       isMutating,
-      isLoading: updateClientMutation.isLoading,
     });
     
     // Verificar múltiplas condições para evitar submissões duplicadas
-    if (updateClientMutation.isPending || isMutating || updateClientMutation.isLoading) {
+    if (updateClientMutation.isPending || isMutating) {
       console.log('EditClient: Mutation already in progress, ignoring submit');
       return;
     }
@@ -415,7 +413,7 @@ const EditClient: React.FC = () => {
     );
   }
 
-  console.log('EditClient: Rendering main form for client:', client.name);
+  console.log('EditClient: Rendering main form for client:', client?.name);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -490,7 +488,7 @@ const EditClient: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={updateClientMutation.isPending || isMutating || updateClientMutation.isLoading}
+                  disabled={updateClientMutation.isPending || isMutating}
                   className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
                 >
                   {updateClientMutation.isPending || isMutating ? 'Salvando...' : 'Salvar Alterações'}
