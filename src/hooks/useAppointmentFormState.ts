@@ -1,7 +1,7 @@
 
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAppointments } from '@/hooks/useAppointments';
 import { isSameDay, format } from 'date-fns';
 import { appointmentSchema, AppointmentFormData } from '@/schemas/appointmentSchema';
@@ -32,7 +32,7 @@ export const useAppointmentFormState = ({
         `${String(parseInt(selectedTime.split(':')[0]) + 1).padStart(2, '0')}:${selectedTime.split(':')[1]}` : 
         '10:00',
       appointmentType: 'presencial',
-      createFinancialRecord: true, // Mudança aqui: sempre criar por padrão
+      createFinancialRecord: true,
       color: '#8B5CF6',
       sessionType: 'unique',
       recurrenceCount: 4,
@@ -47,17 +47,25 @@ export const useAppointmentFormState = ({
   const startTime = useWatch({ control: form.control, name: 'startTime' });
   const endTime = useWatch({ control: form.control, name: 'endTime' });
 
-  // Check for time conflicts
+  // Memoize appointments for the selected date to avoid unnecessary recalculations
+  const dayAppointments = useMemo(() => {
+    return appointments.filter(appointment => 
+      isSameDay(new Date(appointment.start_time), selectedDate)
+    );
+  }, [appointments, selectedDate]);
+
+  // Check for time conflicts with debounced effect
   useEffect(() => {
-    if (startTime && endTime && selectedDate) {
-      const conflictingAppointment = appointments.find(appointment => {
+    if (!startTime || !endTime || !selectedDate) {
+      setTimeConflictWarning('');
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      const conflictingAppointment = dayAppointments.find(appointment => {
         const appointmentDate = new Date(appointment.start_time);
         const appointmentEndDate = new Date(appointment.end_time);
         
-        if (!isSameDay(appointmentDate, selectedDate)) {
-          return false;
-        }
-
         const [startHours, startMinutes] = startTime.split(':').map(Number);
         const [endHours, endMinutes] = endTime.split(':').map(Number);
         
@@ -82,8 +90,10 @@ export const useAppointmentFormState = ({
       } else {
         setTimeConflictWarning('');
       }
-    }
-  }, [startTime, endTime, selectedDate, appointments]);
+    }, 300); // Debounce de 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [startTime, endTime, dayAppointments]);
 
   return {
     form,
