@@ -62,25 +62,54 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
 
   const deleteAppointmentMutation = useMutation({
     mutationFn: async ({ appointmentId, deleteType }: { appointmentId: string; deleteType: 'single' | 'series' }) => {
+      console.log('=== DELETION DEBUG ===');
       console.log('Deleting appointment:', appointmentId, 'Type:', deleteType);
+      console.log('Deleting appointment object:', deletingAppointment);
       
       if (deleteType === 'series' && deletingAppointment?.recurrence_group_id) {
+        console.log('Deleting series with recurrence_group_id:', deletingAppointment.recurrence_group_id);
+        
+        // First, let's check what appointments exist with this recurrence_group_id
+        const { data: seriesAppointments, error: queryError } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('recurrence_group_id', deletingAppointment.recurrence_group_id);
+
+        console.log('Found appointments in series:', seriesAppointments);
+        console.log('Query error (if any):', queryError);
+
+        if (queryError) {
+          console.error('Error querying series appointments:', queryError);
+          throw queryError;
+        }
+
         // Delete all appointments in the series
-        const { error } = await supabase
+        const { data: deletedData, error } = await supabase
           .from('appointments')
           .delete()
-          .eq('recurrence_group_id', deletingAppointment.recurrence_group_id);
+          .eq('recurrence_group_id', deletingAppointment.recurrence_group_id)
+          .select();
+
+        console.log('Deletion result:', deletedData);
+        console.log('Deletion error (if any):', error);
 
         if (error) {
           console.error('Error deleting appointment series:', error);
           throw error;
         }
+
+        console.log('Successfully deleted', deletedData?.length || 0, 'appointments from series');
       } else {
+        console.log('Deleting single appointment with ID:', appointmentId);
+        
         // Delete only the single appointment
-        const { error } = await supabase
+        const { data: deletedData, error } = await supabase
           .from('appointments')
           .delete()
-          .eq('id', appointmentId);
+          .eq('id', appointmentId)
+          .select();
+
+        console.log('Single deletion result:', deletedData);
 
         if (error) {
           console.error('Error deleting single appointment:', error);
