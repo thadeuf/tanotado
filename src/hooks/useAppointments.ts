@@ -23,6 +23,8 @@ export interface Appointment {
   payment_status: 'pending' | 'paid' | 'overdue';
   recurrence_type: string | null;
   recurrence_end_date: string | null;
+  recurrence_count: number | null;
+  recurrence_group_id: string | null;
   created_at: string;
   updated_at: string;
   appointment_type?: 'presencial' | 'remoto';

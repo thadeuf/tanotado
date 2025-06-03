@@ -21,7 +21,9 @@ export type Database = {
           id: string
           payment_status: Database["public"]["Enums"]["payment_status"] | null
           price: number | null
+          recurrence_count: number | null
           recurrence_end_date: string | null
+          recurrence_group_id: string | null
           recurrence_type: Database["public"]["Enums"]["recurrence_type"] | null
           session_type: string | null
           start_time: string
@@ -42,7 +44,9 @@ export type Database = {
           id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           price?: number | null
+          recurrence_count?: number | null
           recurrence_end_date?: string | null
+          recurrence_group_id?: string | null
           recurrence_type?:
             | Database["public"]["Enums"]["recurrence_type"]
             | null
@@ -65,7 +69,9 @@ export type Database = {
           id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           price?: number | null
+          recurrence_count?: number | null
           recurrence_end_date?: string | null
+          recurrence_group_id?: string | null
           recurrence_type?:
             | Database["public"]["Enums"]["recurrence_type"]
             | null
@@ -471,7 +477,7 @@ export type Database = {
         | "cancelled"
         | "no_show"
       payment_status: "pending" | "paid" | "overdue" | "cancelled"
-      recurrence_type: "none" | "daily" | "weekly" | "monthly"
+      recurrence_type: "none" | "daily" | "weekly" | "monthly" | "biweekly"
       user_role: "admin" | "user"
     }
     CompositeTypes: {
@@ -596,7 +602,7 @@ export const Constants = {
         "no_show",
       ],
       payment_status: ["pending", "paid", "overdue", "cancelled"],
-      recurrence_type: ["none", "daily", "weekly", "monthly"],
+      recurrence_type: ["none", "daily", "weekly", "monthly", "biweekly"],
       user_role: ["admin", "user"],
     },
   },
