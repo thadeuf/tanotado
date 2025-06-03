@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +33,28 @@ const MonthView: React.FC<MonthViewProps> = ({
   const dateFormat = "d";
   const headerFormat = "MMMM yyyy";
   const dayFormat = "EEEEE";
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'scheduled': return 'Pendente';
+      case 'confirmed': return 'Compareceu';
+      case 'no_show': return 'Faltou';
+      case 'cancelled': return 'Suspensa';
+      case 'completed': return 'Concluído';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'scheduled': return 'bg-blue-100 text-blue-800';
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'no_show': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-orange-100 text-orange-800';
+      case 'completed': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   const handleAppointmentClick = (appointment: Appointment, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -148,9 +169,7 @@ const MonthView: React.FC<MonthViewProps> = ({
                   key={appointment.id}
                   className={cn(
                     "text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity",
-                    appointment.status === 'completed' && "bg-green-100 text-green-800",
-                    appointment.status === 'scheduled' && "bg-blue-100 text-blue-800",
-                    appointment.status === 'cancelled' && "bg-red-100 text-red-800"
+                    getStatusColor(appointment.status)
                   )}
                   style={{
                     backgroundColor: appointment.color ? `${appointment.color}20` : undefined,

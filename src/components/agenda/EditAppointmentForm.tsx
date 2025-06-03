@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,7 +39,7 @@ const editAppointmentSchema = z.object({
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
   endTime: z.string().min(1, 'Horário de fim é obrigatório'),
-  status: z.enum(['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show']),
+  status: z.enum(['scheduled', 'confirmed', 'no_show', 'cancelled']),
   appointmentType: z.enum(['presencial', 'remoto']),
   videoCallLink: z.string().optional(),
   createFinancialRecord: z.boolean(),
@@ -83,7 +82,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
       price: appointment.price ? appointment.price.toString() : '',
       startTime: startTime,
       endTime: endTime,
-      status: appointment.status as 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show',
+      status: appointment.status as 'scheduled' | 'confirmed' | 'no_show' | 'cancelled',
       appointmentType: (appointment.appointment_type as 'presencial' | 'remoto') || 'presencial',
       videoCallLink: appointment.video_call_link || '',
       createFinancialRecord: appointment.create_financial_record ?? true,
