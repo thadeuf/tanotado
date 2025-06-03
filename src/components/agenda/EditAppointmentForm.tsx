@@ -27,7 +27,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Calendar, User } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Calendar, User, Video, MapPin, DollarSign, Palette } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
@@ -37,13 +38,17 @@ import { toast } from '@/hooks/use-toast';
 import { Appointment } from '@/hooks/useAppointments';
 
 const editAppointmentSchema = z.object({
-  clientId: z.string().min(1, 'Selecione um cliente'),
   title: z.string().min(1, 'Título é obrigatório'),
   description: z.string().optional(),
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
   endTime: z.string().min(1, 'Horário de fim é obrigatório'),
   status: z.enum(['scheduled', 'completed', 'cancelled']),
+  appointmentType: z.enum(['presencial', 'remoto']),
+  videoCallLink: z.string().optional(),
+  createFinancialRecord: z.boolean(),
+  color: z.string(),
+  sessionType: z.enum(['unique', 'recurring', 'personal']),
 }).refine((data) => {
   const start = data.startTime.split(':').map(Number);
   const end = data.endTime.split(':').map(Number);
@@ -62,6 +67,23 @@ interface EditAppointmentFormProps {
   onClose: () => void;
 }
 
+const COLORS = [
+  { value: '#8B5CF6', label: 'Roxo', color: 'bg-purple-500' },
+  { value: '#3B82F6', label: 'Azul', color: 'bg-blue-500' },
+  { value: '#10B981', label: 'Verde', color: 'bg-green-500' },
+  { value: '#F59E0B', label: 'Amarelo', color: 'bg-yellow-500' },
+  { value: '#EF4444', label: 'Vermelho', color: 'bg-red-500' },
+  { value: '#EC4899', label: 'Rosa', color: 'bg-pink-500' },
+  { value: '#6366F1', label: 'Índigo', color: 'bg-indigo-500' },
+  { value: '#8B5A2B', label: 'Marrom', color: 'bg-amber-700' },
+];
+
+const APPOINTMENT_TYPES = [
+  { value: 'unique', label: 'Sessão Única', icon: Calendar },
+  { value: 'recurring', label: 'Sessão Recorrente', icon: Calendar },
+  { value: 'personal', label: 'Compromisso Pessoal', icon: User },
+];
+
 const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({ 
   appointment, 
   onClose 
@@ -77,19 +99,25 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
   const form = useForm<EditAppointmentFormData>({
     resolver: zodResolver(editAppointmentSchema),
     defaultValues: {
-      clientId: appointment.client_id,
       title: appointment.title,
       description: appointment.description || '',
       price: appointment.price ? appointment.price.toString() : '',
       startTime: startTime,
       endTime: endTime,
       status: appointment.status,
+      appointmentType: (appointment.appointment_type as 'presencial' | 'remoto') || 'presencial',
+      videoCallLink: appointment.video_call_link || '',
+      createFinancialRecord: appointment.create_financial_record ?? true,
+      color: appointment.color || '#8B5CF6',
+      sessionType: (appointment.session_type as 'unique' | 'recurring' | 'personal') || 'unique',
     },
   });
 
+  const watchAppointmentType = form.watch('appointmentType');
+  const watchSessionType = form.watch('sessionType');
+
   const updateAppointmentMutation = useMutation({
     mutationFn: async (data: EditAppointmentFormData) => {
-      // Criar datetime para início e fim do agendamento
       const [startHours, startMinutes] = data.startTime.split(':').map(Number);
       const [endHours, endMinutes] = data.endTime.split(':').map(Number);
       
@@ -100,13 +128,17 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
       const appointmentData = {
-        client_id: data.clientId,
         title: data.title,
         description: data.description || null,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
         status: data.status,
         price: data.price ? parseFloat(data.price) : null,
+        appointment_type: data.appointmentType,
+        video_call_link: data.videoCallLink || null,
+        create_financial_record: data.createFinancialRecord,
+        color: data.color,
+        session_type: data.sessionType,
         updated_at: new Date().toISOString(),
       };
 
@@ -149,9 +181,11 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
     }
   };
 
+  const selectedClient = clients.find(client => client.id === appointment.client_id);
+
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -166,43 +200,69 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Tipo de Agendamento */}
             <FormField
               control={form.control}
-              name="clientId"
+              name="sessionType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um cliente" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            {client.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Tipo de Agendamento</FormLabel>
+                  <div className="grid grid-cols-3 gap-2">
+                    {APPOINTMENT_TYPES.map((type) => {
+                      const Icon = type.icon;
+                      return (
+                        <Button
+                          key={type.value}
+                          type="button"
+                          variant={field.value === type.value ? "default" : "outline"}
+                          className="h-20 flex flex-col gap-2"
+                          onClick={() => field.onChange(type.value)}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="text-xs text-center">{type.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Cliente (apenas exibição) */}
+            {watchSessionType !== 'personal' && (
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="h-4 w-4 text-tanotado-blue" />
+                  <span className="text-sm font-medium">Cliente</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {selectedClient?.name || 'Cliente não encontrado'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  O cliente não pode ser alterado após o agendamento ser criado
+                </p>
+              </div>
+            )}
 
             <FormField
               control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Título da Consulta</FormLabel>
+                  <FormLabel>
+                    {watchSessionType === 'personal' ? 'Título do Compromisso' : 'Título da Consulta'}
+                  </FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Consulta inicial, Retorno..." {...field} />
+                    <Input 
+                      placeholder={
+                        watchSessionType === 'personal' 
+                          ? "Ex: Reunião, Consulta médica..." 
+                          : "Ex: Consulta inicial, Retorno..."
+                      } 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -248,6 +308,64 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
               />
             </div>
 
+            {/* Modalidade da Sessão */}
+            <FormField
+              control={form.control}
+              name="appointmentType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Video className="h-4 w-4" />
+                    Modalidade da Sessão
+                  </FormLabel>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={field.value === 'remoto'}
+                        onCheckedChange={(checked) => 
+                          field.onChange(checked ? 'remoto' : 'presencial')
+                        }
+                      />
+                      <div className="flex items-center gap-2">
+                        {field.value === 'remoto' ? (
+                          <>
+                            <Video className="h-4 w-4 text-blue-500" />
+                            <span>Online</span>
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="h-4 w-4 text-green-500" />
+                            <span>Presencial</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Link da Videochamada (se online) */}
+            {watchAppointmentType === 'remoto' && (
+              <FormField
+                control={form.control}
+                name="videoCallLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link da Reunião Online</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="https://meet.google.com/..."
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <FormField
               control={form.control}
               name="status"
@@ -266,6 +384,61 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
                       <SelectItem value="cancelled">Cancelado</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Lançar Financeiro */}
+            <FormField
+              control={form.control}
+              name="createFinancialRecord"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Lançar no Financeiro
+                  </FormLabel>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
+                    </span>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Cor do Agendamento */}
+            <FormField
+              control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Palette className="h-4 w-4" />
+                    Cor do Agendamento
+                  </FormLabel>
+                  <div className="grid grid-cols-4 gap-2">
+                    {COLORS.map((color) => (
+                      <Button
+                        key={color.value}
+                        type="button"
+                        variant="outline"
+                        className={`h-12 flex items-center gap-2 ${
+                          field.value === color.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+                        }`}
+                        onClick={() => field.onChange(color.value)}
+                      >
+                        <div className={`w-4 h-4 rounded-full ${color.color}`} />
+                        <span className="text-xs">{color.label}</span>
+                      </Button>
+                    ))}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

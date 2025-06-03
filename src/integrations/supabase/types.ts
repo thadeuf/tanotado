@@ -11,7 +11,10 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
+          appointment_type: string | null
           client_id: string
+          color: string | null
+          create_financial_record: boolean | null
           created_at: string | null
           description: string | null
           end_time: string
@@ -20,14 +23,19 @@ export type Database = {
           price: number | null
           recurrence_end_date: string | null
           recurrence_type: Database["public"]["Enums"]["recurrence_type"] | null
+          session_type: string | null
           start_time: string
           status: Database["public"]["Enums"]["appointment_status"] | null
           title: string
           updated_at: string | null
           user_id: string
+          video_call_link: string | null
         }
         Insert: {
+          appointment_type?: string | null
           client_id: string
+          color?: string | null
+          create_financial_record?: boolean | null
           created_at?: string | null
           description?: string | null
           end_time: string
@@ -38,14 +46,19 @@ export type Database = {
           recurrence_type?:
             | Database["public"]["Enums"]["recurrence_type"]
             | null
+          session_type?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["appointment_status"] | null
           title: string
           updated_at?: string | null
           user_id: string
+          video_call_link?: string | null
         }
         Update: {
+          appointment_type?: string | null
           client_id?: string
+          color?: string | null
+          create_financial_record?: boolean | null
           created_at?: string | null
           description?: string | null
           end_time?: string
@@ -56,11 +69,13 @@ export type Database = {
           recurrence_type?:
             | Database["public"]["Enums"]["recurrence_type"]
             | null
+          session_type?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["appointment_status"] | null
           title?: string
           updated_at?: string | null
           user_id?: string
+          video_call_link?: string | null
         }
         Relationships: [
           {
@@ -83,6 +98,7 @@ export type Database = {
           complement: string | null
           cpf: string | null
           created_at: string | null
+          default_video_call_link: string | null
           education: string | null
           email: string | null
           emergency_contact_name: string | null
@@ -124,6 +140,7 @@ export type Database = {
           complement?: string | null
           cpf?: string | null
           created_at?: string | null
+          default_video_call_link?: string | null
           education?: string | null
           email?: string | null
           emergency_contact_name?: string | null
@@ -165,6 +182,7 @@ export type Database = {
           complement?: string | null
           cpf?: string | null
           created_at?: string | null
+          default_video_call_link?: string | null
           education?: string | null
           email?: string | null
           emergency_contact_name?: string | null

@@ -26,6 +26,10 @@ export interface Appointment {
   created_at: string;
   updated_at: string;
   appointment_type?: 'presencial' | 'remoto';
+  video_call_link?: string | null;
+  create_financial_record?: boolean | null;
+  color?: string | null;
+  session_type?: 'unique' | 'recurring' | 'personal';
   client?: Client;
 }
 

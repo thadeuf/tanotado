@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Video, Edit, Trash2 } from 'lucide-react';
+import { Clock, MapPin, Video, Edit, Trash2, User } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
@@ -60,6 +60,13 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
 
   const getAppointmentTypeText = (type?: string) => {
     return type === 'remoto' ? 'Remoto' : 'Presencial';
+  };
+
+  const getSessionTypeIcon = (sessionType?: string) => {
+    if (sessionType === 'personal') {
+      return <User className="h-4 w-4 text-purple-500" />;
+    }
+    return null;
   };
 
   const deleteAppointmentMutation = useMutation({
@@ -126,7 +133,11 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
               {sortedAppointments.map((appointment) => (
                 <div
                   key={appointment.id}
-                  className="p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                  className="p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors relative"
+                  style={{
+                    borderLeftWidth: '4px',
+                    borderLeftColor: appointment.color || '#8B5CF6'
+                  }}
                 >
                   {isMobile ? (
                     // Layout mobile: cada informação em uma linha
@@ -144,28 +155,40 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                         </Badge>
                       </div>
 
-                      {/* Linha 2: Nome do cliente com avatar */}
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage 
-                            src={appointment.client?.photo_url} 
-                            alt={appointment.client?.name}
-                          />
-                          <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-xs">
-                            {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium text-foreground">
-                          {appointment.client?.name || 'Cliente não informado'}
-                        </span>
-                      </div>
+                      {/* Linha 2: Nome do cliente com avatar (se não for compromisso pessoal) */}
+                      {appointment.session_type !== 'personal' && (
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage 
+                              src={appointment.client?.photo_url} 
+                              alt={appointment.client?.name}
+                            />
+                            <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-xs">
+                              {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium text-foreground">
+                            {appointment.client?.name || 'Cliente não informado'}
+                          </span>
+                        </div>
+                      )}
 
-                      {/* Linha 3: Tipo de atendimento */}
-                      <div className="flex items-center gap-2">
-                        {getAppointmentTypeIcon(appointment.appointment_type)}
-                        <span className="text-sm text-muted-foreground">
-                          {getAppointmentTypeText(appointment.appointment_type)}
-                        </span>
+                      {/* Linha 3: Tipo de atendimento e tipo de sessão */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          {getAppointmentTypeIcon(appointment.appointment_type)}
+                          <span className="text-sm text-muted-foreground">
+                            {getAppointmentTypeText(appointment.appointment_type)}
+                          </span>
+                        </div>
+                        {appointment.session_type === 'personal' && (
+                          <div className="flex items-center gap-2">
+                            {getSessionTypeIcon(appointment.session_type)}
+                            <span className="text-sm text-muted-foreground">
+                              Pessoal
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Linha 4: Título do agendamento */}
@@ -199,16 +222,22 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                   ) : (
                     // Layout desktop: layout horizontal compacto
                     <div className="flex items-center gap-3">
-                      {/* Avatar do cliente */}
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage 
-                          src={appointment.client?.photo_url} 
-                          alt={appointment.client?.name}
-                        />
-                        <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
-                          {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
-                        </AvatarFallback>
-                      </Avatar>
+                      {/* Avatar do cliente (se não for compromisso pessoal) */}
+                      {appointment.session_type !== 'personal' ? (
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage 
+                            src={appointment.client?.photo_url} 
+                            alt={appointment.client?.name}
+                          />
+                          <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
+                            {appointment.client?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'CL'}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                          <User className="h-5 w-5 text-purple-600" />
+                        </div>
+                      )}
 
                       {/* Informações do agendamento */}
                       <div className="flex-1 min-w-0">
@@ -225,7 +254,10 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-foreground truncate">
-                            {appointment.client?.name || 'Cliente não informado'}
+                            {appointment.session_type === 'personal' 
+                              ? 'Compromisso Pessoal'
+                              : appointment.client?.name || 'Cliente não informado'
+                            }
                           </span>
                           <div className="flex items-center gap-1">
                             {getAppointmentTypeIcon(appointment.appointment_type)}
@@ -233,6 +265,14 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                               {getAppointmentTypeText(appointment.appointment_type)}
                             </span>
                           </div>
+                          {appointment.session_type === 'personal' && (
+                            <div className="flex items-center gap-1">
+                              {getSessionTypeIcon(appointment.session_type)}
+                              <span className="text-xs text-muted-foreground">
+                                Pessoal
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {appointment.title}
