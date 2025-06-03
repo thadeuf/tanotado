@@ -21,7 +21,8 @@ const AppointmentsSection: React.FC = () => {
         type: apt.title || 'Sessão',
         professional: 'Dr. Profissional',
         mode: appointmentType as 'online' | 'presencial',
-        confirmed: apt.status === 'completed' || apt.status === 'scheduled'
+        confirmed: apt.status === 'completed' || apt.status === 'scheduled',
+        color: apt.color || '#8B5CF6'
       };
     });
 
@@ -36,7 +37,8 @@ const AppointmentsSection: React.FC = () => {
         type: apt.title || 'Sessão',
         professional: 'Dr. Profissional',
         mode: appointmentType as 'online' | 'presencial',
-        confirmed: apt.status === 'completed' || apt.status === 'scheduled'
+        confirmed: apt.status === 'completed' || apt.status === 'scheduled',
+        color: apt.color || '#8B5CF6'
       };
     });
 
@@ -63,7 +65,8 @@ const AppointmentsSection: React.FC = () => {
         type: apt.title || 'Sessão',
         professional: 'Dr. Profissional',
         mode: appointmentType as 'online' | 'presencial',
-        confirmed: apt.status === 'completed' || apt.status === 'scheduled'
+        confirmed: apt.status === 'completed' || apt.status === 'scheduled',
+        color: apt.color || '#8B5CF6'
       };
     });
 

@@ -10,6 +10,7 @@ interface Appointment {
   professional: string;
   mode: 'presencial' | 'online';
   confirmed: boolean;
+  color?: string;
 }
 
 interface AppointmentCardProps {
@@ -20,9 +21,14 @@ interface AppointmentCardProps {
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, index, onStartVideoCall }) => {
   return (
-    <div key={index} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors">
-      <div className="flex items-center space-x-3">
-        <div className="w-2 h-2 bg-tanotado-pink rounded-full"></div>
+    <div key={index} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors relative">
+      {/* Linha colorida à esquerda */}
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
+        style={{ backgroundColor: appointment.color || '#8B5CF6' }}
+      ></div>
+      
+      <div className="flex items-center space-x-3 ml-2">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <p className="font-medium text-tanotado-navy">{appointment.patient}</p>
