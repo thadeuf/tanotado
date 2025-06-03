@@ -29,11 +29,15 @@ export const useAppointmentRecurrence = () => {
       }
     }
 
+    console.log('generateRecurrenceDates - Generated dates:', dates);
     return dates;
   };
 
   const checkRecurrenceConflicts = (dates: Date[], startTime: string, endTime: string) => {
     const conflicts: any[] = [];
+    
+    console.log('checkRecurrenceConflicts - Checking conflicts for dates:', dates);
+    console.log('checkRecurrenceConflicts - Available appointments:', appointments.length);
     
     dates.forEach(date => {
       const [startHours, startMinutes] = startTime.split(':').map(Number);
@@ -69,6 +73,7 @@ export const useAppointmentRecurrence = () => {
       }
     });
 
+    console.log('checkRecurrenceConflicts - Found conflicts:', conflicts);
     return conflicts;
   };
 
