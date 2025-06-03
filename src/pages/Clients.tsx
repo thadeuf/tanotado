@@ -1,12 +1,12 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Search, Filter } from 'lucide-react';
+import { Plus, Users, Search, Filter, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { useClients } from '@/hooks/useClients';
 
 const Clients: React.FC = () => {
@@ -113,14 +113,6 @@ const Clients: React.FC = () => {
       ) : (
         <div className="rounded-md border">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
             <TableBody>
               {filteredClients.map((client) => (
                 <TableRow 
@@ -138,20 +130,20 @@ const Clients: React.FC = () => {
                       </Avatar>
                       <div>
                         <div className="font-medium">{client.name}</div>
-                        {client.cpf && (
-                          <div className="text-sm text-gray-500">CPF: {client.cpf}</div>
+                        {client.email && (
+                          <div className="text-sm text-gray-500">{client.email}</div>
                         )}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="space-y-1">
-                      {client.email && (
-                        <div className="text-sm">{client.email}</div>
-                      )}
-                      {client.phone && (
-                        <div className="text-sm text-gray-500">{client.phone}</div>
-                      )}
+                    <div className="text-sm text-gray-500">
+                      {client.cpf || '-'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-gray-500">
+                      {client.phone || '-'}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -168,10 +160,10 @@ const Clients: React.FC = () => {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/clientes/${client.id}`);
+                        navigate(`/clientes/${client.id}/editar`);
                       }}
                     >
-                      Ver detalhes
+                      <Edit className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
