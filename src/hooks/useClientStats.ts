@@ -2,12 +2,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMemo } from 'react';
 
 export const useClientStats = (clientId: string) => {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
-  return useQuery({
-    queryKey: ['client-stats', clientId],
+  const query = useQuery({
+    queryKey: ['client-stats', clientId, user?.id],
     queryFn: async () => {
       if (!user?.id || !clientId) {
         console.error('useClientStats: Missing user ID or client ID', { userId: user?.id, clientId });
@@ -17,49 +18,48 @@ export const useClientStats = (clientId: string) => {
       console.log('useClientStats: Starting fetch for client:', clientId);
 
       try {
-        // Buscar todos os agendamentos do cliente
-        console.log('useClientStats: Fetching appointments...');
-        const { data: appointments, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('client_id', clientId)
-          .eq('user_id', user.id);
+        // Buscar todos os agendamentos do cliente em paralelo
+        const [appointmentsResult, paymentsResult] = await Promise.all([
+          supabase
+            .from('appointments')
+            .select('id, status')
+            .eq('client_id', clientId)
+            .eq('user_id', user.id),
+          supabase
+            .from('payments')
+            .select('amount')
+            .eq('client_id', clientId)
+            .eq('user_id', user.id)
+        ]);
 
-        if (appointmentsError) {
-          console.error('useClientStats: Error fetching appointments:', appointmentsError);
-          throw appointmentsError;
+        if (appointmentsResult.error) {
+          console.error('useClientStats: Error fetching appointments:', appointmentsResult.error);
+          throw appointmentsResult.error;
         }
 
-        console.log('useClientStats: Appointments fetched:', appointments?.length || 0);
-
-        // Buscar dados financeiros (pagamentos relacionados ao cliente)
-        console.log('useClientStats: Fetching payments...');
-        const { data: payments, error: paymentsError } = await supabase
-          .from('payments')
-          .select('*')
-          .eq('client_id', clientId)
-          .eq('user_id', user.id);
-
-        if (paymentsError) {
-          console.error('useClientStats: Error fetching payments:', paymentsError);
-          throw paymentsError;
+        if (paymentsResult.error) {
+          console.error('useClientStats: Error fetching payments:', paymentsResult.error);
+          throw paymentsResult.error;
         }
 
-        console.log('useClientStats: Payments fetched:', payments?.length || 0);
+        const appointments = appointmentsResult.data || [];
+        const payments = paymentsResult.data || [];
+
+        console.log('useClientStats: Data fetched - appointments:', appointments.length, 'payments:', payments.length);
 
         // Calcular estatísticas
-        const totalSessions = appointments?.length || 0;
-        const attendedSessions = appointments?.filter(apt => 
+        const totalSessions = appointments.length;
+        const attendedSessions = appointments.filter(apt => 
           apt.status === 'completed' || apt.status === 'confirmed'
-        ).length || 0;
-        const missedSessions = appointments?.filter(apt => 
+        ).length;
+        const missedSessions = appointments.filter(apt => 
           apt.status === 'cancelled'
-        ).length || 0;
+        ).length;
         
-        // Calcular total de valores vencidos
-        const totalRevenue = payments?.reduce((total, payment) => {
+        // Calcular total de valores
+        const totalRevenue = payments.reduce((total, payment) => {
           return total + (Number(payment.amount) || 0);
-        }, 0) || 0;
+        }, 0);
 
         const stats = {
           totalSessions,
@@ -75,10 +75,14 @@ export const useClientStats = (clientId: string) => {
         throw error;
       }
     },
-    enabled: !!user?.id && !!clientId,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    enabled: !!user?.id && !!clientId && !authLoading,
+    staleTime: 3 * 60 * 1000, // 3 minutos
+    refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
       console.log('useClientStats: Retry attempt', failureCount, error);
+      if (error?.message?.includes('não autenticado')) {
+        return false;
+      }
       return failureCount < 2;
     },
     retryDelay: attemptIndex => {
@@ -87,4 +91,12 @@ export const useClientStats = (clientId: string) => {
       return delay;
     },
   });
+
+  // Memoize o resultado para evitar re-renderizações desnecessárias
+  const memoizedData = useMemo(() => query.data, [query.data]);
+
+  return {
+    ...query,
+    data: memoizedData,
+  };
 };

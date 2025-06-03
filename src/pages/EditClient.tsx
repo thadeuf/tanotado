@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -24,24 +24,27 @@ import { useClientStats } from '@/hooks/useClientStats';
 const EditClient: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const isMultiUser = false;
 
   console.log('EditClient: Starting component with ID:', id);
   console.log('EditClient: User ID:', user?.id);
 
+  // Memoize client ID to prevent unnecessary re-renders
+  const clientId = useMemo(() => id || '', [id]);
+
   // Hook para buscar estatísticas do cliente
   const { 
     data: clientStats, 
     isLoading: statsLoading, 
     error: statsError 
-  } = useClientStats(id || '');
+  } = useClientStats(clientId);
 
   const { data: client, isLoading, error, isSuccess } = useQuery({
-    queryKey: ['client', id],
+    queryKey: ['client', clientId, user?.id],
     queryFn: async () => {
-      if (!id) {
+      if (!clientId) {
         console.error('EditClient: No client ID provided');
         throw new Error('ID do cliente não fornecido');
       }
@@ -51,13 +54,13 @@ const EditClient: React.FC = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('EditClient: Starting client fetch with ID:', id, 'for user:', user?.id);
+      console.log('EditClient: Starting client fetch with ID:', clientId, 'for user:', user?.id);
       
       try {
         const { data, error } = await supabase
           .from('clients')
           .select('*')
-          .eq('id', id)
+          .eq('id', clientId)
           .eq('user_id', user?.id)
           .maybeSingle();
 
@@ -80,9 +83,14 @@ const EditClient: React.FC = () => {
         throw error;
       }
     },
-    enabled: !!id && !!user?.id,
+    enabled: !!clientId && !!user?.id && !authLoading,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
       console.log('EditClient: Query retry attempt', failureCount, error);
+      if (error?.message?.includes('não autenticado') || error?.message?.includes('não encontrado')) {
+        return false;
+      }
       return failureCount < 2;
     },
     retryDelay: attemptIndex => {
@@ -92,17 +100,17 @@ const EditClient: React.FC = () => {
     },
   });
 
-  // Log dos estados da query
+  // Log dos estados da query com useEffect otimizado
   useEffect(() => {
     console.log('EditClient: Query states changed:', {
       isLoading,
       isSuccess,
       hasData: !!client,
       error: error?.message,
-      clientId: id,
+      clientId,
       userId: user?.id
     });
-  }, [isLoading, isSuccess, client, error, id, user?.id]);
+  }, [isLoading, isSuccess, client, error, clientId, user?.id]);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -118,11 +126,11 @@ const EditClient: React.FC = () => {
 
   const updateClientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
-      if (!id) throw new Error('ID do cliente não fornecido');
+      if (!clientId) throw new Error('ID do cliente não fornecido');
       if (!user?.id) throw new Error('Usuário não autenticado');
 
       console.log('UpdateClient: Starting mutation with data:', data);
-      console.log('UpdateClient: Client ID:', id, 'User ID:', user?.id);
+      console.log('UpdateClient: Client ID:', clientId, 'User ID:', user?.id);
       console.log('UpdateClient: Current mutation state - isMutating:', isMutating);
 
       // Verificar se já há uma mutation em andamento
@@ -188,7 +196,7 @@ const EditClient: React.FC = () => {
         const { data: result, error } = await supabase
           .from('clients')
           .update(clientData)
-          .eq('id', id)
+          .eq('id', clientId)
           .eq('user_id', user?.id)
           .select()
           .single();
@@ -219,7 +227,7 @@ const EditClient: React.FC = () => {
       
       // Invalidar cache e navegar
       console.log('UpdateClient: Invalidating queries and navigating...');
-      queryClient.invalidateQueries({ queryKey: ['client', id] });
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       
       // Navegar para a lista de clientes
@@ -244,69 +252,77 @@ const EditClient: React.FC = () => {
     },
   });
 
-  useEffect(() => {
-    if (client) {
-      console.log('EditClient: Setting form data from client:', client.name);
+  // Memoize form reset para evitar loops
+  const resetFormWithClientData = useCallback((clientData: any) => {
+    if (!clientData) return;
+    
+    console.log('EditClient: Setting form data from client:', clientData.name);
+    
+    const formData: ClientFormData = {
+      // ... keep existing code (form data mapping)
+      responsibleProfessional: '',
+      group: '',
+      groupId: clientData.group_id || '',
       
-      const formData: ClientFormData = {
-        // Profissional responsável
-        responsibleProfessional: '',
-        group: '',
-        groupId: client.group_id || '',
-        
-        // Informações pessoais
-        name: client.name || '',
-        photoUrl: client.photo_url || '',
-        whatsapp: client.phone || '',
-        videoCallLink: client.video_call_link || '',
-        email: client.email || '',
-        cpf: client.cpf || '',
-        rg: client.rg || '',
-        
-        // Endereço
-        cep: client.cep || '',
-        address: client.address || '',
-        number: client.number || '',
-        neighborhood: client.neighborhood || '',
-        city: client.city || '',
-        state: client.state || '',
-        complement: client.complement || '',
-        
-        // Financeiro
-        sessionValue: client.session_value || '',
-        paymentDay: client.payment_day || '',
-        sendMonthlyReminder: client.send_monthly_reminder || false,
-        
-        // Responsável financeiro
-        financialResponsibleName: client.financial_responsible_name || '',
-        financialResponsibleWhatsapp: client.financial_responsible_whatsapp || '',
-        financialResponsibleEmail: client.financial_responsible_email || '',
-        financialResponsibleCpf: client.financial_responsible_cpf || '',
-        financialResponsibleRg: client.financial_responsible_rg || '',
-        
-        // Contato de emergência
-        emergencyContactName: client.emergency_contact_name || '',
-        emergencyContactWhatsapp: client.emergency_contact_whatsapp || '',
-        
-        // Dados adicionais
-        gender: client.gender || '',
-        birthDate: client.birth_date || '',
-        nationality: client.nationality || '',
-        education: client.education || '',
-        profession: client.profession || '',
-        referral: client.referral || '',
-        maritalStatus: client.marital_status || '',
-        observations: client.notes || '',
-        activateSessionReminder: client.activate_session_reminder || false,
-        activeRegistration: client.active_registration,
-      };
+      // Informações pessoais
+      name: clientData.name || '',
+      photoUrl: clientData.photo_url || '',
+      whatsapp: clientData.phone || '',
+      videoCallLink: clientData.video_call_link || '',
+      email: clientData.email || '',
+      cpf: clientData.cpf || '',
+      rg: clientData.rg || '',
+      
+      // Endereço
+      cep: clientData.cep || '',
+      address: clientData.address || '',
+      number: clientData.number || '',
+      neighborhood: clientData.neighborhood || '',
+      city: clientData.city || '',
+      state: clientData.state || '',
+      complement: clientData.complement || '',
+      
+      // Financeiro
+      sessionValue: clientData.session_value || '',
+      paymentDay: clientData.payment_day || '',
+      sendMonthlyReminder: clientData.send_monthly_reminder || false,
+      
+      // Responsável financeiro
+      financialResponsibleName: clientData.financial_responsible_name || '',
+      financialResponsibleWhatsapp: clientData.financial_responsible_whatsapp || '',
+      financialResponsibleEmail: clientData.financial_responsible_email || '',
+      financialResponsibleCpf: clientData.financial_responsible_cpf || '',
+      financialResponsibleRg: clientData.financial_responsible_rg || '',
+      
+      // Contato de emergência
+      emergencyContactName: clientData.emergency_contact_name || '',
+      emergencyContactWhatsapp: clientData.emergency_contact_whatsapp || '',
+      
+      // Dados adicionais
+      gender: clientData.gender || '',
+      birthDate: clientData.birth_date || '',
+      nationality: clientData.nationality || '',
+      education: clientData.education || '',
+      profession: clientData.profession || '',
+      referral: clientData.referral || '',
+      maritalStatus: clientData.marital_status || '',
+      observations: clientData.notes || '',
+      activateSessionReminder: clientData.activate_session_reminder || false,
+      activeRegistration: clientData.active_registration,
+    };
 
-      console.log('EditClient: Resetting form with data');
-      form.reset(formData);
+    console.log('EditClient: Resetting form with data');
+    form.reset(formData);
+  }, [form]);
+
+  useEffect(() => {
+    if (client && isSuccess) {
+      resetFormWithClientData(client);
     }
-  }, [client, form]);
+  }, [client, isSuccess, resetFormWithClientData]);
 
-  const onSubmit = (data: ClientFormData) => {
+  // Memoize handlers para evitar re-renders
+  const handleSubmit = useCallback((data: ClientFormData) => {
     console.log('EditClient: Form submitted with data:', data);
     console.log('EditClient: Current mutation states:', {
       isPending: updateClientMutation.isPending,
@@ -321,38 +337,42 @@ const EditClient: React.FC = () => {
     
     console.log('EditClient: Proceeding with mutation');
     updateClientMutation.mutate(data);
-  };
+  }, [updateClientMutation, isMutating]);
 
-  const handleViewRecords = () => {
+  const handleViewRecords = useCallback(() => {
     toast({
       title: "Em desenvolvimento",
       description: "Funcionalidade de prontuários em desenvolvimento.",
     });
-  };
+  }, []);
 
-  const handleViewNotes = () => {
+  const handleViewNotes = useCallback(() => {
     toast({
       title: "Em desenvolvimento", 
       description: "Funcionalidade de anotações em desenvolvimento.",
     });
-  };
+  }, []);
 
-  const handleViewFinancial = () => {
+  const handleViewFinancial = useCallback(() => {
     toast({
       title: "Em desenvolvimento",
       description: "Funcionalidade financeira em desenvolvimento.",
     });
-  };
+  }, []);
+
+  const handleNavigateBack = useCallback(() => {
+    navigate('/clientes');
+  }, [navigate]);
 
   console.log('EditClient: Current render state - isLoading:', isLoading, 'error:', !!error, 'client:', !!client);
 
   // Loading state
-  if (isLoading) {
+  if (isLoading || authLoading) {
     console.log('EditClient: Showing loading state');
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/clientes')} className="gap-2">
+          <Button variant="ghost" onClick={handleNavigateBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Button>
@@ -377,7 +397,7 @@ const EditClient: React.FC = () => {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/clientes')} className="gap-2">
+          <Button variant="ghost" onClick={handleNavigateBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Button>
@@ -401,7 +421,7 @@ const EditClient: React.FC = () => {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/clientes')} className="gap-2">
+          <Button variant="ghost" onClick={handleNavigateBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Button>
@@ -419,7 +439,7 @@ const EditClient: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate('/clientes')} className="gap-2">
+        <Button variant="ghost" onClick={handleNavigateBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Button>
@@ -456,7 +476,7 @@ const EditClient: React.FC = () => {
           )}
 
           <ClientOptionsMenu
-            clientId={id || ''}
+            clientId={clientId}
             onViewRecords={handleViewRecords}
             onViewNotes={handleViewNotes}
             onViewFinancial={handleViewFinancial}
@@ -466,7 +486,7 @@ const EditClient: React.FC = () => {
         {/* Right Column - Edit Form */}
         <div className="lg:col-span-3">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
               {isMultiUser && (
                 <ResponsibleProfessionalSection control={form.control} />
               )}
@@ -482,7 +502,7 @@ const EditClient: React.FC = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/clientes')}
+                  onClick={handleNavigateBack}
                 >
                   Cancelar
                 </Button>
