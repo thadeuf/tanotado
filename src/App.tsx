@@ -31,7 +31,7 @@ const AppContent: React.FC = () => {
   };
 
   if (isChecking) {
-    return null; // ou um loader simples
+    return null;
   }
 
   if (showSplash) {
