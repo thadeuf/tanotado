@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,22 +24,35 @@ const EditClient: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isMultiUser = false; // Por enquanto fixo, pode ser configurável no futuro
+  const isMultiUser = false;
 
-  const { data: client, isLoading } = useQuery({
+  console.log('EditClient: Starting component with ID:', id);
+  console.log('EditClient: User ID:', user?.id);
+
+  const { data: client, isLoading, error } = useQuery({
     queryKey: ['client', id],
     queryFn: async () => {
-      if (!id) throw new Error('ID do cliente não fornecido');
+      if (!id) {
+        console.error('EditClient: No client ID provided');
+        throw new Error('ID do cliente não fornecido');
+      }
+      
+      if (!user?.id) {
+        console.error('EditClient: No user ID available');
+        throw new Error('Usuário não autenticado');
+      }
+
+      console.log('EditClient: Fetching client with ID:', id, 'for user:', user?.id);
       
       const { data, error } = await supabase
         .from('clients')
         .select('*')
         .eq('id', id)
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        console.error('Error fetching client:', error);
+        console.error('EditClient: Supabase error:', error);
         toast({
           title: "Erro ao carregar cliente",
           description: "Não foi possível carregar os dados do cliente.",
@@ -47,6 +61,12 @@ const EditClient: React.FC = () => {
         throw error;
       }
 
+      if (!data) {
+        console.error('EditClient: Client not found');
+        throw new Error('Cliente não encontrado');
+      }
+
+      console.log('EditClient: Client data fetched:', data);
       return data;
     },
     enabled: !!id && !!user?.id,
@@ -114,7 +134,7 @@ const EditClient: React.FC = () => {
         referral: data.referral || null,
         marital_status: data.maritalStatus || null,
         activate_session_reminder: data.activateSessionReminder || false,
-        active_registration: data.activeRegistration, // Removido o fallback para garantir que false seja preservado
+        active_registration: data.activeRegistration,
       };
 
       console.log('Prepared client data:', clientData);
@@ -142,7 +162,7 @@ const EditClient: React.FC = () => {
       // Invalidar cache e navegar
       queryClient.invalidateQueries({ queryKey: ['client', id] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      navigate(`/clientes/${id}`);
+      navigate('/clientes');
     },
     onError: (error: any) => {
       console.error('Error updating client:', error);
@@ -156,12 +176,11 @@ const EditClient: React.FC = () => {
 
   useEffect(() => {
     if (client) {
-      console.log('Client data loaded for form reset:', client);
-      console.log('Active registration from DB:', client.active_registration);
+      console.log('EditClient: Client data loaded for form reset:', client);
+      console.log('EditClient: Active registration from DB:', client.active_registration);
       
-      // Reset form with proper values, ensuring dropdown fields get their values
       const formData: ClientFormData = {
-        // Profissional responsável (campos não existem na tabela, usar valores vazios)
+        // Profissional responsável
         responsibleProfessional: '',
         group: '',
         groupId: client.group_id || '',
@@ -210,22 +229,23 @@ const EditClient: React.FC = () => {
         maritalStatus: client.marital_status || '',
         observations: client.notes || '',
         activateSessionReminder: client.activate_session_reminder || false,
-        activeRegistration: client.active_registration, // Preservar o valor exato do banco
+        activeRegistration: client.active_registration,
       };
 
-      console.log('Form data being set:', formData);
-      console.log('Active registration in form data:', formData.activeRegistration);
+      console.log('EditClient: Form data being set:', formData);
       form.reset(formData);
     }
   }, [client, form]);
 
   const onSubmit = (data: ClientFormData) => {
     console.log('Form submitted with data:', data);
-    console.log('Active registration on submit:', data.activeRegistration);
     updateClientMutation.mutate(data);
   };
 
+  console.log('EditClient: Render state - isLoading:', isLoading, 'error:', error, 'client:', !!client);
+
   if (isLoading) {
+    console.log('EditClient: Showing loading state');
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-center p-8">
@@ -238,7 +258,31 @@ const EditClient: React.FC = () => {
     );
   }
 
+  if (error) {
+    console.error('EditClient: Showing error state:', error);
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => navigate('/clientes')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+        </div>
+        <div className="text-center p-8">
+          <p className="text-muted-foreground">Erro ao carregar cliente: {error.message}</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4"
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!client) {
+    console.log('EditClient: Showing client not found state');
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
@@ -254,11 +298,13 @@ const EditClient: React.FC = () => {
     );
   }
 
+  console.log('EditClient: Rendering main form');
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate(`/clientes/${id}`)} className="gap-2">
+        <Button variant="ghost" onClick={() => navigate('/clientes')} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Button>
@@ -289,7 +335,7 @@ const EditClient: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(`/clientes/${id}`)}
+              onClick={() => navigate('/clientes')}
             >
               Cancelar
             </Button>

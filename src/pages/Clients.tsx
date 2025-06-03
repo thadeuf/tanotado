@@ -118,7 +118,7 @@ const Clients: React.FC = () => {
                 <TableRow 
                   key={client.id} 
                   className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => navigate(`/clientes/${client.id}`)}
+                  onClick={() => navigate(`/clientes/${client.id}/editar`)}
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center space-x-3">

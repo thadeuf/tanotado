@@ -11,7 +11,6 @@ import Dashboard from '../pages/Dashboard';
 import AdminDashboard from '../pages/AdminDashboard';
 import Clients from '../pages/Clients';
 import NewClient from '../pages/NewClient';
-import ClientDetails from '../pages/ClientDetails';
 import EditClient from '../pages/EditClient';
 import Agenda from '../pages/Agenda';
 import NotFound from '../pages/NotFound';
@@ -48,7 +47,6 @@ const AppRoutes: React.FC = () => {
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/clientes" element={<Clients />} />
               <Route path="/clientes/novo" element={<NewClient />} />
-              <Route path="/clientes/:id" element={<ClientDetails />} />
               <Route path="/clientes/:id/editar" element={<EditClient />} />
               <Route path="/prontuarios" element={
                 <div>Prontuários (Em desenvolvimento)</div>
