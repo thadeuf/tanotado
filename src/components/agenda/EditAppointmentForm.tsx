@@ -43,7 +43,7 @@ const editAppointmentSchema = z.object({
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
   endTime: z.string().min(1, 'Horário de fim é obrigatório'),
-  status: z.enum(['scheduled', 'completed', 'cancelled', 'pending', 'failed', 'attended', 'suspended']),
+  status: z.enum(['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show']),
   appointmentType: z.enum(['presencial', 'remoto']),
   videoCallLink: z.string().optional(),
   createFinancialRecord: z.boolean(),
@@ -104,7 +104,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
       price: appointment.price ? appointment.price.toString() : '',
       startTime: startTime,
       endTime: endTime,
-      status: appointment.status,
+      status: appointment.status as 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show',
       appointmentType: (appointment.appointment_type as 'presencial' | 'remoto') || 'presencial',
       videoCallLink: appointment.video_call_link || '',
       createFinancialRecord: appointment.create_financial_record ?? true,
@@ -380,13 +380,11 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="pending">Pendente</SelectItem>
-                      <SelectItem value="failed">Faltou</SelectItem>
-                      <SelectItem value="attended">Compareceu</SelectItem>
-                      <SelectItem value="suspended">Suspenso</SelectItem>
-                      <SelectItem value="scheduled">Agendado</SelectItem>
+                      <SelectItem value="scheduled">Pendente</SelectItem>
+                      <SelectItem value="no_show">Faltou</SelectItem>
+                      <SelectItem value="confirmed">Compareceu</SelectItem>
+                      <SelectItem value="cancelled">Suspenso</SelectItem>
                       <SelectItem value="completed">Concluído</SelectItem>
-                      <SelectItem value="cancelled">Cancelado</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -405,40 +403,39 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
                       <DollarSign className="h-4 w-4" />
                       Lançar no Financeiro
                     </FormLabel>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
+                        </span>
+                      </div>
+                      {watchCreateFinancialRecord && (
+                        <FormField
+                          control={form.control}
+                          name="price"
+                          render={({ field: priceField }) => (
+                            <FormItem className="flex-shrink-0 w-32">
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01"
+                                  placeholder="0,00"
+                                  {...priceField} 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      )}
                     </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              {watchCreateFinancialRecord && (
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Valor</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          placeholder="0,00"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
             </div>
 
             {/* Cor do Agendamento */}
