@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,7 +17,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Calendar, User } from 'lucide-react';
@@ -34,7 +34,6 @@ import AppointmentFinancialSection from './forms/AppointmentFinancialSection';
 import AppointmentColorSelector from './forms/AppointmentColorSelector';
 
 const editAppointmentSchema = z.object({
-  title: z.string().min(1, 'Título é obrigatório'),
   description: z.string().optional(),
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
@@ -77,7 +76,6 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
   const form = useForm<EditAppointmentFormData>({
     resolver: zodResolver(editAppointmentSchema),
     defaultValues: {
-      title: appointment.title,
       description: appointment.description || '',
       price: appointment.price ? appointment.price.toString() : '',
       startTime: startTime,
@@ -105,7 +103,6 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
       const appointmentData = {
-        title: data.title,
         description: data.description || null,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
@@ -192,29 +189,6 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
                 </p>
               </div>
             )}
-
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {appointment.session_type === 'personal' ? 'Título do Compromisso' : 'Título da Consulta'}
-                  </FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder={
-                        appointment.session_type === 'personal' 
-                          ? "Ex: Reunião, Consulta médica..." 
-                          : "Ex: Consulta inicial, Retorno..."
-                      } 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <AppointmentTimeFields control={form.control} />
 

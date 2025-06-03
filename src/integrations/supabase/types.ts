@@ -26,7 +26,7 @@ export type Database = {
           session_type: string | null
           start_time: string
           status: Database["public"]["Enums"]["appointment_status"] | null
-          title: string
+          title: string | null
           updated_at: string | null
           user_id: string
           video_call_link: string | null
@@ -49,7 +49,7 @@ export type Database = {
           session_type?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["appointment_status"] | null
-          title: string
+          title?: string | null
           updated_at?: string | null
           user_id: string
           video_call_link?: string | null
@@ -72,7 +72,7 @@ export type Database = {
           session_type?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["appointment_status"] | null
-          title?: string
+          title?: string | null
           updated_at?: string | null
           user_id?: string
           video_call_link?: string | null

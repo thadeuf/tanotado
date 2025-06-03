@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,7 +42,6 @@ import AppointmentFinancialSection from './forms/AppointmentFinancialSection';
 
 const appointmentSchema = z.object({
   clientId: z.string().optional(),
-  title: z.string().min(1, 'Título é obrigatório'),
   description: z.string().optional(),
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
@@ -128,7 +128,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
       clientId: '',
-      title: '',
       description: '',
       price: '',
       startTime: selectedTime || '09:00',
@@ -199,10 +198,13 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       const endDateTime = new Date(selectedDate);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
+      // Definir título automaticamente baseado no tipo de sessão
+      const title = data.sessionType === 'personal' ? 'Compromisso Pessoal' : 'Consulta';
+
       const appointmentData = {
         user_id: user.id,
         client_id: data.sessionType === 'personal' ? null : data.clientId,
-        title: data.title,
+        title: title,
         description: data.description || null,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
@@ -374,29 +376,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 )}
               />
             )}
-
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {sessionType === 'personal' ? 'Título do Compromisso' : 'Título da Consulta'}
-                  </FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder={
-                        sessionType === 'personal' 
-                          ? "Ex: Reunião, Consulta médica..." 
-                          : "Ex: Consulta inicial, Retorno..."
-                      } 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             {/* Time Fields */}
             <div className="grid grid-cols-2 gap-3">
