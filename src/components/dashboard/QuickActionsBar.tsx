@@ -1,20 +1,22 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar, Users, Clock, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import AppointmentForm from '../agenda/AppointmentForm';
 
 const QuickActionsBar: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
 
   const actions = [
     {
       label: 'Novo Agendamento',
       icon: Calendar,
       color: 'bg-tanotado-pink hover:bg-tanotado-pink/90',
-      onClick: () => console.log('Novo agendamento')
+      onClick: () => setShowAppointmentForm(true)
     },
     {
       label: `Novo ${user?.clientNomenclature || 'Cliente'}`,
@@ -37,18 +39,27 @@ const QuickActionsBar: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-wrap gap-3">
-      {actions.map((action, index) => (
-        <Button
-          key={index}
-          onClick={action.onClick}
-          className={`${action.color} text-white flex items-center gap-2 px-4 py-2 h-10`}
-        >
-          <action.icon className="h-4 w-4" />
-          <span className="text-sm font-medium">{action.label}</span>
-        </Button>
-      ))}
-    </div>
+    <>
+      <div className="flex flex-wrap gap-3">
+        {actions.map((action, index) => (
+          <Button
+            key={index}
+            onClick={action.onClick}
+            className={`${action.color} text-white flex items-center gap-2 px-4 py-2 h-10`}
+          >
+            <action.icon className="h-4 w-4" />
+            <span className="text-sm font-medium">{action.label}</span>
+          </Button>
+        ))}
+      </div>
+
+      {/* Modal do formulário de agendamento */}
+      {showAppointmentForm && (
+        <AppointmentForm
+          onClose={() => setShowAppointmentForm(false)}
+        />
+      )}
+    </>
   );
 };
 

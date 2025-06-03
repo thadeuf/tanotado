@@ -58,17 +58,6 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
     return <MapPin className="h-4 w-4 text-tanotado-green" />;
   };
 
-  const getAppointmentTypeText = (type?: string) => {
-    return type === 'remoto' ? 'Remoto' : 'Presencial';
-  };
-
-  const getSessionTypeIcon = (sessionType?: string) => {
-    if (sessionType === 'personal') {
-      return <User className="h-4 w-4 text-purple-500" />;
-    }
-    return null;
-  };
-
   const deleteAppointmentMutation = useMutation({
     mutationFn: async (appointmentId: string) => {
       console.log('Deleting appointment:', appointmentId);
@@ -173,28 +162,25 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                         </div>
                       )}
 
-                      {/* Linha 3: Tipo de atendimento e tipo de sessão */}
-                      <div className="flex items-center gap-4">
+                      {/* Linha 3: Tipo de atendimento (apenas para agendamentos normais) */}
+                      {appointment.session_type !== 'personal' && (
                         <div className="flex items-center gap-2">
                           {getAppointmentTypeIcon(appointment.appointment_type)}
-                          <span className="text-sm text-muted-foreground">
-                            {getAppointmentTypeText(appointment.appointment_type)}
-                          </span>
                         </div>
-                        {appointment.session_type === 'personal' && (
-                          <div className="flex items-center gap-2">
-                            {getSessionTypeIcon(appointment.session_type)}
-                            <span className="text-sm text-muted-foreground">
-                              Pessoal
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      )}
 
-                      {/* Linha 4: Título do agendamento */}
-                      <p className="text-sm text-muted-foreground">
-                        {appointment.title}
-                      </p>
+                      {/* Linha 4: Título (apenas para compromissos pessoais) ou descrição */}
+                      {appointment.session_type === 'personal' ? (
+                        <p className="text-sm font-medium text-foreground">
+                          {appointment.title || 'Compromisso Pessoal'}
+                        </p>
+                      ) : (
+                        appointment.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {appointment.description}
+                          </p>
+                        )
+                      )}
 
                       {/* Linha 5: Ações */}
                       <div className="flex items-center gap-2 pt-1">
@@ -255,28 +241,21 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-foreground truncate">
                             {appointment.session_type === 'personal' 
-                              ? 'Compromisso Pessoal'
+                              ? appointment.title || 'Compromisso Pessoal'
                               : appointment.client?.name || 'Cliente não informado'
                             }
                           </span>
-                          <div className="flex items-center gap-1">
-                            {getAppointmentTypeIcon(appointment.appointment_type)}
-                            <span className="text-xs text-muted-foreground">
-                              {getAppointmentTypeText(appointment.appointment_type)}
-                            </span>
-                          </div>
-                          {appointment.session_type === 'personal' && (
+                          {appointment.session_type !== 'personal' && (
                             <div className="flex items-center gap-1">
-                              {getSessionTypeIcon(appointment.session_type)}
-                              <span className="text-xs text-muted-foreground">
-                                Pessoal
-                              </span>
+                              {getAppointmentTypeIcon(appointment.appointment_type)}
                             </div>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {appointment.title}
-                        </p>
+                        {appointment.session_type !== 'personal' && appointment.description && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {appointment.description}
+                          </p>
+                        )}
                       </div>
 
                       {/* Ações */}

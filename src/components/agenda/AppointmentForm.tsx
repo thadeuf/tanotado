@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,19 +17,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calendar, Clock, User, Video, MapPin, DollarSign, Users, Palette, AlertTriangle } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
@@ -44,13 +34,14 @@ import AppointmentModalitySection from './forms/AppointmentModalitySection';
 import AppointmentFinancialSection from './forms/AppointmentFinancialSection';
 import AppointmentColorSelector from './forms/AppointmentColorSelector';
 import AppointmentObservations from './forms/AppointmentObservations';
-import AppointmentDateTimeInfo from './forms/AppointmentDateTimeInfo';
+import AppointmentDateSelector from './forms/AppointmentDateSelector';
 import AppointmentConflictAlert from './forms/AppointmentConflictAlert';
 import AppointmentFormActions from './forms/AppointmentFormActions';
 
 const appointmentSchema = z.object({
   clientId: z.string().optional(),
   description: z.string().optional(),
+  title: z.string().optional(),
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
   endTime: z.string().min(1, 'Horário de fim é obrigatório'),
@@ -89,13 +80,13 @@ const appointmentSchema = z.object({
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
 interface AppointmentFormProps {
-  selectedDate: Date;
-  selectedTime: string;
+  selectedDate?: Date;
+  selectedTime?: string;
   onClose: () => void;
 }
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({ 
-  selectedDate, 
+  selectedDate: initialSelectedDate, 
   selectedTime, 
   onClose 
 }) => {
@@ -105,6 +96,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeConflictWarning, setTimeConflictWarning] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(initialSelectedDate || new Date());
 
   const getDefaultEndTime = (startTime: string) => {
     const [hours, minutes] = startTime.split(':').map(Number);
@@ -117,6 +109,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     defaultValues: {
       clientId: '',
       description: '',
+      title: '',
       price: '',
       startTime: selectedTime || '09:00',
       endTime: selectedTime ? getDefaultEndTime(selectedTime) : '10:00',
@@ -186,6 +179,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         user_id: user.id,
         client_id: data.sessionType === 'personal' ? null : data.clientId || null,
         description: data.description || null,
+        title: data.title || null,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
         status: 'scheduled' as const,
@@ -279,12 +273,34 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <AppointmentDateTimeInfo date={selectedDate} />
+        <AppointmentDateSelector 
+          control={form.control}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+        />
+
         <AppointmentConflictAlert conflictMessage={timeConflictWarning} />
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <AppointmentTypeSelector control={form.control} />
+            
+            {sessionType === 'personal' && (
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Título do Compromisso</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Reunião, Consulta médica..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
             <AppointmentClientSelector control={form.control} sessionType={sessionType} />
             <AppointmentTimeFields control={form.control} />
             

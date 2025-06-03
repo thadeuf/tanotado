@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -64,8 +63,6 @@ const AppHeader: React.FC = () => {
       {/* Modal do formulário de agendamento */}
       {showAppointmentForm && (
         <AppointmentForm
-          selectedDate={new Date()}
-          selectedTime=""
           onClose={handleFormClose}
         />
       )}

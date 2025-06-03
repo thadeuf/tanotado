@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import { Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,6 +26,7 @@ import AppointmentFormActions from './forms/AppointmentFormActions';
 
 const editAppointmentSchema = z.object({
   description: z.string().optional(),
+  title: z.string().optional(),
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
   endTime: z.string().min(1, 'Horário de fim é obrigatório'),
@@ -67,6 +69,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
     resolver: zodResolver(editAppointmentSchema),
     defaultValues: {
       description: appointment.description || '',
+      title: appointment.title || '',
       price: appointment.price ? appointment.price.toString() : '',
       startTime: startTime,
       endTime: endTime,
@@ -94,6 +97,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
 
       const appointmentData = {
         description: data.description || null,
+        title: data.title || null,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
         status: data.status,
@@ -164,6 +168,22 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
               client={selectedClient} 
               sessionType={appointment.session_type} 
             />
+
+            {appointment.session_type === 'personal' && (
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Título do Compromisso</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Reunião, Consulta médica..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <AppointmentTimeFields control={form.control} />
 
