@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -7,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
 import { Form } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -18,6 +18,9 @@ import FinancialSection from '@/components/client-form/FinancialSection';
 import FinancialResponsibleSection from '@/components/client-form/FinancialResponsibleSection';
 import EmergencyContactSection from '@/components/client-form/EmergencyContactSection';
 import AdditionalDataSection from '@/components/client-form/AdditionalDataSection';
+import ClientStatsCard from '@/components/client-details/ClientStatsCard';
+import ClientOptionsMenu from '@/components/client-details/ClientOptionsMenu';
+import { useClientStats } from '@/hooks/useClientStats';
 
 const EditClient: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,9 +28,13 @@ const EditClient: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isMultiUser = false;
+  const [activeTab, setActiveTab] = useState('overview');
 
   console.log('EditClient: Starting component with ID:', id);
   console.log('EditClient: User ID:', user?.id);
+
+  // Hook para buscar estatísticas do cliente
+  const { data: clientStats, isLoading: statsLoading } = useClientStats(id || '');
 
   const { data: client, isLoading, error } = useQuery({
     queryKey: ['client', id],
@@ -253,6 +260,30 @@ const EditClient: React.FC = () => {
     updateClientMutation.mutate(data);
   };
 
+  const handleViewRecords = () => {
+    // TODO: Implementar visualização de prontuários
+    toast({
+      title: "Em desenvolvimento",
+      description: "Funcionalidade de prontuários em desenvolvimento.",
+    });
+  };
+
+  const handleViewNotes = () => {
+    // TODO: Implementar visualização de anotações
+    toast({
+      title: "Em desenvolvimento", 
+      description: "Funcionalidade de anotações em desenvolvimento.",
+    });
+  };
+
+  const handleViewFinancial = () => {
+    // TODO: Implementar visualização financeira
+    toast({
+      title: "Em desenvolvimento",
+      description: "Funcionalidade financeira em desenvolvimento.",
+    });
+  };
+
   console.log('EditClient: Render state - isLoading:', isLoading, 'error:', error, 'client:', !!client);
 
   if (isLoading) {
@@ -321,45 +352,83 @@ const EditClient: React.FC = () => {
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-tanotado-navy">
-            Editar Cliente
+            {client?.name}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {client?.name}
+            Editar informações do cliente
           </p>
         </div>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {isMultiUser && (
-            <ResponsibleProfessionalSection control={form.control} />
-          )}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="edit">Editar Dados</TabsTrigger>
+        </TabsList>
 
-          <PersonalInformationSection control={form.control} />
-          <AddressSection control={form.control} />
-          <FinancialSection control={form.control} />
-          <FinancialResponsibleSection control={form.control} />
-          <EmergencyContactSection control={form.control} />
-          <AdditionalDataSection control={form.control} />
-
-          <div className="flex justify-end gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/clientes')}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={updateClientMutation.isPending}
-              className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
-            >
-              {updateClientMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              {clientStats && !statsLoading ? (
+                <ClientStatsCard
+                  totalSessions={clientStats.totalSessions}
+                  attendedSessions={clientStats.attendedSessions}
+                  missedSessions={clientStats.missedSessions}
+                  totalRevenue={clientStats.totalRevenue}
+                />
+              ) : (
+                <div className="flex items-center justify-center p-8 bg-white rounded-lg border">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-tanotado-purple"></div>
+                  <span className="ml-2 text-muted-foreground">Carregando estatísticas...</span>
+                </div>
+              )}
+            </div>
+            
+            <div>
+              <ClientOptionsMenu
+                clientId={id || ''}
+                onViewRecords={handleViewRecords}
+                onViewNotes={handleViewNotes}
+                onViewFinancial={handleViewFinancial}
+              />
+            </div>
           </div>
-        </form>
-      </Form>
+        </TabsContent>
+
+        <TabsContent value="edit">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {isMultiUser && (
+                <ResponsibleProfessionalSection control={form.control} />
+              )}
+
+              <PersonalInformationSection control={form.control} />
+              <AddressSection control={form.control} />
+              <FinancialSection control={form.control} />
+              <FinancialResponsibleSection control={form.control} />
+              <EmergencyContactSection control={form.control} />
+              <AdditionalDataSection control={form.control} />
+
+              <div className="flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate('/clientes')}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateClientMutation.isPending}
+                  className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
+                >
+                  {updateClientMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
