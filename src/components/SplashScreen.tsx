@@ -21,12 +21,10 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
     return (
       <div className="fixed inset-0 splash-screen flex items-center justify-center z-50 opacity-0 transition-opacity duration-300">
         <div className="text-center">
-          <img 
-            src="/lovable-uploads/997559be-cbfa-4975-a3c3-c43bc9ffa421.png" 
-            alt="tanotado"
-            className="w-48 h-48 mx-auto mb-8 animate-pulse"
-          />
-          <p className="text-white/70 mt-4 text-lg">Agendamento Inteligente</p>
+          <h1 className="text-6xl font-bold text-white mb-4 animate-pulse">tanotado</h1>
+          <div className="w-16 h-1 bg-white/30 rounded-full mx-auto">
+            <div className="w-full h-full bg-white rounded-full animate-pulse"></div>
+          </div>
         </div>
       </div>
     );
@@ -35,11 +33,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   return (
     <div className="fixed inset-0 splash-screen flex items-center justify-center z-50 transition-opacity duration-300">
       <div className="text-center animate-fade-in">
-        <img 
-          src="/lovable-uploads/997559be-cbfa-4975-a3c3-c43bc9ffa421.png" 
-          alt="tanotado"
-          className="w-64 h-64 md:w-80 md:h-80 mx-auto mb-8"
-        />
+        <h1 className="text-6xl md:text-8xl font-bold text-white mb-8 tracking-tight">
+          tanotado
+        </h1>
+        <div className="w-24 h-1 bg-white/30 rounded-full mx-auto">
+          <div className="w-full h-full bg-white rounded-full animate-pulse"></div>
+        </div>
         <p className="text-white/70 mt-4 text-lg">Agendamento Inteligente</p>
       </div>
     </div>
