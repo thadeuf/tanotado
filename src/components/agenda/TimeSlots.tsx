@@ -34,6 +34,10 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
         return 'bg-tanotado-blue/10 text-tanotado-blue';
       case 'completed':
         return 'bg-tanotado-green/10 text-tanotado-green';
+      case 'confirmed':
+        return 'bg-tanotado-green/10 text-tanotado-green';
+      case 'no_show':
+        return 'bg-red-100 text-red-700';
       case 'cancelled':
         return 'bg-red-100 text-red-700';
       default:
@@ -47,6 +51,10 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
         return 'Agendado';
       case 'completed':
         return 'Concluído';
+      case 'confirmed':
+        return 'Compareceu';
+      case 'no_show':
+        return 'Faltou';
       case 'cancelled':
         return 'Cancelado';
       default:

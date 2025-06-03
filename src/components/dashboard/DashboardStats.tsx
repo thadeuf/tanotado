@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Users, Clock, UserX } from 'lucide-react';
@@ -19,14 +20,14 @@ const DashboardStats: React.FC = () => {
     .filter(apt => new Date(apt.start_time) > new Date() && apt.status !== 'cancelled')
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
 
-  // Contar atendimentos completados
+  // Contar atendimentos completados/confirmados
   const completedAppointments = appointments.filter(apt => 
-    apt.status === 'completed' || apt.status === 'scheduled'
+    apt.status === 'completed' || apt.status === 'confirmed'
   ).length;
 
-  // Contar faltas
+  // Contar faltas (no_show)
   const missedAppointments = appointments.filter(apt => 
-    apt.status === 'cancelled'
+    apt.status === 'no_show'
   ).length;
 
   const stats = [
