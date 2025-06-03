@@ -17,27 +17,46 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     // Verifica se é o primeiro acesso
-    const hasSeenSplash = localStorage.getItem('hasSeenSplash');
-    
-    if (!hasSeenSplash) {
-      setShowSplash(true);
+    try {
+      const hasSeenSplash = localStorage.getItem('hasSeenSplash');
+      console.log('hasSeenSplash:', hasSeenSplash);
+      
+      if (!hasSeenSplash) {
+        console.log('First time user, showing splash');
+        setShowSplash(true);
+      } else {
+        console.log('User has seen splash before, skipping');
+        setShowSplash(false);
+      }
+    } catch (error) {
+      console.error('Error checking localStorage:', error);
+      setShowSplash(false);
+    } finally {
+      setIsChecking(false);
     }
-    setIsChecking(false);
   }, []);
 
   const handleSplashComplete = () => {
+    console.log('Splash completed');
     setShowSplash(false);
-    localStorage.setItem('hasSeenSplash', 'true');
+    try {
+      localStorage.setItem('hasSeenSplash', 'true');
+    } catch (error) {
+      console.error('Error setting localStorage:', error);
+    }
   };
 
   if (isChecking) {
+    console.log('Still checking, showing null');
     return null;
   }
 
   if (showSplash) {
+    console.log('Showing splash screen');
     return <SplashScreen onComplete={handleSplashComplete} />;
   }
 
+  console.log('Showing main app');
   return (
     <AuthProvider>
       <BrowserRouter>
