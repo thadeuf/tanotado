@@ -1,10 +1,10 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { MoreHorizontal, Edit, Trash2, CheckCircle } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { CheckCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -159,14 +159,13 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
               <TableHead>Valor</TableHead>
               <TableHead>Vencimento</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Método</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {payments?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   Nenhum pagamento encontrado
                 </TableCell>
               </TableRow>
@@ -179,31 +178,18 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
                   <TableCell>{formatCurrency(payment.amount)}</TableCell>
                   <TableCell>{formatDate(payment.due_date)}</TableCell>
                   <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                  <TableCell>{payment.payment_method || '-'}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {payment.status !== 'paid' && (
-                          <DropdownMenuItem onClick={() => markAsPaid(payment.id)}>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Marcar como pago
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {payment.status !== 'paid' && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => markAsPaid(payment.id)}
+                        className="h-8 w-8 p-0 hover:bg-green-100"
+                        title="Marcar como pago"
+                      >
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

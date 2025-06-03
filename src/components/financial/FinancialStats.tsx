@@ -1,13 +1,14 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, TrendingUp, TrendingDown, Clock } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
 
 const FinancialStats: React.FC = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['financial-stats', user?.id],
@@ -53,7 +54,19 @@ const FinancialStats: React.FC = () => {
       };
     },
     enabled: !!user?.id,
+    staleTime: 0, // Force refresh on every render
   });
+
+  // Listen for payments query updates to refresh stats
+  useEffect(() => {
+    const unsubscribe = queryClient.getQueryCache().subscribe(({ query, type }) => {
+      if (type === 'updated' && query.queryKey[0] === 'payments') {
+        queryClient.invalidateQueries({ queryKey: ['financial-stats', user?.id] });
+      }
+    });
+
+    return unsubscribe;
+  }, [queryClient, user?.id]);
 
   if (isLoading) {
     return (
