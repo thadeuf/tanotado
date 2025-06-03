@@ -2,16 +2,32 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { MapPin } from 'lucide-react';
-import { Control } from 'react-hook-form';
+import { MapPin, Search } from 'lucide-react';
+import { Control, UseFormSetValue } from 'react-hook-form';
 import { ClientFormData } from '@/schemas/clientSchema';
+import { useCepLookup } from '@/hooks/useCepLookup';
 
 interface AddressSectionProps {
   control: Control<ClientFormData>;
+  setValue: UseFormSetValue<ClientFormData>;
 }
 
-const AddressSection: React.FC<AddressSectionProps> = ({ control }) => {
+const AddressSection: React.FC<AddressSectionProps> = ({ control, setValue }) => {
+  const { lookupCep, isLoading } = useCepLookup();
+
+  const handleCepLookup = async (cep: string) => {
+    const result = await lookupCep(cep);
+    
+    if (result) {
+      setValue('address', result.address);
+      setValue('neighborhood', result.district);
+      setValue('city', result.city);
+      setValue('state', result.state);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -28,7 +44,33 @@ const AddressSection: React.FC<AddressSectionProps> = ({ control }) => {
             <FormItem>
               <FormLabel>CEP</FormLabel>
               <FormControl>
-                <Input placeholder="00000-000" {...field} />
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="00000-000" 
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      // Auto-format CEP as user types
+                      const value = e.target.value.replace(/\D/g, '');
+                      if (value.length <= 8) {
+                        const formatted = value.replace(/(\d{5})(\d{3})/, '$1-$2');
+                        field.onChange(formatted);
+                      }
+                    }}
+                    maxLength={9}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCepLookup(field.value)}
+                    disabled={isLoading || !field.value || field.value.replace(/\D/g, '').length !== 8}
+                    className="gap-2"
+                  >
+                    <Search className="h-4 w-4" />
+                    {isLoading ? 'Buscando...' : 'Buscar'}
+                  </Button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>

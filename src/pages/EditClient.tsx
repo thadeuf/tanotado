@@ -393,7 +393,7 @@ const EditClient: React.FC = () => {
               )}
 
               <PersonalInformationSection control={form.control} />
-              <AddressSection control={form.control} />
+              <AddressSection control={form.control} setValue={form.setValue} />
               <FinancialSection control={form.control} />
               <FinancialResponsibleSection control={form.control} />
               <EmergencyContactSection control={form.control} />
