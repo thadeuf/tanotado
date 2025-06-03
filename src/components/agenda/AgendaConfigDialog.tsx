@@ -85,13 +85,20 @@ const AgendaConfigDialog: React.FC<AgendaConfigDialogProps> = ({
     queryFn: async () => {
       if (!user?.id) return null;
       
+      console.log('Buscando configurações para usuário:', user.id);
+      
       const { data, error } = await supabase
         .from('user_settings')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar configurações:', error);
+        throw error;
+      }
+      
+      console.log('Configurações encontradas:', data);
       return data;
     },
     enabled: !!user?.id,
@@ -100,6 +107,7 @@ const AgendaConfigDialog: React.FC<AgendaConfigDialogProps> = ({
   // Carregar configurações quando disponíveis
   useEffect(() => {
     if (userSettings) {
+      console.log('Carregando configurações:', userSettings);
       if (userSettings.working_hours) {
         setWorkingHours(userSettings.working_hours as WorkingHours);
       }
@@ -116,18 +124,56 @@ const AgendaConfigDialog: React.FC<AgendaConfigDialogProps> = ({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Usuário não autenticado');
 
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          working_hours: workingHours,
-          appointment_duration: appointmentDuration,
-          break_time: breakTime,
-        });
+      console.log('Salvando configurações:', {
+        working_hours: workingHours,
+        appointment_duration: appointmentDuration,
+        break_time: breakTime,
+      });
 
-      if (error) throw error;
+      // Verificar se já existe um registro
+      const { data: existingSettings } = await supabase
+        .from('user_settings')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      console.log('Configurações existentes:', existingSettings);
+
+      if (existingSettings) {
+        // Atualizar registro existente
+        const { error } = await supabase
+          .from('user_settings')
+          .update({
+            working_hours: workingHours,
+            appointment_duration: appointmentDuration,
+            break_time: breakTime,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Erro ao atualizar configurações:', error);
+          throw error;
+        }
+      } else {
+        // Criar novo registro
+        const { error } = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: user.id,
+            working_hours: workingHours,
+            appointment_duration: appointmentDuration,
+            break_time: breakTime,
+          });
+
+        if (error) {
+          console.error('Erro ao criar configurações:', error);
+          throw error;
+        }
+      }
     },
     onSuccess: () => {
+      console.log('Configurações salvas com sucesso');
       toast({
         title: "Configurações salvas",
         description: "As configurações da agenda foram atualizadas com sucesso.",
@@ -136,7 +182,7 @@ const AgendaConfigDialog: React.FC<AgendaConfigDialogProps> = ({
       onOpenChange(false);
     },
     onError: (error) => {
-      console.error('Error saving settings:', error);
+      console.error('Erro ao salvar configurações:', error);
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as configurações. Tente novamente.",
@@ -160,6 +206,7 @@ const AgendaConfigDialog: React.FC<AgendaConfigDialogProps> = ({
   };
 
   const handleSave = () => {
+    console.log('Iniciando salvamento das configurações');
     saveSettingsMutation.mutate();
   };
 
