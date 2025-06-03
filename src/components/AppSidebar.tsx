@@ -52,14 +52,6 @@ export function AppSidebar() {
       ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium" 
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
   const handleMenuItemClick = (url: string) => {
     navigate(url);
   };
@@ -145,7 +137,7 @@ export function AppSidebar() {
               >
                 <Button 
                   variant="ghost" 
-                  onClick={handleLogout}
+                  onClick={logout}
                   className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center' : 'justify-start'}`}
                 >
                   <LogOut className="h-5 w-5 flex-shrink-0" />
