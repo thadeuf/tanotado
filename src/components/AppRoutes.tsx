@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
@@ -13,6 +12,7 @@ import Clients from '../pages/Clients';
 import NewClient from '../pages/NewClient';
 import EditClient from '../pages/EditClient';
 import Agenda from '../pages/Agenda';
+import Financial from '../pages/Financial';
 import NotFound from '../pages/NotFound';
 
 const AppRoutes: React.FC = () => {
@@ -54,6 +54,7 @@ const AppRoutes: React.FC = () => {
               <Route path="/configuracoes" element={
                 <div>Configurações (Em desenvolvimento)</div>
               } />
+              <Route path="/financeiro" element={<Financial />} />
 
               {/* Redirecionamentos */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
