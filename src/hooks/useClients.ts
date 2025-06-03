@@ -19,6 +19,7 @@ export interface Client {
   updated_at: string;
   user_id: string;
   active_registration: boolean | null;
+  session_value: string | null;
 }
 
 export const useClients = () => {
