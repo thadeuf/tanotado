@@ -17,8 +17,10 @@ interface EditRecurrenceConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onEditSingle: () => void;
+  onEditFromDate: () => void;
   onEditSeries: () => void;
   conflicts: ConflictInfo[];
+  selectedDate: Date;
   isLoading?: boolean;
 }
 
@@ -26,8 +28,10 @@ const EditRecurrenceConfirmDialog: React.FC<EditRecurrenceConfirmDialogProps> = 
   isOpen,
   onClose,
   onEditSingle,
+  onEditFromDate,
   onEditSeries,
   conflicts,
+  selectedDate,
   isLoading = false,
 }) => {
   const hasConflicts = conflicts.length > 0;
@@ -65,33 +69,44 @@ const EditRecurrenceConfirmDialog: React.FC<EditRecurrenceConfirmDialogProps> = 
 
           <div className="text-sm text-muted-foreground">
             <p>Este é um agendamento recorrente. Como você gostaria de proceder?</p>
+            <p className="mt-2 font-medium text-tanotado-blue">
+              Data selecionada: {format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
             {hasConflicts && (
               <p className="mt-2 font-medium">
-                Ao editar a série inteira, os agendamentos serão criados mesmo com os conflitos detectados.
+                Ao editar, os agendamentos serão alterados mesmo com os conflitos detectados.
               </p>
             )}
           </div>
         </div>
 
         <DialogFooter className="gap-2">
-          <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <Button variant="outline" onClick={onClose} disabled={isLoading} className="flex-1">
+          <div className="flex flex-col gap-2 w-full">
+            <Button variant="outline" onClick={onClose} disabled={isLoading} className="w-full">
               Cancelar
             </Button>
             <Button 
               variant="secondary" 
               onClick={onEditSingle} 
               disabled={isLoading}
-              className="flex-1"
+              className="w-full"
             >
-              {isLoading ? 'Editando...' : 'Apenas Este'}
+              {isLoading ? 'Editando...' : 'Apenas Este Agendamento'}
+            </Button>
+            <Button 
+              onClick={onEditFromDate} 
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? 'Editando...' : 'Desta Data em Diante'}
             </Button>
             <Button 
               onClick={onEditSeries} 
               disabled={isLoading}
-              className="flex-1"
+              variant="outline"
+              className="w-full"
             >
-              {isLoading ? 'Editando...' : hasConflicts ? 'Editar Série Mesmo Assim' : 'Toda a Série'}
+              {isLoading ? 'Editando...' : hasConflicts ? 'Toda a Série (Mesmo Assim)' : 'Toda a Série'}
             </Button>
           </div>
         </DialogFooter>

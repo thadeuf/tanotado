@@ -89,15 +89,23 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
   const watchAppointmentType = form.watch('appointmentType');
   const watchCreateFinancialRecord = form.watch('createFinancialRecord');
 
-  const checkTimeConflicts = (startTime: string, endTime: string, recurrenceGroupId?: string) => {
+  const checkTimeConflicts = (startTime: string, endTime: string, recurrenceGroupId?: string, fromDate?: Date) => {
     const conflicts: any[] = [];
     
     if (!recurrenceGroupId) return conflicts;
 
     // Get all appointments in the same recurrence group
-    const seriesAppointments = appointments.filter(apt => 
+    let seriesAppointments = appointments.filter(apt => 
       apt.recurrence_group_id === recurrenceGroupId && apt.id !== appointment.id
     );
+
+    // If fromDate is provided, filter appointments from that date forward
+    if (fromDate) {
+      seriesAppointments = seriesAppointments.filter(apt => {
+        const aptDate = new Date(apt.start_time);
+        return aptDate >= fromDate;
+      });
+    }
 
     seriesAppointments.forEach(seriesAppointment => {
       const seriesDate = new Date(seriesAppointment.start_time);
@@ -139,7 +147,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
   };
 
   const updateAppointmentMutation = useMutation({
-    mutationFn: async ({ data, editType }: { data: EditAppointmentFormData; editType: 'single' | 'series' }) => {
+    mutationFn: async ({ data, editType }: { data: EditAppointmentFormData; editType: 'single' | 'series' | 'fromDate' }) => {
       const [startHours, startMinutes] = data.startTime.split(':').map(Number);
       const [endHours, endMinutes] = data.endTime.split(':').map(Number);
       
@@ -159,15 +167,10 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
       console.log('Editing appointment:', appointment.id, 'Type:', editType);
       console.log('Appointment data:', appointmentData);
 
-      if (editType === 'series' && appointment.recurrence_group_id) {
-        console.log('Editing series with recurrence_group_id:', appointment.recurrence_group_id);
+      if ((editType === 'series' || editType === 'fromDate') && appointment.recurrence_group_id) {
+        console.log('Editing series/fromDate with recurrence_group_id:', appointment.recurrence_group_id);
         
-        // For series edit, we need to handle time changes differently
-        const timeDataForSeries = {
-          ...appointmentData,
-        };
-
-        // Get all appointments in the series to update times individually
+        // Get all appointments in the series
         const { data: seriesAppointments, error: queryError } = await supabase
           .from('appointments')
           .select('*')
@@ -180,8 +183,20 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
 
         console.log('Found appointments in series:', seriesAppointments);
 
-        // Update each appointment in the series with new times
-        const updatePromises = seriesAppointments?.map(async (seriesAppointment) => {
+        // Filter appointments based on edit type
+        let appointmentsToUpdate = seriesAppointments || [];
+        
+        if (editType === 'fromDate') {
+          // Only update appointments from the selected date forward
+          appointmentsToUpdate = seriesAppointments?.filter(apt => {
+            const aptDate = new Date(apt.start_time);
+            return aptDate >= appointmentDate;
+          }) || [];
+          console.log('Appointments to update (from date):', appointmentsToUpdate.length);
+        }
+
+        // Update each appointment with new times
+        const updatePromises = appointmentsToUpdate.map(async (seriesAppointment) => {
           const seriesDate = new Date(seriesAppointment.start_time);
           
           const newStartDateTime = new Date(seriesDate);
@@ -193,12 +208,12 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
           return supabase
             .from('appointments')
             .update({
-              ...timeDataForSeries,
+              ...appointmentData,
               start_time: newStartDateTime.toISOString(),
               end_time: newEndDateTime.toISOString(),
             })
             .eq('id', seriesAppointment.id);
-        }) || [];
+        });
 
         const results = await Promise.all(updatePromises);
         
@@ -209,7 +224,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
           }
         }
 
-        console.log('Successfully updated', results.length, 'appointments in series');
+        console.log('Successfully updated', results.length, 'appointments');
       } else {
         console.log('Editing single appointment with ID:', appointment.id);
         
@@ -237,6 +252,8 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
     onSuccess: (_, { editType }) => {
       const message = editType === 'series' 
         ? "Toda a série de agendamentos foi atualizada com sucesso."
+        : editType === 'fromDate'
+        ? "Agendamentos desta data em diante foram atualizados com sucesso."
         : "Agendamento atualizado com sucesso.";
       
       toast({
@@ -269,8 +286,8 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
       const isTimeChanged = data.startTime !== originalStartTime || data.endTime !== endTime;
       
       if (appointment.session_type === 'recurring' && appointment.recurrence_group_id && isTimeChanged) {
-        // Check for conflicts when editing the series
-        const conflicts = checkTimeConflicts(data.startTime, data.endTime, appointment.recurrence_group_id);
+        // Check for conflicts when editing from this date forward
+        const conflicts = checkTimeConflicts(data.startTime, data.endTime, appointment.recurrence_group_id, appointmentDate);
         setEditConflicts(conflicts);
         setPendingFormData(data);
         setShowEditRecurrenceDialog(true);
@@ -290,6 +307,15 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
       updateAppointmentMutation.mutate({ 
         data: pendingFormData, 
         editType: 'single' 
+      });
+    }
+  };
+
+  const handleEditFromDate = () => {
+    if (pendingFormData) {
+      updateAppointmentMutation.mutate({ 
+        data: pendingFormData, 
+        editType: 'fromDate' 
       });
     }
   };
@@ -385,8 +411,10 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
         isOpen={showEditRecurrenceDialog}
         onClose={handleCloseEditDialog}
         onEditSingle={handleEditSingle}
+        onEditFromDate={handleEditFromDate}
         onEditSeries={handleEditSeries}
         conflicts={editConflicts}
+        selectedDate={appointmentDate}
         isLoading={updateAppointmentMutation.isPending}
       />
     </>
