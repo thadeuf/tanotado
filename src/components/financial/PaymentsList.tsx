@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +15,7 @@ interface Payment {
   amount: number;
   due_date: string;
   payment_date: string | null;
-  status: 'pending' | 'paid' | 'overdue';
+  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
   payment_method: string | null;
   notes: string | null;
   client: {
@@ -50,8 +49,9 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
         .eq('user_id', user.id)
         .order('due_date', { ascending: false });
 
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+      // Only apply status filter if it's a valid payment status
+      if (statusFilter !== 'all' && ['pending', 'paid', 'overdue', 'cancelled'].includes(statusFilter)) {
+        query = query.eq('status', statusFilter as 'pending' | 'paid' | 'overdue' | 'cancelled');
       }
 
       const { data, error } = await query;
@@ -80,6 +80,8 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
         return <Badge className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
       case 'overdue':
         return <Badge className="bg-red-100 text-red-800">Vencido</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-gray-100 text-gray-800">Cancelado</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -101,7 +103,7 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
       const { error } = await supabase
         .from('payments')
         .update({
-          status: 'paid',
+          status: 'paid' as const,
           payment_date: new Date().toISOString().split('T')[0]
         })
         .eq('id', paymentId);
