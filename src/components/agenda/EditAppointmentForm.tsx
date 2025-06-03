@@ -17,18 +17,10 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Calendar, User, Video, MapPin, DollarSign, Palette } from 'lucide-react';
+import { Calendar, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
@@ -36,6 +28,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Appointment } from '@/hooks/useAppointments';
+import AppointmentTypeSelector from './forms/AppointmentTypeSelector';
+import AppointmentTimeFields from './forms/AppointmentTimeFields';
+import AppointmentModalitySection from './forms/AppointmentModalitySection';
+import AppointmentStatusSelector from './forms/AppointmentStatusSelector';
+import AppointmentFinancialSection from './forms/AppointmentFinancialSection';
+import AppointmentColorSelector from './forms/AppointmentColorSelector';
 
 const editAppointmentSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
@@ -66,23 +64,6 @@ interface EditAppointmentFormProps {
   appointment: Appointment;
   onClose: () => void;
 }
-
-const COLORS = [
-  { value: '#8B5CF6', color: 'bg-purple-500' },
-  { value: '#3B82F6', color: 'bg-blue-500' },
-  { value: '#10B981', color: 'bg-green-500' },
-  { value: '#F59E0B', color: 'bg-yellow-500' },
-  { value: '#EF4444', color: 'bg-red-500' },
-  { value: '#EC4899', color: 'bg-pink-500' },
-  { value: '#6366F1', color: 'bg-indigo-500' },
-  { value: '#8B5A2B', color: 'bg-amber-700' },
-];
-
-const APPOINTMENT_TYPES = [
-  { value: 'unique', label: 'Sessão Única', icon: Calendar },
-  { value: 'recurring', label: 'Sessão Recorrente', icon: Calendar },
-  { value: 'personal', label: 'Compromisso Pessoal', icon: User },
-];
 
 const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({ 
   appointment, 
@@ -202,34 +183,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Tipo de Agendamento */}
-            <FormField
-              control={form.control}
-              name="sessionType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Agendamento</FormLabel>
-                  <div className="grid grid-cols-3 gap-2">
-                    {APPOINTMENT_TYPES.map((type) => {
-                      const Icon = type.icon;
-                      return (
-                        <Button
-                          key={type.value}
-                          type="button"
-                          variant={field.value === type.value ? "default" : "outline"}
-                          className="h-20 flex flex-col gap-2"
-                          onClick={() => field.onChange(type.value)}
-                        >
-                          <Icon className="h-5 w-5" />
-                          <span className="text-xs text-center">{type.label}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <AppointmentTypeSelector control={form.control} />
 
             {/* Cliente (apenas exibição) */}
             {watchSessionType !== 'personal' && (
@@ -270,203 +224,21 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
               )}
             />
 
-            {/* Time Fields */}
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="startTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horário de Início</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="time" 
-                        {...field} 
-                        className="w-full"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <AppointmentTimeFields control={form.control} />
 
-              <FormField
-                control={form.control}
-                name="endTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horário de Fim</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="time" 
-                        {...field} 
-                        className="w-full"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Modalidade da Sessão */}
-            <FormField
-              control={form.control}
-              name="appointmentType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Video className="h-4 w-4" />
-                    Modalidade da Sessão
-                  </FormLabel>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={field.value === 'remoto'}
-                        onCheckedChange={(checked) => 
-                          field.onChange(checked ? 'remoto' : 'presencial')
-                        }
-                      />
-                      <div className="flex items-center gap-2">
-                        {field.value === 'remoto' ? (
-                          <>
-                            <Video className="h-4 w-4 text-blue-500" />
-                            <span>Online</span>
-                          </>
-                        ) : (
-                          <>
-                            <MapPin className="h-4 w-4 text-green-500" />
-                            <span>Presencial</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <AppointmentModalitySection 
+              control={form.control} 
+              watchAppointmentType={watchAppointmentType} 
             />
 
-            {/* Link da Videochamada (se online) */}
-            {watchAppointmentType === 'remoto' && (
-              <FormField
-                control={form.control}
-                name="videoCallLink"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link da Reunião Online</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="https://meet.google.com/..."
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <AppointmentStatusSelector control={form.control} />
 
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="scheduled">Pendente</SelectItem>
-                      <SelectItem value="no_show">Faltou</SelectItem>
-                      <SelectItem value="confirmed">Compareceu</SelectItem>
-                      <SelectItem value="cancelled">Suspenso</SelectItem>
-                      <SelectItem value="completed">Concluído</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <AppointmentFinancialSection 
+              control={form.control} 
+              watchCreateFinancialRecord={watchCreateFinancialRecord} 
             />
 
-            {/* Lançar Financeiro e Valor */}
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="createFinancialRecord"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Lançar no Financeiro
-                    </FormLabel>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                        <span className="text-sm text-muted-foreground">
-                          {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
-                        </span>
-                      </div>
-                      {watchCreateFinancialRecord && (
-                        <FormField
-                          control={form.control}
-                          name="price"
-                          render={({ field: priceField }) => (
-                            <FormItem className="flex-shrink-0 w-32">
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  step="0.01"
-                                  placeholder="0,00"
-                                  {...priceField} 
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      )}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Cor do Agendamento */}
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Palette className="h-4 w-4" />
-                    Cor do Agendamento
-                  </FormLabel>
-                  <div className="grid grid-cols-4 gap-2">
-                    {COLORS.map((color) => (
-                      <Button
-                        key={color.value}
-                        type="button"
-                        variant="outline"
-                        className={`h-12 flex items-center justify-center ${
-                          field.value === color.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
-                        }`}
-                        onClick={() => field.onChange(color.value)}
-                      >
-                        <div className={`w-6 h-6 rounded-full ${color.color}`} />
-                      </Button>
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <AppointmentColorSelector control={form.control} />
 
             <FormField
               control={form.control}
