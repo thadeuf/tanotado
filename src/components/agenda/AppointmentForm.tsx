@@ -184,7 +184,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
       const appointmentData = {
         user_id: user.id,
-        client_id: data.sessionType === 'personal' ? null : data.clientId,
+        client_id: data.sessionType === 'personal' ? null : data.clientId || null,
         description: data.description || null,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
@@ -197,6 +197,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         color: data.color,
         session_type: data.sessionType,
       };
+
+      console.log('Creating appointment:', appointmentData);
 
       const { error } = await supabase
         .from('appointments')

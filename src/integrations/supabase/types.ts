@@ -12,7 +12,7 @@ export type Database = {
       appointments: {
         Row: {
           appointment_type: string | null
-          client_id: string
+          client_id: string | null
           color: string | null
           create_financial_record: boolean | null
           created_at: string | null
@@ -33,7 +33,7 @@ export type Database = {
         }
         Insert: {
           appointment_type?: string | null
-          client_id: string
+          client_id?: string | null
           color?: string | null
           create_financial_record?: boolean | null
           created_at?: string | null
@@ -56,7 +56,7 @@ export type Database = {
         }
         Update: {
           appointment_type?: string | null
-          client_id?: string
+          client_id?: string | null
           color?: string | null
           create_financial_record?: boolean | null
           created_at?: string | null
