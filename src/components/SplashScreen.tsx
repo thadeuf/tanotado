@@ -21,7 +21,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
     return (
       <div className="fixed inset-0 splash-screen flex items-center justify-center z-50 opacity-0 transition-opacity duration-300">
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-white mb-4 animate-pulse">tanotado</h1>
+          <img 
+            src="/lovable-uploads/997559be-cbfa-4975-a3c3-c43bc9ffa421.png" 
+            alt="tanotado"
+            className="w-24 h-24 mx-auto mb-4 animate-pulse"
+          />
           <div className="w-16 h-1 bg-white/30 rounded-full mx-auto">
             <div className="w-full h-full bg-white rounded-full animate-pulse"></div>
           </div>
@@ -33,9 +37,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   return (
     <div className="fixed inset-0 splash-screen flex items-center justify-center z-50 transition-opacity duration-300">
       <div className="text-center animate-fade-in">
-        <h1 className="text-6xl md:text-8xl font-bold text-white mb-8 tracking-tight">
-          tanotado
-        </h1>
+        <img 
+          src="/lovable-uploads/997559be-cbfa-4975-a3c3-c43bc9ffa421.png" 
+          alt="tanotado"
+          className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-8"
+        />
         <div className="w-24 h-1 bg-white/30 rounded-full mx-auto">
           <div className="w-full h-full bg-white rounded-full animate-pulse"></div>
         </div>
