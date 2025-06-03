@@ -7,6 +7,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSa
 import { ptBR } from 'date-fns/locale';
 import { Appointment } from '@/hooks/useAppointments';
 import { cn } from '@/lib/utils';
+import EditAppointmentForm from './EditAppointmentForm';
 
 interface MonthViewProps {
   selectedDate: Date;
@@ -22,6 +23,8 @@ const MonthView: React.FC<MonthViewProps> = ({
   getDayAppointments,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -31,6 +34,23 @@ const MonthView: React.FC<MonthViewProps> = ({
   const dateFormat = "d";
   const headerFormat = "MMMM yyyy";
   const dayFormat = "EEEEE";
+
+  const handleAppointmentClick = (appointment: Appointment, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedAppointment(appointment);
+    setShowEditForm(true);
+  };
+
+  const handleDayClick = (day: Date) => {
+    setSelectedDate(day);
+    onTimeSelect('09:00');
+  };
+
+  const handleAddAppointment = (day: Date, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedDate(day);
+    onTimeSelect('09:00');
+  };
 
   const header = () => {
     return (
@@ -94,16 +114,13 @@ const MonthView: React.FC<MonthViewProps> = ({
           <div
             key={day.toString()}
             className={cn(
-              "min-h-24 p-1 border-r border-b cursor-pointer transition-colors",
+              "min-h-24 p-1 border-r border-b cursor-pointer transition-colors group",
               !isCurrentMonth && "bg-muted/30 text-muted-foreground",
               isSelected && "bg-primary/10",
               isTodayDate && "bg-accent",
               "hover:bg-muted/50"
             )}
-            onClick={() => {
-              setSelectedDate(cloneDay);
-              onTimeSelect('09:00');
-            }}
+            onClick={() => handleDayClick(cloneDay)}
           >
             <div className="flex justify-between items-start mb-1">
               <span className={cn(
@@ -118,11 +135,7 @@ const MonthView: React.FC<MonthViewProps> = ({
                   variant="ghost"
                   size="sm"
                   className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:bg-primary/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedDate(cloneDay);
-                    onTimeSelect('09:00');
-                  }}
+                  onClick={(e) => handleAddAppointment(cloneDay, e)}
                 >
                   <Plus className="h-3 w-3" />
                 </Button>
@@ -134,7 +147,7 @@ const MonthView: React.FC<MonthViewProps> = ({
                 <div
                   key={appointment.id}
                   className={cn(
-                    "text-xs p-1 rounded truncate",
+                    "text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity",
                     appointment.status === 'completed' && "bg-green-100 text-green-800",
                     appointment.status === 'scheduled' && "bg-blue-100 text-blue-800",
                     appointment.status === 'cancelled' && "bg-red-100 text-red-800"
@@ -143,8 +156,9 @@ const MonthView: React.FC<MonthViewProps> = ({
                     backgroundColor: appointment.color ? `${appointment.color}20` : undefined,
                     borderLeft: appointment.color ? `3px solid ${appointment.color}` : undefined,
                   }}
+                  onClick={(e) => handleAppointmentClick(appointment, e)}
                 >
-                  {format(new Date(appointment.start_time), 'HH:mm')} - {appointment.title}
+                  {format(new Date(appointment.start_time), 'HH:mm')} - {appointment.client?.name || 'Cliente não encontrado'}
                 </div>
               ))}
               {dayAppointments.length > 3 && (
@@ -168,20 +182,33 @@ const MonthView: React.FC<MonthViewProps> = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          Calendário Mensal
-          {header()}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="border rounded-lg overflow-hidden">
-          {daysOfWeek()}
-          {cells()}
-        </div>
-      </CardContent>
-    </Card>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Calendário Mensal
+            {header()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="border rounded-lg overflow-hidden">
+            {daysOfWeek()}
+            {cells()}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit Appointment Modal */}
+      {showEditForm && selectedAppointment && (
+        <EditAppointmentForm
+          appointment={selectedAppointment}
+          onClose={() => {
+            setShowEditForm(false);
+            setSelectedAppointment(null);
+          }}
+        />
+      )}
+    </>
   );
 };
 
