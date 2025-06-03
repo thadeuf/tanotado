@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useClients } from '@/hooks/useClients';
 
 const Clients: React.FC = () => {
@@ -90,7 +90,7 @@ const Clients: React.FC = () => {
         </Button>
       </div>
 
-      {/* Clients Grid */}
+      {/* Clients Table */}
       {filteredClients.length === 0 ? (
         <div className="text-center py-12">
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -111,48 +111,73 @@ const Clients: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClients.map((client) => (
-            <Card 
-              key={client.id} 
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate(`/clientes/${client.id}`)}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={client.photo_url || ''} alt={client.name} />
-                    <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium">
-                      {client.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900 truncate">
-                      {client.name}
-                    </h3>
-                    {client.email && (
-                      <p className="text-sm text-gray-500 truncate">
-                        {client.email}
-                      </p>
-                    )}
-                    {client.phone && (
-                      <p className="text-sm text-gray-500">
-                        {client.phone}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge 
-                        variant={client.active_registration ? "default" : "secondary"}
-                        className="text-xs"
-                      >
-                        {client.active_registration ? 'Ativo' : 'Inativo'}
-                      </Badge>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Contato</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredClients.map((client) => (
+                <TableRow 
+                  key={client.id} 
+                  className="cursor-pointer hover:bg-gray-50"
+                  onClick={() => navigate(`/clientes/${client.id}`)}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={client.photo_url || ''} alt={client.name} />
+                        <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white text-xs">
+                          {client.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{client.name}</div>
+                        {client.cpf && (
+                          <div className="text-sm text-gray-500">CPF: {client.cpf}</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      {client.email && (
+                        <div className="text-sm">{client.email}</div>
+                      )}
+                      {client.phone && (
+                        <div className="text-sm text-gray-500">{client.phone}</div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={client.active_registration ? "default" : "secondary"}
+                      className="text-xs"
+                    >
+                      {client.active_registration ? 'Ativo' : 'Inativo'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/clientes/${client.id}`);
+                      }}
+                    >
+                      Ver detalhes
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
