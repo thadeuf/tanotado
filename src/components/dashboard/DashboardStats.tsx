@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar, Users, Clock, UserX } from 'lucide-react';
@@ -22,7 +21,7 @@ const DashboardStats: React.FC = () => {
 
   // Contar atendimentos completados
   const completedAppointments = appointments.filter(apt => 
-    apt.status === 'completed' || apt.status === 'confirmed'
+    apt.status === 'completed' || apt.status === 'scheduled'
   ).length;
 
   // Contar faltas

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,26 +13,32 @@ const AppointmentsSection: React.FC = () => {
   const todayAppointments = appointments
     .filter(apt => isToday(parseISO(apt.start_time)) && apt.status !== 'cancelled')
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-    .map(apt => ({
-      time: `${format(parseISO(apt.start_time), 'HH:mm')} - ${format(parseISO(apt.end_time), 'HH:mm')}`,
-      patient: apt.client?.name || 'Cliente não informado',
-      type: apt.title || 'Sessão',
-      professional: 'Dr. Profissional',
-      mode: (apt.appointment_type === 'remoto' ? 'online' : 'presencial') as const,
-      confirmed: apt.status === 'confirmed' || apt.status === 'completed'
-    }));
+    .map(apt => {
+      const appointmentType = apt.appointment_type === 'remoto' ? 'online' : 'presencial';
+      return {
+        time: `${format(parseISO(apt.start_time), 'HH:mm')} - ${format(parseISO(apt.end_time), 'HH:mm')}`,
+        patient: apt.client?.name || 'Cliente não informado',
+        type: apt.title || 'Sessão',
+        professional: 'Dr. Profissional',
+        mode: appointmentType as 'online' | 'presencial',
+        confirmed: apt.status === 'completed' || apt.status === 'scheduled'
+      };
+    });
 
   const tomorrowAppointments = appointments
     .filter(apt => isTomorrow(parseISO(apt.start_time)) && apt.status !== 'cancelled')
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-    .map(apt => ({
-      time: `${format(parseISO(apt.start_time), 'HH:mm')} - ${format(parseISO(apt.end_time), 'HH:mm')}`,
-      patient: apt.client?.name || 'Cliente não informado',
-      type: apt.title || 'Sessão',
-      professional: 'Dr. Profissional',
-      mode: (apt.appointment_type === 'remoto' ? 'online' : 'presencial') as const,
-      confirmed: apt.status === 'confirmed' || apt.status === 'completed'
-    }));
+    .map(apt => {
+      const appointmentType = apt.appointment_type === 'remoto' ? 'online' : 'presencial';
+      return {
+        time: `${format(parseISO(apt.start_time), 'HH:mm')} - ${format(parseISO(apt.end_time), 'HH:mm')}`,
+        patient: apt.client?.name || 'Cliente não informado',
+        type: apt.title || 'Sessão',
+        professional: 'Dr. Profissional',
+        mode: appointmentType as 'online' | 'presencial',
+        confirmed: apt.status === 'completed' || apt.status === 'scheduled'
+      };
+    });
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
@@ -50,13 +55,15 @@ const AppointmentsSection: React.FC = () => {
                         isTomorrow(aptDate) ? 'Amanhã ' :
                         format(aptDate, 'EEE ', { locale: ptBR });
       
+      const appointmentType = apt.appointment_type === 'remoto' ? 'online' : 'presencial';
+      
       return {
         time: `${timePrefix}${format(parseISO(apt.start_time), 'HH:mm')} - ${format(parseISO(apt.end_time), 'HH:mm')}`,
         patient: apt.client?.name || 'Cliente não informado',
         type: apt.title || 'Sessão',
         professional: 'Dr. Profissional',
-        mode: (apt.appointment_type === 'remoto' ? 'online' : 'presencial') as const,
-        confirmed: apt.status === 'confirmed' || apt.status === 'completed'
+        mode: appointmentType as 'online' | 'presencial',
+        confirmed: apt.status === 'completed' || apt.status === 'scheduled'
       };
     });
 
