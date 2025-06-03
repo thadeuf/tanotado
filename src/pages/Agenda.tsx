@@ -96,7 +96,12 @@ const Agenda: React.FC = () => {
               formatWeekDayName={formatWeekDayName}
             />
           ) : (
-            <MonthView />
+            <MonthView
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              onTimeSelect={handleTimeSelect}
+              getDayAppointments={getDayAppointments}
+            />
           )}
         </div>
       </div>
