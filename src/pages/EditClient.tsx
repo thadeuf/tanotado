@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -113,6 +114,9 @@ const EditClient: React.FC = () => {
     },
   });
 
+  // Estado para controlar se a mutation está em andamento
+  const [isMutating, setIsMutating] = useState(false);
+
   const updateClientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       if (!id) throw new Error('ID do cliente não fornecido');
@@ -120,6 +124,15 @@ const EditClient: React.FC = () => {
 
       console.log('UpdateClient: Starting mutation with data:', data);
       console.log('UpdateClient: Client ID:', id, 'User ID:', user?.id);
+      console.log('UpdateClient: Current mutation state - isMutating:', isMutating);
+
+      // Verificar se já há uma mutation em andamento
+      if (isMutating) {
+        console.warn('UpdateClient: Mutation already in progress, aborting');
+        throw new Error('Salvamento já em andamento');
+      }
+
+      setIsMutating(true);
 
       const clientData = {
         // Informações básicas
@@ -172,41 +185,63 @@ const EditClient: React.FC = () => {
 
       console.log('UpdateClient: Prepared client data:', clientData);
 
-      const { data: result, error } = await supabase
-        .from('clients')
-        .update(clientData)
-        .eq('id', id)
-        .eq('user_id', user?.id)
-        .select()
-        .single();
+      try {
+        const { data: result, error } = await supabase
+          .from('clients')
+          .update(clientData)
+          .eq('id', id)
+          .eq('user_id', user?.id)
+          .select()
+          .single();
 
-      if (error) {
-        console.error('UpdateClient: Supabase error:', error);
+        if (error) {
+          console.error('UpdateClient: Supabase error:', error);
+          throw error;
+        }
+
+        console.log('UpdateClient: Success result:', result);
+        return result;
+      } catch (error) {
+        console.error('UpdateClient: Mutation error:', error);
         throw error;
       }
-
-      console.log('UpdateClient: Success result:', result);
-      return result;
+    },
+    onMutate: () => {
+      console.log('UpdateClient: Mutation starting...');
     },
     onSuccess: (data) => {
       console.log('UpdateClient: Mutation success:', data);
+      setIsMutating(false);
+      
       toast({
         title: "Cliente atualizado",
         description: "Cliente atualizado com sucesso!",
       });
       
       // Invalidar cache e navegar
+      console.log('UpdateClient: Invalidating queries and navigating...');
       queryClient.invalidateQueries({ queryKey: ['client', id] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      navigate('/clientes');
+      
+      // Navegar para a lista de clientes
+      setTimeout(() => {
+        console.log('UpdateClient: Navigating to /clientes');
+        navigate('/clientes');
+      }, 100);
     },
     onError: (error: any) => {
       console.error('UpdateClient: Mutation error:', error);
+      setIsMutating(false);
+      
       toast({
         title: "Erro ao atualizar",
         description: error.message || "Ocorreu um erro ao atualizar o cliente.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      console.log('UpdateClient: Mutation settled');
+      setIsMutating(false);
     },
   });
 
@@ -273,14 +308,20 @@ const EditClient: React.FC = () => {
   }, [client, form]);
 
   const onSubmit = (data: ClientFormData) => {
-    console.log('Form submitted with data:', data);
-    console.log('Mutation is pending:', updateClientMutation.isPending);
+    console.log('EditClient: Form submitted with data:', data);
+    console.log('EditClient: Current mutation states:', {
+      isPending: updateClientMutation.isPending,
+      isMutating,
+      isLoading: updateClientMutation.isLoading,
+    });
     
-    if (updateClientMutation.isPending) {
-      console.log('Mutation already in progress, ignoring submit');
+    // Verificar múltiplas condições para evitar submissões duplicadas
+    if (updateClientMutation.isPending || isMutating || updateClientMutation.isLoading) {
+      console.log('EditClient: Mutation already in progress, ignoring submit');
       return;
     }
     
+    console.log('EditClient: Proceeding with mutation');
     updateClientMutation.mutate(data);
   };
 
@@ -449,10 +490,10 @@ const EditClient: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={updateClientMutation.isPending}
+                  disabled={updateClientMutation.isPending || isMutating || updateClientMutation.isLoading}
                   className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
                 >
-                  {updateClientMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+                  {updateClientMutation.isPending || isMutating ? 'Salvando...' : 'Salvar Alterações'}
                 </Button>
               </div>
             </form>
