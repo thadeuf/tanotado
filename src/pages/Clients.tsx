@@ -8,7 +8,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useClients } from '@/hooks/useClients';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const Clients: React.FC = () => {
   const navigate = useNavigate();
@@ -41,30 +40,14 @@ const Clients: React.FC = () => {
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div>
-            <Skeleton className="h-8 w-32 mb-2" />
-            <Skeleton className="h-4 w-48" />
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              Clientes
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Carregando clientes...
+            </p>
           </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 w-20" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Card key={index} className="p-6">
-              <div className="flex items-center space-x-4">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-3 w-2/3" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              </div>
-            </Card>
-          ))}
         </div>
       </div>
     );
