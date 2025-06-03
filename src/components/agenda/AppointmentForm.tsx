@@ -27,7 +27,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, User } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Calendar, Clock, User, Video, MapPin, DollarSign, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
@@ -37,12 +39,26 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
 const appointmentSchema = z.object({
-  clientId: z.string().min(1, 'Selecione um cliente'),
+  clientId: z.string().optional(),
   title: z.string().min(1, 'Título é obrigatório'),
   description: z.string().optional(),
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
   endTime: z.string().min(1, 'Horário de fim é obrigatório'),
+  appointmentType: z.enum(['presencial', 'remoto']),
+  videoCallLink: z.string().optional(),
+  createFinancialRecord: z.boolean(),
+  color: z.string(),
+  sessionType: z.enum(['unique', 'recurring', 'personal']),
+}).refine((data) => {
+  // Validar se cliente foi selecionado quando não é compromisso pessoal
+  if (data.sessionType !== 'personal' && !data.clientId) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Cliente é obrigatório para agendamentos que não sejam compromissos pessoais",
+  path: ["clientId"]
 }).refine((data) => {
   const start = data.startTime.split(':').map(Number);
   const end = data.endTime.split(':').map(Number);
@@ -52,6 +68,15 @@ const appointmentSchema = z.object({
 }, {
   message: "Horário de fim deve ser posterior ao horário de início",
   path: ["endTime"]
+}).refine((data) => {
+  // Validar link de videochamada quando é remoto
+  if (data.appointmentType === 'remoto' && !data.videoCallLink?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Link da videochamada é obrigatório para agendamentos remotos",
+  path: ["videoCallLink"]
 });
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
@@ -61,6 +86,16 @@ interface AppointmentFormProps {
   selectedTime: string;
   onClose: () => void;
 }
+
+const colorOptions = [
+  { value: '#8B5CF6', label: 'Roxo', color: 'bg-purple-500' },
+  { value: '#EF4444', label: 'Vermelho', color: 'bg-red-500' },
+  { value: '#10B981', label: 'Verde', color: 'bg-green-500' },
+  { value: '#3B82F6', label: 'Azul', color: 'bg-blue-500' },
+  { value: '#F59E0B', label: 'Amarelo', color: 'bg-yellow-500' },
+  { value: '#EC4899', label: 'Rosa', color: 'bg-pink-500' },
+  { value: '#6B7280', label: 'Cinza', color: 'bg-gray-500' },
+];
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({ 
   selectedDate, 
@@ -88,8 +123,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       price: '',
       startTime: selectedTime || '09:00',
       endTime: selectedTime ? getDefaultEndTime(selectedTime) : '10:00',
+      appointmentType: 'presencial',
+      videoCallLink: '',
+      createFinancialRecord: true,
+      color: '#8B5CF6',
+      sessionType: 'unique',
     },
   });
+
+  const sessionType = form.watch('sessionType');
+  const appointmentType = form.watch('appointmentType');
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
@@ -107,7 +150,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
       const appointmentData = {
         user_id: user.id,
-        client_id: data.clientId,
+        client_id: data.sessionType === 'personal' ? null : data.clientId,
         title: data.title,
         description: data.description || null,
         start_time: startDateTime.toISOString(),
@@ -115,6 +158,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         status: 'scheduled' as const,
         price: data.price ? parseFloat(data.price) : null,
         payment_status: 'pending' as const,
+        appointment_type: data.appointmentType,
+        video_call_link: data.appointmentType === 'remoto' ? data.videoCallLink : null,
+        create_financial_record: data.createFinancialRecord,
+        color: data.color,
+        session_type: data.sessionType,
       };
 
       console.log('Creating appointment:', appointmentData);
@@ -164,9 +212,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   }, [startTime, form]);
 
+  // Reset client when switching to personal
+  React.useEffect(() => {
+    if (sessionType === 'personal') {
+      form.setValue('clientId', '');
+    }
+  }, [sessionType, form]);
+
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -182,42 +237,101 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Tipo de Sessão */}
             <FormField
               control={form.control}
-              name="clientId"
+              name="sessionType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um cliente" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            {client.name}
+                  <FormLabel>Tipo de Sessão</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex flex-wrap gap-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="unique" id="unique" />
+                        <label htmlFor="unique" className="text-sm cursor-pointer">
+                          <div className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-muted/50">
+                            <Clock className="h-4 w-4" />
+                            Único
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="recurring" id="recurring" />
+                        <label htmlFor="recurring" className="text-sm cursor-pointer">
+                          <div className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-muted/50">
+                            <Users className="h-4 w-4" />
+                            Recorrente
+                          </div>
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="personal" id="personal" />
+                        <label htmlFor="personal" className="text-sm cursor-pointer">
+                          <div className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-muted/50">
+                            <User className="h-4 w-4" />
+                            Pessoal
+                          </div>
+                        </label>
+                      </div>
+                    </RadioGroup>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Cliente (apenas se não for compromisso pessoal) */}
+            {sessionType !== 'personal' && (
+              <FormField
+                control={form.control}
+                name="clientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um cliente" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              {client.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Título da Consulta</FormLabel>
+                  <FormLabel>
+                    {sessionType === 'personal' ? 'Título do Compromisso' : 'Título da Consulta'}
+                  </FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Consulta inicial, Retorno..." {...field} />
+                    <Input 
+                      placeholder={
+                        sessionType === 'personal' 
+                          ? "Ex: Reunião, Compromisso..." 
+                          : "Ex: Consulta inicial, Retorno..."
+                      } 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -263,6 +377,62 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               />
             </div>
 
+            {/* Tipo de Atendimento */}
+            <div className="space-y-3">
+              <FormField
+                control={form.control}
+                name="appointmentType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Atendimento</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex gap-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="presencial" id="presencial" />
+                          <label htmlFor="presencial" className="text-sm cursor-pointer flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-tanotado-green" />
+                            Presencial
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="remoto" id="remoto" />
+                          <label htmlFor="remoto" className="text-sm cursor-pointer flex items-center gap-2">
+                            <Video className="h-4 w-4 text-tanotado-blue" />
+                            Online
+                          </label>
+                        </div>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Link da Videochamada */}
+              {appointmentType === 'remoto' && (
+                <FormField
+                  control={form.control}
+                  name="videoCallLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Link da Reunião Online</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="https://meet.google.com/..." 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+
             <FormField
               control={form.control}
               name="description"
@@ -271,7 +441,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                   <FormLabel>Observações (opcional)</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Adicione observações sobre a consulta..."
+                      placeholder={
+                        sessionType === 'personal' 
+                          ? "Adicione observações sobre o compromisso..." 
+                          : "Adicione observações sobre a consulta..."
+                      }
                       className="min-h-[80px]"
                       {...field} 
                     />
@@ -294,6 +468,60 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                       placeholder="0,00"
                       {...field} 
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Lançar Financeiro */}
+            <FormField
+              control={form.control}
+              name="createFinancialRecord"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Lançar no Financeiro
+                    </FormLabel>
+                    <div className="text-sm text-muted-foreground">
+                      Criar registro financeiro para este agendamento
+                    </div>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Seletor de Cor */}
+            <FormField
+              control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cor do Agendamento</FormLabel>
+                  <FormControl>
+                    <div className="flex flex-wrap gap-2">
+                      {colorOptions.map((color) => (
+                        <button
+                          key={color.value}
+                          type="button"
+                          onClick={() => field.onChange(color.value)}
+                          className={`w-8 h-8 rounded-full ${color.color} border-2 ${
+                            field.value === color.value 
+                              ? 'border-foreground scale-110' 
+                              : 'border-muted-foreground/20'
+                          } transition-all hover:scale-105`}
+                          title={color.label}
+                        />
+                      ))}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
