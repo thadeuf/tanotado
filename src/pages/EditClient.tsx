@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
 import { Form } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -28,7 +27,6 @@ const EditClient: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isMultiUser = false;
-  const [activeTab, setActiveTab] = useState('overview');
 
   console.log('EditClient: Starting component with ID:', id);
   console.log('EditClient: User ID:', user?.id);
@@ -360,42 +358,34 @@ const EditClient: React.FC = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="edit">Editar Dados</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              {clientStats && !statsLoading ? (
-                <ClientStatsCard
-                  totalSessions={clientStats.totalSessions}
-                  attendedSessions={clientStats.attendedSessions}
-                  missedSessions={clientStats.missedSessions}
-                  totalRevenue={clientStats.totalRevenue}
-                />
-              ) : (
-                <div className="flex items-center justify-center p-8 bg-white rounded-lg border">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-tanotado-purple"></div>
-                  <span className="ml-2 text-muted-foreground">Carregando estatísticas...</span>
-                </div>
-              )}
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left Column - Client Stats and Options */}
+        <div className="lg:col-span-1 space-y-4">
+          {clientStats && !statsLoading ? (
+            <ClientStatsCard
+              totalSessions={clientStats.totalSessions}
+              attendedSessions={clientStats.attendedSessions}
+              missedSessions={clientStats.missedSessions}
+              totalRevenue={clientStats.totalRevenue}
+            />
+          ) : (
+            <div className="flex items-center justify-center p-8 bg-white rounded-lg border">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-tanotado-purple"></div>
+              <span className="ml-2 text-muted-foreground">Carregando...</span>
             </div>
-            
-            <div>
-              <ClientOptionsMenu
-                clientId={id || ''}
-                onViewRecords={handleViewRecords}
-                onViewNotes={handleViewNotes}
-                onViewFinancial={handleViewFinancial}
-              />
-            </div>
-          </div>
-        </TabsContent>
+          )}
 
-        <TabsContent value="edit">
+          <ClientOptionsMenu
+            clientId={id || ''}
+            onViewRecords={handleViewRecords}
+            onViewNotes={handleViewNotes}
+            onViewFinancial={handleViewFinancial}
+          />
+        </div>
+
+        {/* Right Column - Edit Form */}
+        <div className="lg:col-span-3">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {isMultiUser && (
@@ -427,8 +417,8 @@ const EditClient: React.FC = () => {
               </div>
             </form>
           </Form>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 };
