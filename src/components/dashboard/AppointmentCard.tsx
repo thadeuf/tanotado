@@ -7,7 +7,7 @@ interface Appointment {
   time: string;
   patient: string;
   type: string;
-  professional: string;
+  professional?: string;
   mode: 'presencial' | 'online';
   confirmed: boolean;
   color?: string;
@@ -39,7 +39,9 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, index, o
               <MapPin className="h-4 w-4 text-tanotado-green" />
             )}
           </div>
-          <p className="text-sm text-muted-foreground">{appointment.professional}</p>
+          {appointment.professional && (
+            <p className="text-sm text-muted-foreground">{appointment.professional}</p>
+          )}
           <p className="text-sm text-muted-foreground">{appointment.type}</p>
           <div className="flex items-center gap-1 mt-1">
             {appointment.confirmed ? (

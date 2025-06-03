@@ -1,13 +1,19 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppointmentCard from './AppointmentCard';
 import { useAppointments } from '../../hooks/useAppointments';
+import { useAuth } from '../../contexts/AuthContext';
 import { format, isToday, isTomorrow, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const AppointmentsSection: React.FC = () => {
   const { data: appointments = [] } = useAppointments();
+  const { user } = useAuth();
+
+  // Verificar se é plano individual (trial ou não possui múltiplos profissionais)
+  const isIndividualPlan = user?.subscriptionStatus === 'trial' || user?.subscriptionStatus === 'expired';
 
   // Filtrar agendamentos por período
   const todayAppointments = appointments
@@ -19,7 +25,7 @@ const AppointmentsSection: React.FC = () => {
         time: `${format(parseISO(apt.start_time), 'HH:mm')} - ${format(parseISO(apt.end_time), 'HH:mm')}`,
         patient: apt.client?.name || 'Cliente não informado',
         type: apt.title || 'Sessão',
-        professional: 'Dr. Profissional',
+        professional: isIndividualPlan ? undefined : 'Dr. Profissional',
         mode: appointmentType as 'online' | 'presencial',
         confirmed: apt.status === 'completed' || apt.status === 'scheduled',
         color: apt.color || '#8B5CF6'
@@ -35,7 +41,7 @@ const AppointmentsSection: React.FC = () => {
         time: `${format(parseISO(apt.start_time), 'HH:mm')} - ${format(parseISO(apt.end_time), 'HH:mm')}`,
         patient: apt.client?.name || 'Cliente não informado',
         type: apt.title || 'Sessão',
-        professional: 'Dr. Profissional',
+        professional: isIndividualPlan ? undefined : 'Dr. Profissional',
         mode: appointmentType as 'online' | 'presencial',
         confirmed: apt.status === 'completed' || apt.status === 'scheduled',
         color: apt.color || '#8B5CF6'
@@ -63,7 +69,7 @@ const AppointmentsSection: React.FC = () => {
         time: `${timePrefix}${format(parseISO(apt.start_time), 'HH:mm')} - ${format(parseISO(apt.end_time), 'HH:mm')}`,
         patient: apt.client?.name || 'Cliente não informado',
         type: apt.title || 'Sessão',
-        professional: 'Dr. Profissional',
+        professional: isIndividualPlan ? undefined : 'Dr. Profissional',
         mode: appointmentType as 'online' | 'presencial',
         confirmed: apt.status === 'completed' || apt.status === 'scheduled',
         color: apt.color || '#8B5CF6'
