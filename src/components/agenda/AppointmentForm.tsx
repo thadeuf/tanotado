@@ -87,14 +87,14 @@ interface AppointmentFormProps {
 }
 
 const COLORS = [
-  { value: '#8B5CF6', label: 'Roxo', color: 'bg-purple-500' },
-  { value: '#3B82F6', label: 'Azul', color: 'bg-blue-500' },
-  { value: '#10B981', label: 'Verde', color: 'bg-green-500' },
-  { value: '#F59E0B', label: 'Amarelo', color: 'bg-yellow-500' },
-  { value: '#EF4444', label: 'Vermelho', color: 'bg-red-500' },
-  { value: '#EC4899', label: 'Rosa', color: 'bg-pink-500' },
-  { value: '#6366F1', label: 'Índigo', color: 'bg-indigo-500' },
-  { value: '#8B5A2B', label: 'Marrom', color: 'bg-amber-700' },
+  { value: '#8B5CF6', color: 'bg-purple-500' },
+  { value: '#3B82F6', color: 'bg-blue-500' },
+  { value: '#10B981', color: 'bg-green-500' },
+  { value: '#F59E0B', color: 'bg-yellow-500' },
+  { value: '#EF4444', color: 'bg-red-500' },
+  { value: '#EC4899', color: 'bg-pink-500' },
+  { value: '#6366F1', color: 'bg-indigo-500' },
+  { value: '#8B5A2B', color: 'bg-amber-700' },
 ];
 
 const APPOINTMENT_TYPES = [
@@ -423,29 +423,50 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               />
             )}
 
-            {/* Lançar Financeiro */}
-            <FormField
-              control={form.control}
-              name="createFinancialRecord"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Lançar no Financeiro
-                  </FormLabel>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
-                    </span>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Lançar Financeiro e Valor */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="createFinancialRecord"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Lançar no Financeiro
+                    </FormLabel>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
+                      </span>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor (opcional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        placeholder="0,00"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Cor do Agendamento */}
             <FormField
@@ -457,19 +478,18 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     <Palette className="h-4 w-4" />
                     Cor do Agendamento
                   </FormLabel>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-8 gap-2">
                     {COLORS.map((color) => (
                       <Button
                         key={color.value}
                         type="button"
                         variant="outline"
-                        className={`h-12 flex items-center gap-2 ${
+                        className={`h-12 w-12 p-0 ${
                           field.value === color.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
                         }`}
                         onClick={() => field.onChange(color.value)}
                       >
-                        <div className={`w-4 h-4 rounded-full ${color.color}`} />
-                        <span className="text-xs">{color.label}</span>
+                        <div className={`w-8 h-8 rounded-full ${color.color}`} />
                       </Button>
                     ))}
                   </div>
@@ -492,25 +512,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                           : "Adicione observações sobre a consulta..."
                       }
                       className="min-h-[80px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor (opcional)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      placeholder="0,00"
                       {...field} 
                     />
                   </FormControl>
