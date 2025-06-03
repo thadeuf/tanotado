@@ -70,8 +70,8 @@ const appointmentSchema = z.object({
   message: "Horário de fim deve ser posterior ao horário de início",
   path: ["endTime"]
 }).refine((data) => {
-  // Validar link de videochamada quando é remoto
-  if (data.appointmentType === 'remoto' && !data.videoCallLink?.trim()) {
+  // Validar link de videochamada quando é remoto E não é compromisso pessoal
+  if (data.sessionType !== 'personal' && data.appointmentType === 'remoto' && !data.videoCallLink?.trim()) {
     return false;
   }
   return true;
@@ -264,10 +264,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   }, [startTime, form]);
 
-  // Reset client when switching to personal
+  // Reset client and financial settings when switching to personal
   React.useEffect(() => {
     if (sessionType === 'personal') {
       form.setValue('clientId', '');
+      form.setValue('createFinancialRecord', false);
+      form.setValue('price', '');
+    } else {
+      form.setValue('createFinancialRecord', true);
     }
   }, [sessionType, form]);
 
@@ -416,69 +420,75 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               />
             </div>
 
-            {/* Modalidade da Sessão */}
-            <FormField
-              control={form.control}
-              name="appointmentType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Video className="h-4 w-4" />
-                    Modalidade da Sessão
-                  </FormLabel>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={field.value === 'remoto'}
-                        onCheckedChange={(checked) => 
-                          field.onChange(checked ? 'remoto' : 'presencial')
-                        }
-                      />
-                      <div className="flex items-center gap-2">
-                        {field.value === 'remoto' ? (
-                          <>
-                            <Video className="h-4 w-4 text-blue-500" />
-                            <span>Online</span>
-                          </>
-                        ) : (
-                          <>
-                            <MapPin className="h-4 w-4 text-green-500" />
-                            <span>Presencial</span>
-                          </>
-                        )}
+            {/* Modalidade da Sessão (apenas se não for compromisso pessoal) */}
+            {sessionType !== 'personal' && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="appointmentType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Video className="h-4 w-4" />
+                        Modalidade da Sessão
+                      </FormLabel>
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            checked={field.value === 'remoto'}
+                            onCheckedChange={(checked) => 
+                              field.onChange(checked ? 'remoto' : 'presencial')
+                            }
+                          />
+                          <div className="flex items-center gap-2">
+                            {field.value === 'remoto' ? (
+                              <>
+                                <Video className="h-4 w-4 text-blue-500" />
+                                <span>Online</span>
+                              </>
+                            ) : (
+                              <>
+                                <MapPin className="h-4 w-4 text-green-500" />
+                                <span>Presencial</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* Link da Videochamada (se online) */}
-            {appointmentType === 'remoto' && (
-              <FormField
-                control={form.control}
-                name="videoCallLink"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link da Reunião Online</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="https://meet.google.com/..."
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                {/* Link da Videochamada (se online) */}
+                {appointmentType === 'remoto' && (
+                  <FormField
+                    control={form.control}
+                    name="videoCallLink"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Link da Reunião Online</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="https://meet.google.com/..."
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
+              </>
             )}
 
-            {/* Lançar Financeiro e Valor - usando o novo componente */}
-            <AppointmentFinancialSection 
-              control={form.control} 
-              watchCreateFinancialRecord={watchCreateFinancialRecord} 
-            />
+            {/* Lançar Financeiro e Valor (apenas se não for compromisso pessoal) */}
+            {sessionType !== 'personal' && (
+              <AppointmentFinancialSection 
+                control={form.control} 
+                watchCreateFinancialRecord={watchCreateFinancialRecord} 
+              />
+            )}
 
             {/* Cor do Agendamento */}
             <FormField

@@ -174,7 +174,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Cliente (apenas exibição) */}
+            {/* Cliente (apenas exibição e apenas se não for compromisso pessoal) */}
             {appointment.session_type !== 'personal' && (
               <div className="p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
@@ -192,17 +192,23 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
 
             <AppointmentTimeFields control={form.control} />
 
-            <AppointmentModalitySection 
-              control={form.control} 
-              watchAppointmentType={watchAppointmentType} 
-            />
+            {/* Modalidade (apenas se não for compromisso pessoal) */}
+            {appointment.session_type !== 'personal' && (
+              <AppointmentModalitySection 
+                control={form.control} 
+                watchAppointmentType={watchAppointmentType} 
+              />
+            )}
 
             <AppointmentStatusSelector control={form.control} />
 
-            <AppointmentFinancialSection 
-              control={form.control} 
-              watchCreateFinancialRecord={watchCreateFinancialRecord} 
-            />
+            {/* Financeiro (apenas se não for compromisso pessoal) */}
+            {appointment.session_type !== 'personal' && (
+              <AppointmentFinancialSection 
+                control={form.control} 
+                watchCreateFinancialRecord={watchCreateFinancialRecord} 
+              />
+            )}
 
             <AppointmentColorSelector control={form.control} />
 
