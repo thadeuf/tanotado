@@ -19,7 +19,7 @@ export interface Appointment {
   description: string | null;
   start_time: string;
   end_time: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'confirmed' | 'no_show';
   price: number | null;
   payment_status: 'pending' | 'paid' | 'overdue';
   recurrence_type: string | null;
