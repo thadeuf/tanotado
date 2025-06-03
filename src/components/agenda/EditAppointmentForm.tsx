@@ -28,7 +28,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Appointment } from '@/hooks/useAppointments';
-import AppointmentTypeSelector from './forms/AppointmentTypeSelector';
 import AppointmentTimeFields from './forms/AppointmentTimeFields';
 import AppointmentModalitySection from './forms/AppointmentModalitySection';
 import AppointmentStatusSelector from './forms/AppointmentStatusSelector';
@@ -46,7 +45,6 @@ const editAppointmentSchema = z.object({
   videoCallLink: z.string().optional(),
   createFinancialRecord: z.boolean(),
   color: z.string(),
-  sessionType: z.enum(['unique', 'recurring', 'personal']),
 }).refine((data) => {
   const start = data.startTime.split(':').map(Number);
   const end = data.endTime.split(':').map(Number);
@@ -90,12 +88,10 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
       videoCallLink: appointment.video_call_link || '',
       createFinancialRecord: appointment.create_financial_record ?? true,
       color: appointment.color || '#8B5CF6',
-      sessionType: (appointment.session_type as 'unique' | 'recurring' | 'personal') || 'unique',
     },
   });
 
   const watchAppointmentType = form.watch('appointmentType');
-  const watchSessionType = form.watch('sessionType');
   const watchCreateFinancialRecord = form.watch('createFinancialRecord');
 
   const updateAppointmentMutation = useMutation({
@@ -120,7 +116,6 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
         video_call_link: data.videoCallLink || null,
         create_financial_record: data.createFinancialRecord,
         color: data.color,
-        session_type: data.sessionType,
         updated_at: new Date().toISOString(),
       };
 
@@ -183,10 +178,8 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <AppointmentTypeSelector control={form.control} />
-
             {/* Cliente (apenas exibição) */}
-            {watchSessionType !== 'personal' && (
+            {appointment.session_type !== 'personal' && (
               <div className="p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <User className="h-4 w-4 text-tanotado-blue" />
@@ -207,12 +200,12 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    {watchSessionType === 'personal' ? 'Título do Compromisso' : 'Título da Consulta'}
+                    {appointment.session_type === 'personal' ? 'Título do Compromisso' : 'Título da Consulta'}
                   </FormLabel>
                   <FormControl>
                     <Input 
                       placeholder={
-                        watchSessionType === 'personal' 
+                        appointment.session_type === 'personal' 
                           ? "Ex: Reunião, Consulta médica..." 
                           : "Ex: Consulta inicial, Retorno..."
                       } 

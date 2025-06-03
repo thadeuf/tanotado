@@ -31,13 +31,13 @@ const AppointmentColorSelector: React.FC<AppointmentColorSelectorProps> = ({ con
             <Palette className="h-4 w-4" />
             Cor do Agendamento
           </FormLabel>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="flex gap-1">
             {COLORS.map((color) => (
               <Button
                 key={color.value}
                 type="button"
                 variant="outline"
-                className={`h-12 flex items-center justify-center ${
+                className={`h-8 w-8 p-0 rounded-full border-2 ${
                   field.value === color.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
                 }`}
                 onClick={() => field.onChange(color.value)}
