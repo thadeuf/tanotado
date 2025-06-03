@@ -48,6 +48,15 @@ export const appointmentSchema = z.object({
 }, {
   message: "Tipo e quantidade de recorrência são obrigatórios para sessões recorrentes",
   path: ["recurrenceType"]
+}).refine((data) => {
+  // Validar que o preço é obrigatório quando vai gerar financeiro e não é compromisso pessoal
+  if (data.sessionType !== 'personal' && data.createFinancialRecord && !data.price?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Valor é obrigatório quando o registro financeiro está habilitado",
+  path: ["price"]
 });
 
 export type AppointmentFormData = z.infer<typeof appointmentSchema>;

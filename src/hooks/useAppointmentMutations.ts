@@ -100,6 +100,7 @@ export const useAppointmentMutations = () => {
       console.log('createAppointmentMutation - Final appointments array:', appointments);
       console.log('createAppointmentMutation - About to insert into database...');
 
+      // Insert appointments
       const { data: insertResult, error } = await supabase
         .from('appointments')
         .insert(appointments)
@@ -113,6 +114,40 @@ export const useAppointmentMutations = () => {
         throw error;
       }
 
+      // Create financial records for appointments if enabled and not personal
+      if (data.createFinancialRecord && data.sessionType !== 'personal' && data.price && data.clientId) {
+        console.log('createAppointmentMutation - Creating financial records...');
+        
+        const paymentRecords = insertResult.map((appointment, index) => {
+          const appointmentDate = dates[index];
+          return {
+            user_id: user.id,
+            client_id: data.clientId,
+            amount: parseFloat(data.price!),
+            due_date: appointmentDate.toISOString().split('T')[0],
+            status: 'pending' as const,
+            appointment_id: appointment.id,
+            notes: `Pagamento referente ao agendamento de ${appointmentDate.toLocaleDateString('pt-BR')}`,
+          };
+        });
+
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .insert(paymentRecords);
+
+        if (paymentError) {
+          console.error('createAppointmentMutation - Payment creation error:', paymentError);
+          // Don't throw error here, just log it - the appointments were already created
+          toast({
+            title: "Agendamento(s) criado(s)",
+            description: "Agendamento(s) criado(s) com sucesso, mas houve erro ao criar registro(s) financeiro(s).",
+            variant: "destructive",
+          });
+        } else {
+          console.log('createAppointmentMutation - Payment records created successfully');
+        }
+      }
+
       console.log('createAppointmentMutation - Success! Created appointments:', insertResult?.length);
       return appointments.length;
     },
@@ -123,6 +158,9 @@ export const useAppointmentMutations = () => {
         description: `${count} agendamento(s) ${count > 1 ? 'foram criados' : 'foi criado'} com sucesso.`,
       });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['clients-financial'] });
     },
     onError: (error) => {
       console.error('createAppointmentMutation - onError called with error:', error);

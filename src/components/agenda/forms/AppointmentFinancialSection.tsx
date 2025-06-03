@@ -24,7 +24,7 @@ const AppointmentFinancialSection: React.FC<AppointmentFinancialSectionProps> = 
           <FormItem>
             <FormLabel className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Lançar no Financeiro
+              Gerar Registro Financeiro
             </FormLabel>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -33,7 +33,7 @@ const AppointmentFinancialSection: React.FC<AppointmentFinancialSectionProps> = 
                   onCheckedChange={field.onChange}
                 />
                 <span className="text-sm text-muted-foreground">
-                  {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
+                  {field.value ? 'Será criado registro financeiro automaticamente' : 'Não será criado registro financeiro'}
                 </span>
               </div>
               {watchCreateFinancialRecord && (
@@ -48,6 +48,7 @@ const AppointmentFinancialSection: React.FC<AppointmentFinancialSectionProps> = 
                           step="0.01"
                           placeholder="0,00"
                           {...priceField} 
+                          required={watchCreateFinancialRecord}
                         />
                       </FormControl>
                     </FormItem>
@@ -56,6 +57,11 @@ const AppointmentFinancialSection: React.FC<AppointmentFinancialSectionProps> = 
               )}
             </div>
             <FormMessage />
+            {watchCreateFinancialRecord && (
+              <p className="text-xs text-muted-foreground mt-1">
+                O valor do atendimento será usado para criar o registro financeiro com vencimento na data do agendamento.
+              </p>
+            )}
           </FormItem>
         )}
       />
