@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +13,7 @@ import { Appointment } from '@/hooks/useAppointments';
 import { useIsMobile } from '@/hooks/use-mobile';
 import EditAppointmentForm from './EditAppointmentForm';
 import DeleteRecurrenceConfirmDialog from './forms/DeleteRecurrenceConfirmDialog';
+import DeleteAppointmentFinancialConfirmDialog from './forms/DeleteAppointmentFinancialConfirmDialog';
 
 interface TimeSlotsProps {
   selectedDate: Date;
@@ -27,6 +27,8 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
   const [showDeleteRecurrenceDialog, setShowDeleteRecurrenceDialog] = useState(false);
+  const [showDeleteFinancialDialog, setShowDeleteFinancialDialog] = useState(false);
+  const [deleteType, setDeleteType] = useState<'single' | 'series'>('single');
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -70,26 +72,36 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   };
 
   const deleteAppointmentMutation = useMutation({
-    mutationFn: async ({ appointment, deleteType }: { appointment: Appointment; deleteType: 'single' | 'series' }) => {
+    mutationFn: async ({ 
+      appointment, 
+      deleteType, 
+      deleteFinancial 
+    }: { 
+      appointment: Appointment; 
+      deleteType: 'single' | 'series';
+      deleteFinancial: boolean;
+    }) => {
       console.log('=== DELETION DEBUG ===');
-      console.log('Deleting appointment:', appointment.id, 'Type:', deleteType);
-      console.log('Appointment object:', appointment);
+      console.log('Deleting appointment:', appointment.id, 'Type:', deleteType, 'Delete financial:', deleteFinancial);
       
       if (deleteType === 'series' && appointment.recurrence_group_id) {
         console.log('Deleting series with recurrence_group_id:', appointment.recurrence_group_id);
         
-        // First, let's check what appointments exist with this recurrence_group_id
-        const { data: seriesAppointments, error: queryError } = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('recurrence_group_id', appointment.recurrence_group_id);
-
-        console.log('Found appointments in series:', seriesAppointments);
-        console.log('Query error (if any):', queryError);
-
-        if (queryError) {
-          console.error('Error querying series appointments:', queryError);
-          throw queryError;
+        if (deleteFinancial) {
+          // Delete financial records for all appointments in the series
+          const { error: paymentsError } = await supabase
+            .from('payments')
+            .delete()
+            .in('appointment_id', await supabase
+              .from('appointments')
+              .select('id')
+              .eq('recurrence_group_id', appointment.recurrence_group_id)
+              .then(({ data }) => data?.map(apt => apt.id) || [])
+            );
+          
+          if (paymentsError) {
+            console.error('Error deleting payment records for series:', paymentsError);
+          }
         }
 
         // Delete all appointments in the series
@@ -99,9 +111,6 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
           .eq('recurrence_group_id', appointment.recurrence_group_id)
           .select();
 
-        console.log('Deletion result:', deletedData);
-        console.log('Deletion error (if any):', error);
-
         if (error) {
           console.error('Error deleting appointment series:', error);
           throw error;
@@ -110,6 +119,18 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
         console.log('Successfully deleted', deletedData?.length || 0, 'appointments from series');
       } else {
         console.log('Deleting single appointment with ID:', appointment.id);
+        
+        if (deleteFinancial) {
+          // Delete financial records for this appointment
+          const { error: paymentsError } = await supabase
+            .from('payments')
+            .delete()
+            .eq('appointment_id', appointment.id);
+          
+          if (paymentsError) {
+            console.error('Error deleting payment records:', paymentsError);
+          }
+        }
         
         // Delete only the single appointment
         const { data: deletedData, error } = await supabase
@@ -126,17 +147,20 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
         }
       }
     },
-    onSuccess: (_, { deleteType }) => {
+    onSuccess: (_, { deleteType, deleteFinancial }) => {
       const message = deleteType === 'series' 
-        ? "Toda a série de agendamentos foi excluída com sucesso."
-        : "Agendamento excluído com sucesso.";
+        ? `Toda a série de agendamentos foi excluída com sucesso${deleteFinancial ? ' junto com os registros financeiros' : ''}.`
+        : `Agendamento excluído com sucesso${deleteFinancial ? ' junto com os registros financeiros' : ''}.`;
       
       toast({
         title: "Agendamento(s) excluído(s)",
         description: message,
       });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-stats'] });
       setShowDeleteRecurrenceDialog(false);
+      setShowDeleteFinancialDialog(false);
       setDeletingAppointment(null);
     },
     onError: (error) => {
@@ -147,6 +171,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
         variant: "destructive",
       });
       setShowDeleteRecurrenceDialog(false);
+      setShowDeleteFinancialDialog(false);
       setDeletingAppointment(null);
     },
   });
@@ -156,33 +181,46 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   };
 
   const handleDelete = (appointment: Appointment) => {
+    setDeletingAppointment(appointment);
+    
     // Check if this is a recurring appointment
     if (appointment.session_type === 'recurring' && appointment.recurrence_group_id) {
-      setDeletingAppointment(appointment);
       setShowDeleteRecurrenceDialog(true);
     } else {
-      // For non-recurring appointments, delete directly
-      deleteAppointmentMutation.mutate({ 
-        appointment, 
-        deleteType: 'single' 
-      });
+      // For non-recurring appointments, go directly to financial confirmation
+      setDeleteType('single');
+      setShowDeleteFinancialDialog(true);
     }
   };
 
   const handleDeleteSingle = () => {
+    setDeleteType('single');
+    setShowDeleteRecurrenceDialog(false);
+    setShowDeleteFinancialDialog(true);
+  };
+
+  const handleDeleteSeries = () => {
+    setDeleteType('series');
+    setShowDeleteRecurrenceDialog(false);
+    setShowDeleteFinancialDialog(true);
+  };
+
+  const handleDeleteWithoutFinancial = () => {
     if (deletingAppointment) {
       deleteAppointmentMutation.mutate({ 
         appointment: deletingAppointment, 
-        deleteType: 'single' 
+        deleteType,
+        deleteFinancial: false
       });
     }
   };
 
-  const handleDeleteSeries = () => {
+  const handleDeleteWithFinancial = () => {
     if (deletingAppointment) {
       deleteAppointmentMutation.mutate({ 
         appointment: deletingAppointment, 
-        deleteType: 'series' 
+        deleteType,
+        deleteFinancial: true
       });
     }
   };
@@ -193,6 +231,11 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
 
   const handleCloseDeleteDialog = () => {
     setShowDeleteRecurrenceDialog(false);
+    setDeletingAppointment(null);
+  };
+
+  const handleCloseDeleteFinancialDialog = () => {
+    setShowDeleteFinancialDialog(false);
     setDeletingAppointment(null);
   };
 
@@ -413,6 +456,16 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
         onClose={handleCloseDeleteDialog}
         onDeleteSingle={handleDeleteSingle}
         onDeleteSeries={handleDeleteSeries}
+        isLoading={deleteAppointmentMutation.isPending}
+      />
+
+      {/* Delete Financial Confirmation Dialog */}
+      <DeleteAppointmentFinancialConfirmDialog
+        isOpen={showDeleteFinancialDialog}
+        onClose={handleCloseDeleteFinancialDialog}
+        onDeleteWithoutFinancial={handleDeleteWithoutFinancial}
+        onDeleteWithFinancial={handleDeleteWithFinancial}
+        isRecurring={deleteType === 'series'}
         isLoading={deleteAppointmentMutation.isPending}
       />
     </>
