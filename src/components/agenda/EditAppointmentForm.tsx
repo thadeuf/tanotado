@@ -43,7 +43,7 @@ const editAppointmentSchema = z.object({
   price: z.string().optional(),
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
   endTime: z.string().min(1, 'Horário de fim é obrigatório'),
-  status: z.enum(['scheduled', 'completed', 'cancelled']),
+  status: z.enum(['scheduled', 'completed', 'cancelled', 'pending', 'failed', 'attended', 'suspended']),
   appointmentType: z.enum(['presencial', 'remoto']),
   videoCallLink: z.string().optional(),
   createFinancialRecord: z.boolean(),
@@ -68,14 +68,14 @@ interface EditAppointmentFormProps {
 }
 
 const COLORS = [
-  { value: '#8B5CF6', label: 'Roxo', color: 'bg-purple-500' },
-  { value: '#3B82F6', label: 'Azul', color: 'bg-blue-500' },
-  { value: '#10B981', label: 'Verde', color: 'bg-green-500' },
-  { value: '#F59E0B', label: 'Amarelo', color: 'bg-yellow-500' },
-  { value: '#EF4444', label: 'Vermelho', color: 'bg-red-500' },
-  { value: '#EC4899', label: 'Rosa', color: 'bg-pink-500' },
-  { value: '#6366F1', label: 'Índigo', color: 'bg-indigo-500' },
-  { value: '#8B5A2B', label: 'Marrom', color: 'bg-amber-700' },
+  { value: '#8B5CF6', color: 'bg-purple-500' },
+  { value: '#3B82F6', color: 'bg-blue-500' },
+  { value: '#10B981', color: 'bg-green-500' },
+  { value: '#F59E0B', color: 'bg-yellow-500' },
+  { value: '#EF4444', color: 'bg-red-500' },
+  { value: '#EC4899', color: 'bg-pink-500' },
+  { value: '#6366F1', color: 'bg-indigo-500' },
+  { value: '#8B5A2B', color: 'bg-amber-700' },
 ];
 
 const APPOINTMENT_TYPES = [
@@ -115,6 +115,7 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
 
   const watchAppointmentType = form.watch('appointmentType');
   const watchSessionType = form.watch('sessionType');
+  const watchCreateFinancialRecord = form.watch('createFinancialRecord');
 
   const updateAppointmentMutation = useMutation({
     mutationFn: async (data: EditAppointmentFormData) => {
@@ -379,6 +380,10 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="failed">Faltou</SelectItem>
+                      <SelectItem value="attended">Compareceu</SelectItem>
+                      <SelectItem value="suspended">Suspenso</SelectItem>
                       <SelectItem value="scheduled">Agendado</SelectItem>
                       <SelectItem value="completed">Concluído</SelectItem>
                       <SelectItem value="cancelled">Cancelado</SelectItem>
@@ -389,29 +394,52 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
               )}
             />
 
-            {/* Lançar Financeiro */}
-            <FormField
-              control={form.control}
-              name="createFinancialRecord"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Lançar no Financeiro
-                  </FormLabel>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
-                    </span>
-                  </div>
-                  <FormMessage />
-                </FormItem>
+            {/* Lançar Financeiro e Valor */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="createFinancialRecord"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Lançar no Financeiro
+                    </FormLabel>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
+                      </span>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {watchCreateFinancialRecord && (
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01"
+                          placeholder="0,00"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            />
+            </div>
 
             {/* Cor do Agendamento */}
             <FormField
@@ -429,13 +457,12 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
                         key={color.value}
                         type="button"
                         variant="outline"
-                        className={`h-12 flex items-center gap-2 ${
+                        className={`h-12 flex items-center justify-center ${
                           field.value === color.value ? 'ring-2 ring-offset-2 ring-blue-500' : ''
                         }`}
                         onClick={() => field.onChange(color.value)}
                       >
-                        <div className={`w-4 h-4 rounded-full ${color.color}`} />
-                        <span className="text-xs">{color.label}</span>
+                        <div className={`w-6 h-6 rounded-full ${color.color}`} />
                       </Button>
                     ))}
                   </div>
@@ -454,25 +481,6 @@ const EditAppointmentForm: React.FC<EditAppointmentFormProps> = ({
                     <Textarea 
                       placeholder="Adicione observações sobre a consulta..."
                       className="min-h-[80px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor (opcional)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      placeholder="0,00"
                       {...field} 
                     />
                   </FormControl>
