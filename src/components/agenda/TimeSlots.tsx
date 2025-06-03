@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -112,12 +113,14 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
           if (!seriesAppointments || seriesAppointments.length === 0) {
             console.log('No appointments found in series, trying alternative query...');
             
-            // Try finding by matching recurrence fields
+            // Try finding by matching recurrence fields - fix the type casting here
+            const recurrenceType = appointment.recurrence_type as 'weekly' | 'biweekly' | 'monthly' | null;
+            
             const { data: altSeriesAppointments, error: altQueryError } = await supabase
               .from('appointments')
               .select('id, client_id, price')
               .eq('session_type', 'recurring')
-              .eq('recurrence_type', appointment.recurrence_type)
+              .eq('recurrence_type', recurrenceType || 'weekly')
               .eq('client_id', appointment.client_id)
               .eq('user_id', appointment.user_id);
 
