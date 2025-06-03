@@ -84,9 +84,10 @@ const EditClient: React.FC = () => {
   const updateClientMutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       if (!id) throw new Error('ID do cliente não fornecido');
+      if (!user?.id) throw new Error('Usuário não autenticado');
 
-      console.log('Submitting data:', data);
-      console.log('Active registration value:', data.activeRegistration);
+      console.log('UpdateClient: Starting mutation with data:', data);
+      console.log('UpdateClient: Client ID:', id, 'User ID:', user?.id);
 
       const clientData = {
         // Informações básicas
@@ -137,23 +138,26 @@ const EditClient: React.FC = () => {
         active_registration: data.activeRegistration,
       };
 
-      console.log('Prepared client data:', clientData);
-      console.log('Active registration being saved:', clientData.active_registration);
+      console.log('UpdateClient: Prepared client data:', clientData);
 
-      const { error } = await supabase
+      const { data: result, error } = await supabase
         .from('clients')
         .update(clientData)
         .eq('id', id)
-        .eq('user_id', user?.id);
+        .eq('user_id', user?.id)
+        .select()
+        .single();
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('UpdateClient: Supabase error:', error);
         throw error;
       }
 
-      return clientData;
+      console.log('UpdateClient: Success result:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('UpdateClient: Mutation success:', data);
       toast({
         title: "Cliente atualizado",
         description: "Cliente atualizado com sucesso!",
@@ -165,7 +169,7 @@ const EditClient: React.FC = () => {
       navigate('/clientes');
     },
     onError: (error: any) => {
-      console.error('Error updating client:', error);
+      console.error('UpdateClient: Mutation error:', error);
       toast({
         title: "Erro ao atualizar",
         description: error.message || "Ocorreu um erro ao atualizar o cliente.",
@@ -239,6 +243,13 @@ const EditClient: React.FC = () => {
 
   const onSubmit = (data: ClientFormData) => {
     console.log('Form submitted with data:', data);
+    console.log('Mutation is pending:', updateClientMutation.isPending);
+    
+    if (updateClientMutation.isPending) {
+      console.log('Mutation already in progress, ignoring submit');
+      return;
+    }
+    
     updateClientMutation.mutate(data);
   };
 
