@@ -35,6 +35,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import AppointmentFinancialSection from './forms/AppointmentFinancialSection';
 
 const appointmentSchema = z.object({
   clientId: z.string().optional(),
@@ -138,6 +139,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const sessionType = form.watch('sessionType');
   const appointmentType = form.watch('appointmentType');
+  const selectedClientId = form.watch('clientId');
+  const watchCreateFinancialRecord = form.watch('createFinancialRecord');
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
@@ -223,6 +226,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       form.setValue('clientId', '');
     }
   }, [sessionType, form]);
+
+  // Update price when client is selected
+  React.useEffect(() => {
+    if (selectedClientId && sessionType !== 'personal') {
+      const selectedClient = clients.find(client => client.id === selectedClientId);
+      if (selectedClient && selectedClient.session_value) {
+        form.setValue('price', selectedClient.session_value);
+      }
+    }
+  }, [selectedClientId, clients, sessionType, form]);
 
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
@@ -422,50 +435,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               />
             )}
 
-            {/* Lançar Financeiro e Valor */}
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="createFinancialRecord"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Lançar no Financeiro
-                    </FormLabel>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        {field.value ? 'Será criado registro financeiro' : 'Não será criado registro financeiro'}
-                      </span>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valor (opcional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01"
-                        placeholder="0,00"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            {/* Lançar Financeiro e Valor - usando o novo componente */}
+            <AppointmentFinancialSection 
+              control={form.control} 
+              watchCreateFinancialRecord={watchCreateFinancialRecord} 
+            />
 
             {/* Cor do Agendamento */}
             <FormField
