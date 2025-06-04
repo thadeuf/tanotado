@@ -22,7 +22,7 @@ export interface Client {
   session_value: string | null;
 }
 
-export const useClients = () => {
+export const useClients = (forceRefresh = false) => {
   const { user, isLoading: authLoading } = useAuth();
 
   return useQuery({
@@ -59,5 +59,7 @@ export const useClients = () => {
     enabled: !!user?.id && !authLoading,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
+    staleTime: forceRefresh ? 0 : 5 * 60 * 1000,
+    gcTime: forceRefresh ? 0 : 10 * 60 * 1000,
   });
 };

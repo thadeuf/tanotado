@@ -1,14 +1,17 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Users, Clock, UserX } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, Users, Clock, UserX, RefreshCw } from 'lucide-react';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useClients } from '../../hooks/useClients';
+import { useForceRefresh } from '../../hooks/useForceRefresh';
 import { format, isToday, parseISO } from 'date-fns';
 
 const DashboardStats: React.FC = () => {
-  const { data: appointments = [] } = useAppointments();
-  const { data: clients = [] } = useClients();
+  const { data: appointments = [], isFetching: appointmentsFetching } = useAppointments();
+  const { data: clients = [], isFetching: clientsFetching } = useClients();
+  const { forceRefreshAll } = useForceRefresh();
 
   // Filtrar agendamentos de hoje
   const todayAppointments = appointments.filter(apt => 
@@ -58,22 +61,37 @@ const DashboardStats: React.FC = () => {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat, index) => (
-        <Card key={index} className="overflow-hidden hover:shadow-lg transition-all duration-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                <p className="text-2xl font-bold text-tanotado-navy">{stat.value}</p>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Estatísticas</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={forceRefreshAll}
+          disabled={appointmentsFetching || clientsFetching}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${(appointmentsFetching || clientsFetching) ? 'animate-spin' : ''}`} />
+          Atualizar
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => (
+          <Card key={index} className="overflow-hidden hover:shadow-lg transition-all duration-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                  <p className="text-2xl font-bold text-tanotado-navy">{stat.value}</p>
+                </div>
+                <div className={`p-3 rounded-full bg-gradient-to-r ${stat.color}`}>
+                  <stat.icon className="h-6 w-6 text-white" />
+                </div>
               </div>
-              <div className={`p-3 rounded-full bg-gradient-to-r ${stat.color}`}>
-                <stat.icon className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };

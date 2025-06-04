@@ -35,7 +35,7 @@ export interface Appointment {
   client?: Client;
 }
 
-export const useAppointments = () => {
+export const useAppointments = (forceRefresh = false) => {
   const { user, isLoading: authLoading } = useAuth();
 
   return useQuery({
@@ -79,5 +79,7 @@ export const useAppointments = () => {
     enabled: !!user?.id && !authLoading,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
+    staleTime: forceRefresh ? 0 : 5 * 60 * 1000,
+    gcTime: forceRefresh ? 0 : 10 * 60 * 1000,
   });
 };

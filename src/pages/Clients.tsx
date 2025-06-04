@@ -8,11 +8,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { useClients } from '@/hooks/useClients';
+import { useForceRefresh } from '@/hooks/useForceRefresh';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Clients: React.FC = () => {
   const navigate = useNavigate();
-  const { data: clients = [], isLoading, error, refetch, isFetching } = useClients();
+  const { data: clients = [], isLoading, error, isFetching } = useClients();
+  const { forceRefreshClients } = useForceRefresh();
   const [searchTerm, setSearchTerm] = React.useState('');
 
   const filteredClients = clients.filter(client =>
@@ -22,7 +24,7 @@ const Clients: React.FC = () => {
   );
 
   const handleRefresh = () => {
-    refetch();
+    forceRefreshClients();
   };
 
   if (error) {
@@ -91,7 +93,7 @@ const Clients: React.FC = () => {
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-            Atualizar
+            Forçar Atualização
           </Button>
           <Button onClick={() => navigate('/clientes/novo')}>
             <Plus className="h-4 w-4 mr-2" />
