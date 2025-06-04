@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CheckCircle } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { useQueryErrorHandler } from '@/hooks/useQueryErrorHandler';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Payment {
   id: string;
@@ -31,11 +33,15 @@ interface PaymentsListProps {
 
 const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter }) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { handleQueryError, retryQuery } = useQueryErrorHandler();
 
-  const { data: payments, isLoading, refetch } = useQuery({
+  const { data: payments, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['payments', user?.id, searchTerm, statusFilter],
     queryFn: async () => {
       if (!user?.id) throw new Error('Usuário não autenticado');
+
+      console.log('💰 Fetching payments for user:', user?.id);
 
       let query = supabase
         .from('payments')
@@ -49,16 +55,17 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
         .eq('user_id', user.id)
         .order('due_date', { ascending: false });
 
-      // Only apply status filter if it's a valid payment status
       if (statusFilter !== 'all' && ['pending', 'paid', 'overdue', 'cancelled'].includes(statusFilter)) {
         query = query.eq('status', statusFilter as 'pending' | 'paid' | 'overdue' | 'cancelled');
       }
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error fetching payments:', error);
+        throw error;
+      }
 
-      // Filter by search term if provided
       let filteredData = data || [];
       if (searchTerm) {
         filteredData = filteredData.filter(payment =>
@@ -67,10 +74,74 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
         );
       }
 
+      console.log('✅ Payments fetched successfully:', filteredData.length);
       return filteredData as Payment[];
     },
     enabled: !!user?.id,
+    staleTime: 30000, // 30 seconds
+    retry: (failureCount, error) => {
+      console.log(`🔄 Retry attempt ${failureCount} for payments:`, error?.message);
+      return !handleQueryError(error, ['payments', user?.id || '', searchTerm, statusFilter]) && failureCount < 2;
+    },
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
+
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (paymentId: string) => {
+      console.log('💰 Marking payment as paid:', paymentId);
+      
+      const { error } = await supabase
+        .from('payments')
+        .update({
+          status: 'paid' as const,
+          payment_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', paymentId);
+
+      if (error) {
+        console.error('❌ Error updating payment:', error);
+        throw error;
+      }
+      
+      console.log('✅ Payment marked as paid successfully');
+    },
+    onSuccess: () => {
+      toast({
+        title: "Pagamento atualizado",
+        description: "Pagamento marcado como pago com sucesso!",
+      });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-stats'] });
+    },
+    onError: (error: any) => {
+      console.error('❌ Error in markAsPaid mutation:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao atualizar pagamento",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const markAsPaid = (paymentId: string) => {
+    console.log('🎯 markAsPaid called for payment:', paymentId);
+    console.log('🔄 Mutation state:', {
+      isPending: markAsPaidMutation.isPending,
+      isIdle: markAsPaidMutation.isIdle,
+    });
+    
+    if (markAsPaidMutation.isPending) {
+      console.log('⏳ Mutation already in progress, ignoring click');
+      return;
+    }
+    
+    markAsPaidMutation.mutate(paymentId);
+  };
+
+  const handleRefresh = () => {
+    console.log('🔄 Manual refresh triggered for payments');
+    refetch();
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -98,32 +169,31 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const markAsPaid = async (paymentId: string) => {
-    try {
-      const { error } = await supabase
-        .from('payments')
-        .update({
-          status: 'paid' as const,
-          payment_date: new Date().toISOString().split('T')[0]
-        })
-        .eq('id', paymentId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Pagamento atualizado",
-        description: "Pagamento marcado como pago com sucesso!",
-      });
-
-      refetch();
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao atualizar pagamento",
-        variant: "destructive",
-      });
-    }
-  };
+  if (error) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Pagamentos</CardTitle>
+          <Button onClick={handleRefresh} disabled={isFetching} variant="outline" size="sm">
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Erro ao carregar pagamentos: {error.message}
+              <br />
+              <Button onClick={handleRefresh} variant="outline" size="sm" className="mt-2">
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -148,8 +218,12 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Pagamentos</CardTitle>
+        <Button onClick={handleRefresh} disabled={isFetching} variant="outline" size="sm">
+          <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+          Atualizar
+        </Button>
       </CardHeader>
       <CardContent>
         <Table>
@@ -184,10 +258,11 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
                         variant="ghost" 
                         size="sm"
                         onClick={() => markAsPaid(payment.id)}
+                        disabled={markAsPaidMutation.isPending}
                         className="h-8 w-8 p-0 hover:bg-green-100"
                         title="Marcar como pago"
                       >
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <CheckCircle className={`h-4 w-4 text-green-600 ${markAsPaidMutation.isPending ? 'animate-pulse' : ''}`} />
                       </Button>
                     )}
                   </TableCell>

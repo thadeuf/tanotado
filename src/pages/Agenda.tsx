@@ -10,6 +10,7 @@ import MonthView from '@/components/agenda/MonthView';
 import AppointmentForm from '@/components/agenda/AppointmentForm';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useConnectionManager } from '@/hooks/useConnectionManager';
 
 const Agenda: React.FC = () => {
   const { user } = useAuth();
@@ -19,6 +20,9 @@ const Agenda: React.FC = () => {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [filterStatus, setFilterStatus] = useState('all');
   const isMobile = useIsMobile();
+
+  // Initialize connection manager to handle freezing issues
+  useConnectionManager();
 
   const { data: appointments = [], isLoading, error } = useAppointments();
 

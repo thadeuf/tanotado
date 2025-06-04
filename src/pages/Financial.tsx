@@ -7,19 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Search, Filter, Plus, DollarSign, TrendingUp, TrendingDown, Clock } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import FinancialStats from '@/components/financial/FinancialStats';
 import PaymentsList from '@/components/financial/PaymentsList';
 import ClientsFinancialOverview from '@/components/financial/ClientsFinancialOverview';
 import CreatePaymentDialog from '@/components/financial/CreatePaymentDialog';
+import { useConnectionManager } from '@/hooks/useConnectionManager';
 
 const Financial: React.FC = () => {
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreatePayment, setShowCreatePayment] = useState(false);
+  
+  // Initialize connection manager to handle freezing issues
+  useConnectionManager();
 
   return (
     <div className="space-y-6 animate-fade-in">
