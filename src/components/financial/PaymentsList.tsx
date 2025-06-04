@@ -9,7 +9,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { useQueryErrorHandler } from '@/hooks/useQueryErrorHandler';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Payment {
@@ -34,7 +33,6 @@ interface PaymentsListProps {
 const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { handleQueryError, retryQuery } = useQueryErrorHandler();
 
   const { data: payments, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['payments', user?.id, searchTerm, statusFilter],
@@ -78,12 +76,6 @@ const PaymentsList: React.FC<PaymentsListProps> = ({ searchTerm, statusFilter })
       return filteredData as Payment[];
     },
     enabled: !!user?.id,
-    staleTime: 30000, // 30 seconds
-    retry: (failureCount, error) => {
-      console.log(`🔄 Retry attempt ${failureCount} for payments:`, error?.message);
-      return !handleQueryError(error, ['payments', user?.id || '', searchTerm, statusFilter]) && failureCount < 2;
-    },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   const markAsPaidMutation = useMutation({
