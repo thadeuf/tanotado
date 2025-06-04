@@ -2,12 +2,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useMemo } from 'react';
 
 export const useClientStats = (clientId: string) => {
   const { user, isLoading: authLoading } = useAuth();
 
-  const query = useQuery({
+  return useQuery({
     queryKey: ['client-stats', clientId, user?.id],
     queryFn: async () => {
       if (!user?.id || !clientId) {
@@ -58,12 +57,7 @@ export const useClientStats = (clientId: string) => {
       };
     },
     enabled: !!user?.id && !!clientId && !authLoading,
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
   });
-
-  const memoizedData = useMemo(() => query.data, [query.data]);
-
-  return {
-    ...query,
-    data: memoizedData,
-  };
 };

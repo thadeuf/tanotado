@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { useMemo } from 'react';
 
 export interface Client {
   id: string;
@@ -26,17 +25,19 @@ export interface Client {
 export const useClients = () => {
   const { user, isLoading: authLoading } = useAuth();
 
-  const query = useQuery({
+  return useQuery({
     queryKey: ['clients', user?.id],
     queryFn: async () => {
       if (!user?.id) {
         throw new Error('Usuário não autenticado');
       }
 
+      console.log('🔄 Fetching clients for user:', user.id);
+
       const { data, error } = await supabase
         .from('clients')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -49,15 +50,11 @@ export const useClients = () => {
         throw error;
       }
 
+      console.log('✅ Clients fetched successfully:', data?.length || 0, 'clients');
       return data as Client[];
     },
     enabled: !!user?.id && !authLoading,
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
   });
-
-  const memoizedData = useMemo(() => query.data || [], [query.data]);
-
-  return {
-    ...query,
-    data: memoizedData,
-  };
 };

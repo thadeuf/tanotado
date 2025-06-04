@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -66,8 +65,8 @@ const EditClient: React.FC = () => {
       return data;
     },
     enabled: !!clientId && !!user?.id && !authLoading,
-    retry: 2,
-    retryDelay: 1000,
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
   });
 
   const form = useForm<ClientFormData>({

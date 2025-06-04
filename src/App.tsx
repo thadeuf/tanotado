@@ -9,21 +9,20 @@ import { AuthProvider } from './contexts/AuthContext';
 import SplashScreen from './components/SplashScreen';
 import AppRoutes from './components/AppRoutes';
 
-// Configuração simplificada e estável do QueryClient
+// Configuração mais simples e estável do QueryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 10 * 60 * 1000, // 10 minutos - mais conservador
-      gcTime: 15 * 60 * 1000, // 15 minutos no cache
-      refetchOnWindowFocus: false, // Desabilitar para evitar revalidações excessivas
+      staleTime: 5 * 60 * 1000, // 5 minutos
+      gcTime: 10 * 60 * 1000, // 10 minutos
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       refetchOnMount: true,
-      retry: 2, // Simplificar retry
-      retryDelay: 1000,
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
     mutations: {
-      retry: 1,
-      retryDelay: 1000,
+      retry: 2,
     },
   },
 });

@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { useMemo } from 'react';
 
 export interface Client {
   id: string;
@@ -39,7 +38,7 @@ export interface Appointment {
 export const useAppointments = () => {
   const { user, isLoading: authLoading } = useAuth();
 
-  const query = useQuery({
+  return useQuery({
     queryKey: ['appointments', user?.id],
     queryFn: async () => {
       if (!user?.id) {
@@ -56,7 +55,7 @@ export const useAppointments = () => {
             photo_url
           )
         `)
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('start_time', { ascending: true });
 
       if (error) {
@@ -72,12 +71,7 @@ export const useAppointments = () => {
       return data as Appointment[];
     },
     enabled: !!user?.id && !authLoading,
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
   });
-
-  const memoizedData = useMemo(() => query.data || [], [query.data]);
-
-  return {
-    ...query,
-    data: memoizedData,
-  };
 };
