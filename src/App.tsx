@@ -9,16 +9,16 @@ import { AuthProvider } from './contexts/AuthContext';
 import SplashScreen from './components/SplashScreen';
 import AppRoutes from './components/AppRoutes';
 
-// Configuração robusta do QueryClient
+// Configuração mais agressiva do QueryClient para evitar problemas de "dormência"
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutos
-      gcTime: 10 * 60 * 1000, // 10 minutos (antigamente cacheTime)
-      refetchOnWindowFocus: false, // Não refaz query ao focar janela
-      refetchOnReconnect: true, // Refaz quando reconectar
+      staleTime: 0, // Sempre considerar dados como stale
+      gcTime: 5 * 60 * 1000, // 5 minutos no cache
+      refetchOnWindowFocus: true, // Reativar refetch on focus
+      refetchOnReconnect: true,
+      refetchOnMount: true, // Sempre refetch ao montar
       retry: (failureCount, error: any) => {
-        // Não tenta novamente em erros de autenticação
         if (error?.message?.includes('JWT') || 
             error?.message?.includes('session') || 
             error?.message?.includes('não autenticado')) {
@@ -26,7 +26,7 @@ const queryClient = new QueryClient({
         }
         return failureCount < 2;
       },
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 10000),
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000),
     },
     mutations: {
       retry: 1,
