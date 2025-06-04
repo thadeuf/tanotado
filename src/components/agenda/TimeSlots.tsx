@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -82,7 +81,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
       deleteType: 'single' | 'series';
       deleteFinancial: boolean;
     }) => {
-      console.log('=== DELETION DEBUG START ===');
+      console.log('🔥 MUTATION STARTED!');
       console.log('Input params:', {
         appointmentId: appointment.id,
         recurrenceGroupId: appointment.recurrence_group_id,
@@ -93,59 +92,32 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
 
       try {
         if (deleteType === 'series' && appointment.recurrence_group_id) {
-          console.log('=== DELETING SERIES ===');
-          console.log('Recurrence group ID:', appointment.recurrence_group_id);
+          console.log('🔄 DELETING SERIES');
           
-          // Step 1: Get all appointments in the series
-          console.log('Step 1: Querying series appointments...');
+          // Get all appointments in the series
           const { data: seriesAppointments, error: queryError } = await supabase
             .from('appointments')
             .select('id, client_id, price')
             .eq('recurrence_group_id', appointment.recurrence_group_id);
 
-          console.log('Query result:', { seriesAppointments, queryError });
+          console.log('📋 Series query result:', { seriesAppointments, queryError });
 
           if (queryError) {
-            console.error('Error querying series appointments:', queryError);
+            console.error('❌ Query error:', queryError);
             throw new Error(`Erro ao buscar agendamentos da série: ${queryError.message}`);
           }
 
           if (!seriesAppointments || seriesAppointments.length === 0) {
-            console.log('No appointments found in series, trying alternative query...');
-            
-            // Try finding by matching recurrence fields - fix the type casting here
-            const recurrenceType = appointment.recurrence_type as 'weekly' | 'biweekly' | 'monthly' | null;
-            
-            const { data: altSeriesAppointments, error: altQueryError } = await supabase
-              .from('appointments')
-              .select('id, client_id, price')
-              .eq('session_type', 'recurring')
-              .eq('recurrence_type', recurrenceType || 'weekly')
-              .eq('client_id', appointment.client_id)
-              .eq('user_id', appointment.user_id);
-
-            console.log('Alternative query result:', { altSeriesAppointments, altQueryError });
-
-            if (altQueryError) {
-              throw new Error(`Erro na consulta alternativa: ${altQueryError.message}`);
-            }
-
-            if (!altSeriesAppointments || altSeriesAppointments.length === 0) {
-              throw new Error('Nenhum agendamento encontrado na série');
-            }
+            console.log('⚠️ No appointments found, this might be the issue!');
+            throw new Error('Nenhum agendamento encontrado na série');
           }
 
-          const finalSeriesAppointments = seriesAppointments && seriesAppointments.length > 0 
-            ? seriesAppointments 
-            : [];
+          console.log('✅ Found', seriesAppointments.length, 'appointments in series');
 
-          console.log('Final series appointments count:', finalSeriesAppointments.length);
-
-          // Step 2: Delete financial records if requested
-          if (deleteFinancial && finalSeriesAppointments.length > 0) {
-            console.log('Step 2: Deleting financial records...');
-            const appointmentIds = finalSeriesAppointments.map(apt => apt.id);
-            console.log('Appointment IDs for payment deletion:', appointmentIds);
+          // Delete financial records if requested
+          if (deleteFinancial && seriesAppointments.length > 0) {
+            console.log('💰 Deleting financial records...');
+            const appointmentIds = seriesAppointments.map(apt => apt.id);
             
             const { data: deletedPayments, error: paymentsError } = await supabase
               .from('payments')
@@ -153,32 +125,29 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
               .in('appointment_id', appointmentIds)
               .select('id');
             
-            console.log('Payment deletion result:', { deletedPayments, paymentsError });
+            console.log('💰 Payment deletion result:', { deletedPayments, paymentsError });
             
             if (paymentsError) {
-              console.error('Error deleting payment records for series:', paymentsError);
               throw new Error(`Erro ao excluir registros financeiros: ${paymentsError.message}`);
             }
-            console.log('Successfully deleted', deletedPayments?.length || 0, 'payment records');
           }
 
-          // Step 3: Delete appointments
-          console.log('Step 3: Deleting appointments...');
+          // Delete appointments
+          console.log('🗑️ Deleting appointments...');
           const { data: deletedAppointments, error: deleteError } = await supabase
             .from('appointments')
             .delete()
             .eq('recurrence_group_id', appointment.recurrence_group_id)
             .select('id');
 
-          console.log('Appointment deletion result:', { deletedAppointments, deleteError });
+          console.log('🗑️ Appointment deletion result:', { deletedAppointments, deleteError });
 
           if (deleteError) {
-            console.error('Error deleting appointment series:', deleteError);
             throw new Error(`Erro ao excluir série de agendamentos: ${deleteError.message}`);
           }
 
           const deletedCount = deletedAppointments?.length || 0;
-          console.log('Successfully deleted', deletedCount, 'appointments from series');
+          console.log('✅ Successfully deleted', deletedCount, 'appointments');
           
           if (deletedCount === 0) {
             throw new Error('Nenhum agendamento foi excluído da série');
@@ -186,39 +155,34 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
 
           return deletedCount;
         } else {
-          console.log('=== DELETING SINGLE APPOINTMENT ===');
-          console.log('Appointment ID:', appointment.id);
+          console.log('🔄 DELETING SINGLE APPOINTMENT');
           
-          // Step 1: Delete financial records if requested
+          // Delete financial records if requested
           if (deleteFinancial) {
-            console.log('Step 1: Deleting payment records...');
+            console.log('💰 Deleting payment records...');
             const { data: deletedPayments, error: paymentsError } = await supabase
               .from('payments')
               .delete()
               .eq('appointment_id', appointment.id)
               .select('id');
             
-            console.log('Payment deletion result:', { deletedPayments, paymentsError });
+            console.log('💰 Payment deletion result:', { deletedPayments, paymentsError });
             
             if (paymentsError) {
-              console.error('Error deleting payment records:', paymentsError);
               throw new Error(`Erro ao excluir registros financeiros: ${paymentsError.message}`);
             }
-            console.log('Successfully deleted', deletedPayments?.length || 0, 'payment records');
           }
           
-          // Step 2: Delete the appointment
-          console.log('Step 2: Deleting single appointment...');
+          // Delete the appointment
           const { data: deletedAppointment, error: deleteError } = await supabase
             .from('appointments')
             .delete()
             .eq('id', appointment.id)
             .select('id');
 
-          console.log('Single appointment deletion result:', { deletedAppointment, deleteError });
+          console.log('🗑️ Single appointment deletion result:', { deletedAppointment, deleteError });
 
           if (deleteError) {
-            console.error('Error deleting single appointment:', deleteError);
             throw new Error(`Erro ao excluir agendamento: ${deleteError.message}`);
           }
 
@@ -229,14 +193,12 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
           return 1;
         }
       } catch (error: any) {
-        console.error('=== DELETION ERROR ===', error);
+        console.error('💥 DELETION ERROR:', error);
         throw error;
-      } finally {
-        console.log('=== DELETION DEBUG END ===');
       }
     },
     onSuccess: (deletedCount, { deleteType, deleteFinancial }) => {
-      console.log('Deletion successful! Count:', deletedCount);
+      console.log('🎉 Deletion successful! Count:', deletedCount);
       
       const message = deleteType === 'series' 
         ? `${deletedCount} agendamentos da série foram excluídos com sucesso${deleteFinancial ? ' junto com os registros financeiros' : ''}.`
@@ -256,7 +218,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
       setDeletingAppointment(null);
     },
     onError: (error: any) => {
-      console.error('Deletion failed with error:', error);
+      console.error('💥 Deletion failed with error:', error);
       toast({
         title: "Erro ao excluir agendamento",
         description: error.message || "Não foi possível excluir o agendamento. Tente novamente.",
@@ -273,47 +235,77 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   };
 
   const handleDelete = (appointment: Appointment) => {
+    console.log('🎯 handleDelete called with appointment:', appointment.id);
+    console.log('📋 Appointment details:', {
+      sessionType: appointment.session_type,
+      recurrenceGroupId: appointment.recurrence_group_id,
+      recurrenceType: appointment.recurrence_type
+    });
+    
     setDeletingAppointment(appointment);
     
     // Check if this is a recurring appointment
     if (appointment.session_type === 'recurring' && appointment.recurrence_group_id) {
+      console.log('🔄 This is a recurring appointment, showing recurrence dialog');
       setShowDeleteRecurrenceDialog(true);
     } else {
-      // For non-recurring appointments, go directly to financial confirmation
+      console.log('📅 This is a single appointment, going to financial dialog');
       setDeleteType('single');
       setShowDeleteFinancialDialog(true);
     }
   };
 
   const handleDeleteSingle = () => {
+    console.log('🎯 handleDeleteSingle called');
     setDeleteType('single');
     setShowDeleteRecurrenceDialog(false);
     setShowDeleteFinancialDialog(true);
   };
 
   const handleDeleteSeries = () => {
+    console.log('🎯 handleDeleteSeries called');
     setDeleteType('series');
     setShowDeleteRecurrenceDialog(false);
     setShowDeleteFinancialDialog(true);
   };
 
   const handleDeleteWithoutFinancial = () => {
+    console.log('🎯 handleDeleteWithoutFinancial called');
+    console.log('📋 Current state:', {
+      deletingAppointment: deletingAppointment?.id,
+      deleteType,
+      mutationIsPending: deleteAppointmentMutation.isPending
+    });
+    
     if (deletingAppointment) {
+      console.log('🚀 Starting mutation without financial deletion');
       deleteAppointmentMutation.mutate({ 
         appointment: deletingAppointment, 
         deleteType,
         deleteFinancial: false
       });
+    } else {
+      console.error('❌ No appointment to delete!');
     }
   };
 
   const handleDeleteWithFinancial = () => {
+    console.log('🎯 handleDeleteWithFinancial called');
+    console.log('📋 Current state:', {
+      deletingAppointment: deletingAppointment?.id,
+      deleteType,
+      mutationIsPending: deleteAppointmentMutation.isPending
+    });
+    
     if (deletingAppointment) {
+      console.log('🚀 Starting mutation with financial deletion');
       deleteAppointmentMutation.mutate({ 
         appointment: deletingAppointment, 
         deleteType,
         deleteFinancial: true
       });
+    } else {
+      console.error('❌ No appointment to delete!');
     }
   };
 
@@ -322,11 +314,13 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   };
 
   const handleCloseDeleteDialog = () => {
+    console.log('🎯 handleCloseDeleteDialog called');
     setShowDeleteRecurrenceDialog(false);
     setDeletingAppointment(null);
   };
 
   const handleCloseDeleteFinancialDialog = () => {
+    console.log('🎯 handleCloseDeleteFinancialDialog called');
     setShowDeleteFinancialDialog(false);
     setDeletingAppointment(null);
   };
