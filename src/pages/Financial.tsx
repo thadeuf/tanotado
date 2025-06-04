@@ -11,15 +11,11 @@ import FinancialStats from '@/components/financial/FinancialStats';
 import PaymentsList from '@/components/financial/PaymentsList';
 import ClientsFinancialOverview from '@/components/financial/ClientsFinancialOverview';
 import CreatePaymentDialog from '@/components/financial/CreatePaymentDialog';
-import { useConnectionManager } from '@/hooks/useConnectionManager';
 
 const Financial: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreatePayment, setShowCreatePayment] = useState(false);
-  
-  // Initialize connection manager to handle freezing issues
-  useConnectionManager();
 
   return (
     <div className="space-y-6 animate-fade-in">

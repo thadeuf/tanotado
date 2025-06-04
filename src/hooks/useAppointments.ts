@@ -75,19 +75,8 @@ export const useAppointments = () => {
       return data as Appointment[];
     },
     enabled: !!user?.id && !authLoading,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    refetchOnWindowFocus: false,
-    retry: (failureCount, error) => {
-      // Só tenta novamente se não for erro de autenticação
-      if (error?.message?.includes('não autenticado')) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Memoize o resultado para evitar re-renderizações desnecessárias
   const memoizedData = useMemo(() => query.data || [], [query.data]);
 
   return {
