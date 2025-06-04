@@ -28,11 +28,14 @@ export const useClients = () => {
   return useQuery({
     queryKey: ['clients', user?.id],
     queryFn: async () => {
+      console.log('useClients: Starting fetch for user:', user?.id);
+      
       if (!user?.id) {
+        console.log('useClients: No user ID available');
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('Fetching clients for user:', user.id);
+      console.log('useClients: Fetching clients for user:', user.id);
 
       const { data, error } = await supabase
         .from('clients')
@@ -41,7 +44,7 @@ export const useClients = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching clients:', error);
+        console.error('useClients: Error fetching clients:', error);
         toast({
           title: "Erro ao carregar clientes",
           description: "Não foi possível carregar a lista de clientes.",
@@ -50,10 +53,11 @@ export const useClients = () => {
         throw error;
       }
 
-      console.log('Clients fetched successfully:', data?.length);
+      console.log('useClients: Clients fetched successfully:', data?.length);
       return data as Client[];
     },
     enabled: !!user?.id && !authLoading,
-    // Usa as configurações globais do queryClient
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 };

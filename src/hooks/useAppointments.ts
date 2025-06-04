@@ -41,11 +41,14 @@ export const useAppointments = () => {
   return useQuery({
     queryKey: ['appointments', user?.id],
     queryFn: async () => {
+      console.log('useAppointments: Starting fetch for user:', user?.id);
+      
       if (!user?.id) {
+        console.log('useAppointments: No user ID available');
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('Fetching appointments for user:', user.id);
+      console.log('useAppointments: Fetching appointments for user:', user.id);
 
       const { data, error } = await supabase
         .from('appointments')
@@ -61,7 +64,7 @@ export const useAppointments = () => {
         .order('start_time', { ascending: true });
 
       if (error) {
-        console.error('Error fetching appointments:', error);
+        console.error('useAppointments: Error fetching appointments:', error);
         toast({
           title: "Erro ao carregar agendamentos",
           description: "Não foi possível carregar a lista de agendamentos.",
@@ -70,10 +73,11 @@ export const useAppointments = () => {
         throw error;
       }
 
-      console.log('Appointments fetched successfully:', data?.length);
+      console.log('useAppointments: Appointments fetched successfully:', data?.length);
       return data as Appointment[];
     },
     enabled: !!user?.id && !authLoading,
-    // Usa as configurações globais do queryClient
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 };

@@ -19,11 +19,11 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 };
 
@@ -33,7 +33,6 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AppContent />
-      {/* React Query Devtools para debug - só aparece em desenvolvimento */}
       <ReactQueryDevtools initialIsOpen={false} />
     </TooltipProvider>
   </QueryClientProvider>
