@@ -9,20 +9,23 @@ import { AuthProvider } from './contexts/AuthContext';
 import SplashScreen from './components/SplashScreen';
 import AppRoutes from './components/AppRoutes';
 
-// Configuração mais simples e estável do QueryClient
+// Configuração otimizada para evitar "dormência" do React Query
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutos
-      gcTime: 10 * 60 * 1000, // 10 minutos
-      refetchOnWindowFocus: false,
+      staleTime: 2 * 60 * 1000, // 2 minutos - dados ficam frescos por menos tempo
+      gcTime: 10 * 60 * 1000, // 10 minutos no cache
+      refetchOnWindowFocus: true, // IMPORTANTE: revalidar quando janela ganha foco
       refetchOnReconnect: true,
       refetchOnMount: true,
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      // Timeout de 15 segundos para evitar queries "presas"
+      networkMode: 'online',
     },
     mutations: {
       retry: 2,
+      networkMode: 'online',
     },
   },
 });

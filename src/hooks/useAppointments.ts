@@ -45,6 +45,8 @@ export const useAppointments = () => {
         throw new Error('Usuário não autenticado');
       }
 
+      console.log('📅 Fetching appointments for user:', user.id);
+
       const { data, error } = await supabase
         .from('appointments')
         .select(`
@@ -68,10 +70,14 @@ export const useAppointments = () => {
         throw error;
       }
 
+      console.log('✅ Appointments fetched successfully:', data?.length || 0, 'appointments');
       return data as Appointment[];
     },
     enabled: !!user?.id && !authLoading,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 1 * 60 * 1000, // 1 minuto para dados críticos
+    gcTime: 15 * 60 * 1000, // Manter no cache por mais tempo
+    refetchInterval: 3 * 60 * 1000, // Revalidar a cada 3 minutos (mais frequente que clientes)
+    refetchIntervalInBackground: false, // Só revalidar quando a aba estiver ativa
     retry: 3,
   });
 };

@@ -2,6 +2,7 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSessionManager } from '../hooks/useSessionManager';
+import { usePageVisibility } from '../hooks/usePageVisibility';
 import DashboardStats from '../components/dashboard/DashboardStats';
 import AppointmentsSection from '../components/dashboard/AppointmentsSection';
 import BirthdaysSection from '../components/dashboard/BirthdaysSection';
@@ -12,6 +13,9 @@ const Dashboard: React.FC = () => {
   
   // Initialize session management
   useSessionManager();
+  
+  // Initialize page visibility management
+  usePageVisibility();
 
   return (
     <div className="space-y-6 animate-fade-in">

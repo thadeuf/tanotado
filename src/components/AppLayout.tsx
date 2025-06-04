@@ -3,12 +3,16 @@ import React from 'react';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from './AppSidebar';
 import AppHeader from './AppHeader';
+import { usePageVisibility } from '@/hooks/usePageVisibility';
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
+  // Ativar detecção de visibilidade da página para revalidação automática
+  usePageVisibility();
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-50/50">

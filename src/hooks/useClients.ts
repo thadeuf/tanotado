@@ -54,7 +54,10 @@ export const useClients = () => {
       return data as Client[];
     },
     enabled: !!user?.id && !authLoading,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 1 * 60 * 1000, // 1 minuto para dados críticos
+    gcTime: 15 * 60 * 1000, // Manter no cache por mais tempo
+    refetchInterval: 5 * 60 * 1000, // Revalidar a cada 5 minutos automaticamente
+    refetchIntervalInBackground: false, // Só revalidar quando a aba estiver ativa
     retry: 3,
   });
 };
