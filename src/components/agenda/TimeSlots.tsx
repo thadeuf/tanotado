@@ -213,6 +213,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['financial-stats'] });
       
+      // Clear all states after successful deletion
       setShowDeleteRecurrenceDialog(false);
       setShowDeleteFinancialDialog(false);
       setDeletingAppointment(null);
@@ -224,6 +225,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
         description: error.message || "Não foi possível excluir o agendamento. Tente novamente.",
         variant: "destructive",
       });
+      // Clear all states after error
       setShowDeleteRecurrenceDialog(false);
       setShowDeleteFinancialDialog(false);
       setDeletingAppointment(null);
@@ -259,6 +261,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
     console.log('🎯 handleDeleteSingle called');
     setDeleteType('single');
     setShowDeleteRecurrenceDialog(false);
+    // DON'T clear deletingAppointment here - keep it for the next dialog
     setShowDeleteFinancialDialog(true);
   };
 
@@ -266,6 +269,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
     console.log('🎯 handleDeleteSeries called');
     setDeleteType('series');
     setShowDeleteRecurrenceDialog(false);
+    // DON'T clear deletingAppointment here - keep it for the next dialog
     setShowDeleteFinancialDialog(true);
   };
 
@@ -316,13 +320,13 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, appointments }) => 
   const handleCloseDeleteDialog = () => {
     console.log('🎯 handleCloseDeleteDialog called');
     setShowDeleteRecurrenceDialog(false);
-    setDeletingAppointment(null);
+    // DON'T clear deletingAppointment here - only clear after successful deletion
   };
 
   const handleCloseDeleteFinancialDialog = () => {
     console.log('🎯 handleCloseDeleteFinancialDialog called');
     setShowDeleteFinancialDialog(false);
-    setDeletingAppointment(null);
+    setDeletingAppointment(null); // Only clear when actually canceling
   };
 
   // Ordenar agendamentos por horário
