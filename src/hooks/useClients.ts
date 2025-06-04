@@ -33,42 +33,77 @@ export const useClients = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('Fetching clients for user:', user?.id);
+      console.log('🔄 Fetching clients for user:', user?.id);
       
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('user_id', user?.id)
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching clients:', error);
-        toast({
-          title: "Erro ao carregar clientes",
-          description: "Não foi possível carregar a lista de clientes.",
-          variant: "destructive",
-        });
+        if (error) {
+          console.error('❌ Error fetching clients:', error);
+          
+          // Check if it's an auth error
+          if (error.message?.includes('JWT') || error.message?.includes('session')) {
+            console.log('🔑 Auth error detected, will retry after refresh');
+            throw new Error('Session expired - will retry');
+          }
+          
+          toast({
+            title: "Erro ao carregar clientes",
+            description: "Não foi possível carregar a lista de clientes.",
+            variant: "destructive",
+          });
+          throw error;
+        }
+
+        console.log('✅ Clients fetched successfully:', data?.length || 0, 'clients');
+        return data as Client[];
+      } catch (error) {
+        console.error('💥 Unexpected error in useClients:', error);
         throw error;
       }
-
-      console.log('Clients fetched:', data?.length || 0, 'clients');
-      return data as Client[];
     },
     enabled: !!user?.id && !authLoading,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    refetchOnWindowFocus: false,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: true, // Enable refetch on focus
+    refetchOnReconnect: true, // Enable refetch on reconnect
     retry: (failureCount, error) => {
-      // Só tenta novamente se não for erro de autenticação
+      console.log(`🔄 Retry attempt ${failureCount} for useClients:`, error?.message);
+      
+      // Don't retry auth errors immediately
       if (error?.message?.includes('não autenticado')) {
         return false;
       }
+      
+      // Retry session errors
+      if (error?.message?.includes('Session expired')) {
+        return failureCount < 3;
+      }
+      
       return failureCount < 2;
     },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retryDelay: attemptIndex => {
+      const delay = Math.min(1000 * 2 ** attemptIndex, 10000);
+      console.log(`⏳ Retrying useClients in ${delay}ms`);
+      return delay;
+    },
   });
 
   // Memoize o resultado para evitar re-renderizações desnecessárias
   const memoizedData = useMemo(() => query.data || [], [query.data]);
+
+  // Log query state changes for debugging
+  console.log('📊 useClients state:', {
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    isError: query.isError,
+    error: query.error?.message,
+    dataLength: memoizedData.length,
+    enabled: !!user?.id && !authLoading
+  });
 
   return {
     ...query,

@@ -1,18 +1,21 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Search, Filter, Edit } from 'lucide-react';
+import { Plus, Users, Search, Filter, Edit, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { useClients } from '@/hooks/useClients';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Clients: React.FC = () => {
   const navigate = useNavigate();
-  const { data: clients = [], isLoading, error } = useClients();
+  const { data: clients = [], isLoading, error, refetch, isFetching } = useClients();
   const [searchTerm, setSearchTerm] = React.useState('');
+
+  console.log('🏠 Clients page rendered - clients count:', clients.length, 'isLoading:', isLoading, 'error:', error?.message);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -20,15 +23,31 @@ const Clients: React.FC = () => {
     client.phone?.includes(searchTerm)
   );
 
+  const handleRefresh = () => {
+    console.log('🔄 Manual refresh triggered');
+    refetch();
+  };
+
   if (error) {
+    console.error('❌ Error in Clients page:', error);
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <p className="text-red-600 mb-4">Erro ao carregar clientes</p>
-            <Button onClick={() => window.location.reload()}>
-              Tentar novamente
-            </Button>
+          <div className="text-center max-w-md">
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>
+                Erro ao carregar clientes: {error.message}
+              </AlertDescription>
+            </Alert>
+            <div className="space-x-2">
+              <Button onClick={handleRefresh} disabled={isFetching}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+                {isFetching ? 'Recarregando...' : 'Tentar novamente'}
+              </Button>
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Recarregar página
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -36,6 +55,7 @@ const Clients: React.FC = () => {
   }
 
   if (isLoading) {
+    console.log('⏳ Clients page loading...');
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -48,10 +68,19 @@ const Clients: React.FC = () => {
               Carregando clientes...
             </p>
           </div>
+          <Button disabled>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Cliente
+          </Button>
+        </div>
+        <div className="flex justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
       </div>
     );
   }
+
+  console.log('✅ Clients page rendered successfully with', filteredClients.length, 'filtered clients');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -66,10 +95,16 @@ const Clients: React.FC = () => {
             Gerencie seus clientes e suas informações
           </p>
         </div>
-        <Button onClick={() => navigate('/clientes/novo')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Cliente
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+          <Button onClick={() => navigate('/clientes/novo')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Cliente
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filter */}
@@ -118,7 +153,10 @@ const Clients: React.FC = () => {
                 <TableRow 
                   key={client.id} 
                   className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => navigate(`/clientes/${client.id}/editar`)}
+                  onClick={() => {
+                    console.log('🔗 Navigating to client edit:', client.id);
+                    navigate(`/clientes/${client.id}/editar`);
+                  }}
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center space-x-3">
@@ -160,6 +198,7 @@ const Clients: React.FC = () => {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
+                        console.log('✏️ Edit button clicked for client:', client.id);
                         navigate(`/clientes/${client.id}/editar`);
                       }}
                     >
