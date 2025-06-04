@@ -14,25 +14,42 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 0, // Sempre considerar dados como stale
-      gcTime: 5 * 60 * 1000, // 5 minutos no cache
-      refetchOnWindowFocus: true, // Reativar refetch on focus
+      gcTime: 1 * 60 * 1000, // 1 minuto no cache (reduzido)
+      refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      refetchOnMount: true, // Sempre refetch ao montar
+      refetchOnMount: true,
+      networkMode: 'always', // Sempre tentar fazer requisições
       retry: (failureCount, error: any) => {
+        console.log(`🔄 Query retry attempt ${failureCount}:`, error?.message);
+        
+        // Para erros de autenticação, não tentar novamente
         if (error?.message?.includes('JWT') || 
             error?.message?.includes('session') || 
             error?.message?.includes('não autenticado')) {
+          console.log('❌ Auth error, não tentando novamente');
           return false;
         }
-        return failureCount < 2;
+        
+        // Para outros erros, tentar até 3 vezes
+        return failureCount < 3;
       },
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000),
+      retryDelay: (attemptIndex) => {
+        const delay = Math.min(1000 * 2 ** attemptIndex, 3000);
+        console.log(`⏱️ Tentando novamente em ${delay}ms...`);
+        return delay;
+      },
     },
     mutations: {
       retry: 1,
       retryDelay: 1000,
+      networkMode: 'always',
     },
   },
+});
+
+// Adiciona logging para debug
+queryClient.getQueryCache().subscribe((event) => {
+  console.log('📊 Query Cache Event:', event.type, event.query?.queryKey);
 });
 
 const AppContent: React.FC = () => {

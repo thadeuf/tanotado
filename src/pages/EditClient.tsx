@@ -84,17 +84,29 @@ const EditClient: React.FC = () => {
       }
     },
     enabled: !!clientId && !!user?.id && !authLoading,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    refetchOnWindowFocus: false,
+    staleTime: 0, // Sempre considerar dados como stale para forçar refetch
+    gcTime: 1 * 60 * 1000, // 1 minuto no cache
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    networkMode: 'always', // Sempre tentar fazer requisições
     retry: (failureCount, error) => {
       console.log('EditClient: Query retry attempt', failureCount, error);
+      
       if (error?.message?.includes('não autenticado') || error?.message?.includes('não encontrado')) {
         return false;
       }
-      return failureCount < 2;
+      
+      // Se a query ficou muito tempo tentando, força um reset
+      if (failureCount > 2) {
+        console.log('EditClient: Muitas tentativas falharam, forçando reset do cache...');
+        queryClient.removeQueries({ queryKey: ['client', clientId] });
+        return false;
+      }
+      
+      return failureCount < 3;
     },
     retryDelay: attemptIndex => {
-      const delay = Math.min(1000 * 2 ** attemptIndex, 5000);
+      const delay = Math.min(1000 * 2 ** attemptIndex, 3000);
       console.log('EditClient: Retrying client fetch in', delay, 'ms');
       return delay;
     },
@@ -111,6 +123,24 @@ const EditClient: React.FC = () => {
       userId: user?.id
     });
   }, [isLoading, isSuccess, client, error, clientId, user?.id]);
+
+  // Timeout de emergência para detectar queries "presas"
+  useEffect(() => {
+    if (isLoading && clientId && user?.id) {
+      const timeoutId = setTimeout(() => {
+        console.warn('⚠️ EditClient: Query stuck em loading por muito tempo, forçando reset...');
+        queryClient.cancelQueries({ queryKey: ['client', clientId] });
+        queryClient.removeQueries({ queryKey: ['client', clientId] });
+        
+        // Força uma nova query
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+        }, 100);
+      }, 10000); // 10 segundos
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isLoading, clientId, user?.id, queryClient]);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -133,7 +163,6 @@ const EditClient: React.FC = () => {
       console.log('UpdateClient: Client ID:', clientId, 'User ID:', user?.id);
       console.log('UpdateClient: Current mutation state - isMutating:', isMutating);
 
-      // Verificar se já há uma mutation em andamento
       if (isMutating) {
         console.warn('UpdateClient: Mutation already in progress, aborting');
         throw new Error('Salvamento já em andamento');
@@ -142,7 +171,6 @@ const EditClient: React.FC = () => {
       setIsMutating(true);
 
       const clientData = {
-        // Informações básicas
         name: data.name,
         email: data.email || null,
         phone: data.whatsapp || null,
@@ -153,8 +181,6 @@ const EditClient: React.FC = () => {
         group_id: data.groupId || null,
         photo_url: data.photoUrl || null,
         video_call_link: data.videoCallLink || null,
-        
-        // Endereço
         cep: data.cep || null,
         address: data.address || null,
         number: data.number || null,
@@ -162,24 +188,16 @@ const EditClient: React.FC = () => {
         city: data.city || null,
         state: data.state || null,
         complement: data.complement || null,
-        
-        // Financeiro
         session_value: data.sessionValue || null,
         payment_day: data.paymentDay || null,
         send_monthly_reminder: data.sendMonthlyReminder || false,
-        
-        // Responsável financeiro
         financial_responsible_name: data.financialResponsibleName || null,
         financial_responsible_whatsapp: data.financialResponsibleWhatsapp || null,
         financial_responsible_email: data.financialResponsibleEmail || null,
         financial_responsible_cpf: data.financialResponsibleCpf || null,
         financial_responsible_rg: data.financialResponsibleRg || null,
-        
-        // Contato de emergência
         emergency_contact_name: data.emergencyContactName || null,
         emergency_contact_whatsapp: data.emergencyContactWhatsapp || null,
-        
-        // Dados adicionais
         gender: data.gender || null,
         nationality: data.nationality || null,
         education: data.education || null,
@@ -225,12 +243,10 @@ const EditClient: React.FC = () => {
         description: "Cliente atualizado com sucesso!",
       });
       
-      // Invalidar cache e navegar
       console.log('UpdateClient: Invalidating queries and navigating...');
       queryClient.invalidateQueries({ queryKey: ['client', clientId] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       
-      // Navegar para a lista de clientes
       setTimeout(() => {
         console.log('UpdateClient: Navigating to /clientes');
         navigate('/clientes');
@@ -259,12 +275,9 @@ const EditClient: React.FC = () => {
     console.log('EditClient: Setting form data from client:', clientData.name);
     
     const formData: ClientFormData = {
-      // ... keep existing code (form data mapping)
       responsibleProfessional: '',
       group: '',
       groupId: clientData.group_id || '',
-      
-      // Informações pessoais
       name: clientData.name || '',
       photoUrl: clientData.photo_url || '',
       whatsapp: clientData.phone || '',
@@ -272,8 +285,6 @@ const EditClient: React.FC = () => {
       email: clientData.email || '',
       cpf: clientData.cpf || '',
       rg: clientData.rg || '',
-      
-      // Endereço
       cep: clientData.cep || '',
       address: clientData.address || '',
       number: clientData.number || '',
@@ -281,24 +292,16 @@ const EditClient: React.FC = () => {
       city: clientData.city || '',
       state: clientData.state || '',
       complement: clientData.complement || '',
-      
-      // Financeiro
       sessionValue: clientData.session_value || '',
       paymentDay: clientData.payment_day || '',
       sendMonthlyReminder: clientData.send_monthly_reminder || false,
-      
-      // Responsável financeiro
       financialResponsibleName: clientData.financial_responsible_name || '',
       financialResponsibleWhatsapp: clientData.financial_responsible_whatsapp || '',
       financialResponsibleEmail: clientData.financial_responsible_email || '',
       financialResponsibleCpf: clientData.financial_responsible_cpf || '',
       financialResponsibleRg: clientData.financial_responsible_rg || '',
-      
-      // Contato de emergência
       emergencyContactName: clientData.emergency_contact_name || '',
       emergencyContactWhatsapp: clientData.emergency_contact_whatsapp || '',
-      
-      // Dados adicionais
       gender: clientData.gender || '',
       birthDate: clientData.birth_date || '',
       nationality: clientData.nationality || '',
@@ -329,7 +332,6 @@ const EditClient: React.FC = () => {
       isMutating,
     });
     
-    // Verificar múltiplas condições para evitar submissões duplicadas
     if (updateClientMutation.isPending || isMutating) {
       console.log('EditClient: Mutation already in progress, ignoring submit');
       return;
@@ -385,6 +387,20 @@ const EditClient: React.FC = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tanotado-purple mx-auto mb-4"></div>
             <p className="text-muted-foreground">Carregando cliente...</p>
+            <Button 
+              onClick={() => {
+                console.log('🔄 Botão de refresh manual clicado');
+                queryClient.cancelQueries({ queryKey: ['client', clientId] });
+                queryClient.removeQueries({ queryKey: ['client', clientId] });
+                setTimeout(() => {
+                  queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+                }, 100);
+              }}
+              variant="outline"
+              className="mt-4"
+            >
+              Tentar novamente
+            </Button>
           </div>
         </div>
       </div>
@@ -405,7 +421,13 @@ const EditClient: React.FC = () => {
         <div className="text-center p-8">
           <p className="text-muted-foreground">Erro ao carregar cliente: {error.message}</p>
           <Button 
-            onClick={() => window.location.reload()} 
+            onClick={() => {
+              console.log('🔄 Botão de retry clicado após erro');
+              queryClient.removeQueries({ queryKey: ['client', clientId] });
+              setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+              }, 100);
+            }} 
             className="mt-4"
           >
             Tentar novamente
