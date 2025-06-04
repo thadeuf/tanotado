@@ -15,8 +15,6 @@ const Clients: React.FC = () => {
   const { data: clients = [], isLoading, error, refetch, isFetching } = useClients();
   const [searchTerm, setSearchTerm] = React.useState('');
 
-  console.log('🏠 Clients page rendered - clients count:', clients.length, 'isLoading:', isLoading, 'error:', error?.message);
-
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -24,12 +22,10 @@ const Clients: React.FC = () => {
   );
 
   const handleRefresh = () => {
-    console.log('🔄 Manual refresh triggered');
     refetch();
   };
 
   if (error) {
-    console.error('❌ Error in Clients page:', error);
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-center p-8">
@@ -55,7 +51,6 @@ const Clients: React.FC = () => {
   }
 
   if (isLoading) {
-    console.log('⏳ Clients page loading...');
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -79,8 +74,6 @@ const Clients: React.FC = () => {
       </div>
     );
   }
-
-  console.log('✅ Clients page rendered successfully with', filteredClients.length, 'filtered clients');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -153,10 +146,7 @@ const Clients: React.FC = () => {
                 <TableRow 
                   key={client.id} 
                   className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => {
-                    console.log('🔗 Navigating to client edit:', client.id);
-                    navigate(`/clientes/${client.id}/editar`);
-                  }}
+                  onClick={() => navigate(`/clientes/${client.id}/editar`)}
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center space-x-3">
@@ -198,7 +188,6 @@ const Clients: React.FC = () => {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log('✏️ Edit button clicked for client:', client.id);
                         navigate(`/clientes/${client.id}/editar`);
                       }}
                     >

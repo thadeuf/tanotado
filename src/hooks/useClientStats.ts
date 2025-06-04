@@ -13,8 +13,6 @@ export const useClientStats = (clientId: string) => {
         throw new Error('Usuário não autenticado ou ID do cliente não fornecido');
       }
 
-      console.log('📊 Fetching stats for client:', clientId);
-
       const [appointmentsResult, paymentsResult] = await Promise.all([
         supabase
           .from('appointments')
@@ -51,7 +49,6 @@ export const useClientStats = (clientId: string) => {
         return total + (Number(payment.amount) || 0);
       }, 0);
 
-      console.log('✅ Client stats fetched successfully');
       return {
         totalSessions,
         attendedSessions,
@@ -60,8 +57,6 @@ export const useClientStats = (clientId: string) => {
       };
     },
     enabled: !!user?.id && !!clientId && !authLoading,
-    staleTime: 2 * 60 * 1000, // 2 minutos para estatísticas
-    gcTime: 10 * 60 * 1000,
-    retry: 3,
+    retry: 2,
   });
 };

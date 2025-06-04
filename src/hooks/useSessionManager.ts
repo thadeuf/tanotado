@@ -1,7 +1,6 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { SESSION_TIMEOUT, isSessionExpired } from '@/utils/security';
 import { toast } from '@/hooks/use-toast';
 
 export const useSessionManager = () => {
@@ -15,7 +14,6 @@ export const useSessionManager = () => {
       const now = new Date();
       lastActivityRef.current = now;
       localStorage.setItem('lastActivity', now.toISOString());
-      console.log('🔄 Activity updated:', now.toISOString());
     }
   }, [user]);
 
@@ -36,11 +34,8 @@ export const useSessionManager = () => {
       const lastActivity = new Date(lastActivityStr);
       const timeSinceActivity = Date.now() - lastActivity.getTime();
       
-      console.log('🕐 Session check - Time since activity:', timeSinceActivity, 'ms');
-      
-      // Only logout if REALLY expired (more than 2 hours)
-      if (timeSinceActivity > 2 * 60 * 60 * 1000) {
-        console.log('⚠️ Session expired, logging out');
+      // Only logout if REALLY expired (more than 4 hours)
+      if (timeSinceActivity > 4 * 60 * 60 * 1000) {
         toast({
           title: "Sessão expirada",
           description: "Sua sessão expirou por inatividade. Faça login novamente.",
@@ -61,21 +56,21 @@ export const useSessionManager = () => {
     // Update activity on mount
     updateLastActivity();
 
-    // Set up activity listeners with debounce
+    // Set up activity listeners with longer debounce
     let activityTimeout: NodeJS.Timeout;
     const debouncedUpdateActivity = () => {
       clearTimeout(activityTimeout);
-      activityTimeout = setTimeout(updateLastActivity, 1000); // Debounce by 1 second
+      activityTimeout = setTimeout(updateLastActivity, 5000); // Debounce by 5 seconds
     };
 
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    const events = ['mousedown', 'keypress', 'touchstart'];
     
     events.forEach(event => {
       document.addEventListener(event, debouncedUpdateActivity, { passive: true });
     });
 
-    // Check session every 5 minutes instead of every minute
-    checkIntervalRef.current = setInterval(checkSession, 5 * 60 * 1000);
+    // Check session every 15 minutes instead of 5
+    checkIntervalRef.current = setInterval(checkSession, 15 * 60 * 1000);
 
     return () => {
       events.forEach(event => {
