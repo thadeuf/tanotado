@@ -46,8 +46,6 @@ export const useAppointments = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('🔄 Fetching appointments for user:', user?.id);
-      
       const { data, error } = await supabase
         .from('appointments')
         .select(`
@@ -62,7 +60,7 @@ export const useAppointments = () => {
         .order('start_time', { ascending: true });
 
       if (error) {
-        console.error('❌ Error fetching appointments:', error);
+        console.error('Error fetching appointments:', error);
         toast({
           title: "Erro ao carregar agendamentos",
           description: "Não foi possível carregar a lista de agendamentos.",
@@ -71,7 +69,6 @@ export const useAppointments = () => {
         throw error;
       }
 
-      console.log('✅ Appointments fetched:', data?.length || 0, 'appointments');
       return data as Appointment[];
     },
     enabled: !!user?.id && !authLoading,

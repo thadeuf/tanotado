@@ -29,13 +29,8 @@ const EditClient: React.FC = () => {
   const queryClient = useQueryClient();
   const isMultiUser = false;
 
-  console.log('EditClient: Starting component with ID:', id);
-  console.log('EditClient: User ID:', user?.id);
-
-  // Memoize client ID to prevent unnecessary re-renders
   const clientId = useMemo(() => id || '', [id]);
 
-  // Hook para buscar estatísticas do cliente
   const { 
     data: clientStats, 
     isLoading: statsLoading, 
@@ -46,72 +41,34 @@ const EditClient: React.FC = () => {
     queryKey: ['client', clientId, user?.id],
     queryFn: async () => {
       if (!clientId) {
-        console.error('EditClient: No client ID provided');
         throw new Error('ID do cliente não fornecido');
       }
       
       if (!user?.id) {
-        console.error('EditClient: No user ID available');
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('EditClient: Starting client fetch with ID:', clientId, 'for user:', user?.id);
-      
-      try {
-        const { data, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', clientId)
-          .eq('user_id', user?.id)
-          .maybeSingle();
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .eq('user_id', user?.id)
+        .maybeSingle();
 
-        if (error) {
-          console.error('EditClient: Supabase error:', error);
-          throw error;
-        }
-
-        console.log('EditClient: Client fetch completed. Data found:', !!data);
-        
-        if (!data) {
-          console.error('EditClient: Client not found');
-          throw new Error('Cliente não encontrado');
-        }
-
-        console.log('EditClient: Client data fetched successfully:', data.name);
-        return data;
-      } catch (error) {
-        console.error('EditClient: Error in client fetch:', error);
+      if (error) {
         throw error;
       }
+
+      if (!data) {
+        throw new Error('Cliente não encontrado');
+      }
+
+      return data;
     },
     enabled: !!clientId && !!user?.id && !authLoading,
-    retry: (failureCount, error) => {
-      console.log('EditClient: Query retry attempt', failureCount, error);
-      
-      if (error?.message?.includes('não autenticado') || error?.message?.includes('não encontrado')) {
-        return false;
-      }
-      
-      return failureCount < 2;
-    },
-    retryDelay: attemptIndex => {
-      const delay = Math.min(1000 * 2 ** attemptIndex, 3000);
-      console.log('EditClient: Retrying client fetch in', delay, 'ms');
-      return delay;
-    },
+    retry: 2,
+    retryDelay: 1000,
   });
-
-  // Log dos estados da query com useEffect otimizado
-  useEffect(() => {
-    console.log('EditClient: Query states changed:', {
-      isLoading,
-      isSuccess,
-      hasData: !!client,
-      error: error?.message,
-      clientId,
-      userId: user?.id
-    });
-  }, [isLoading, isSuccess, client, error, clientId, user?.id]);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -122,7 +79,6 @@ const EditClient: React.FC = () => {
     },
   });
 
-  // Estado para controlar se a mutation está em andamento
   const [isMutating, setIsMutating] = useState(false);
 
   const updateClientMutation = useMutation({
@@ -130,12 +86,7 @@ const EditClient: React.FC = () => {
       if (!clientId) throw new Error('ID do cliente não fornecido');
       if (!user?.id) throw new Error('Usuário não autenticado');
 
-      console.log('UpdateClient: Starting mutation with data:', data);
-      console.log('UpdateClient: Client ID:', clientId, 'User ID:', user?.id);
-      console.log('UpdateClient: Current mutation state - isMutating:', isMutating);
-
       if (isMutating) {
-        console.warn('UpdateClient: Mutation already in progress, aborting');
         throw new Error('Salvamento já em andamento');
       }
 
@@ -179,34 +130,21 @@ const EditClient: React.FC = () => {
         active_registration: data.activeRegistration,
       };
 
-      console.log('UpdateClient: Prepared client data:', clientData);
+      const { data: result, error } = await supabase
+        .from('clients')
+        .update(clientData)
+        .eq('id', clientId)
+        .eq('user_id', user?.id)
+        .select()
+        .single();
 
-      try {
-        const { data: result, error } = await supabase
-          .from('clients')
-          .update(clientData)
-          .eq('id', clientId)
-          .eq('user_id', user?.id)
-          .select()
-          .single();
-
-        if (error) {
-          console.error('UpdateClient: Supabase error:', error);
-          throw error;
-        }
-
-        console.log('UpdateClient: Success result:', result);
-        return result;
-      } catch (error) {
-        console.error('UpdateClient: Mutation error:', error);
+      if (error) {
         throw error;
       }
+
+      return result;
     },
-    onMutate: () => {
-      console.log('UpdateClient: Mutation starting...');
-    },
-    onSuccess: (data) => {
-      console.log('UpdateClient: Mutation success:', data);
+    onSuccess: () => {
       setIsMutating(false);
       
       toast({
@@ -214,17 +152,14 @@ const EditClient: React.FC = () => {
         description: "Cliente atualizado com sucesso!",
       });
       
-      console.log('UpdateClient: Invalidating queries and navigating...');
       queryClient.invalidateQueries({ queryKey: ['client', clientId] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       
       setTimeout(() => {
-        console.log('UpdateClient: Navigating to /clientes');
         navigate('/clientes');
       }, 100);
     },
     onError: (error: any) => {
-      console.error('UpdateClient: Mutation error:', error);
       setIsMutating(false);
       
       toast({
@@ -234,16 +169,12 @@ const EditClient: React.FC = () => {
       });
     },
     onSettled: () => {
-      console.log('UpdateClient: Mutation settled');
       setIsMutating(false);
     },
   });
 
-  // Memoize form reset para evitar loops
   const resetFormWithClientData = useCallback((clientData: any) => {
     if (!clientData) return;
-    
-    console.log('EditClient: Setting form data from client:', clientData.name);
     
     const formData: ClientFormData = {
       responsibleProfessional: '',
@@ -285,7 +216,6 @@ const EditClient: React.FC = () => {
       activeRegistration: clientData.active_registration,
     };
 
-    console.log('EditClient: Resetting form with data');
     form.reset(formData);
   }, [form]);
 
@@ -295,20 +225,11 @@ const EditClient: React.FC = () => {
     }
   }, [client, isSuccess, resetFormWithClientData]);
 
-  // Memoize handlers para evitar re-renders
   const handleSubmit = useCallback((data: ClientFormData) => {
-    console.log('EditClient: Form submitted with data:', data);
-    console.log('EditClient: Current mutation states:', {
-      isPending: updateClientMutation.isPending,
-      isMutating,
-    });
-    
     if (updateClientMutation.isPending || isMutating) {
-      console.log('EditClient: Mutation already in progress, ignoring submit');
       return;
     }
     
-    console.log('EditClient: Proceeding with mutation');
     updateClientMutation.mutate(data);
   }, [updateClientMutation, isMutating]);
 
@@ -337,11 +258,7 @@ const EditClient: React.FC = () => {
     navigate('/clientes');
   }, [navigate]);
 
-  console.log('EditClient: Current render state - isLoading:', isLoading, 'error:', !!error, 'client:', !!client);
-
-  // Loading state
   if (isLoading || authLoading) {
-    console.log('EditClient: Showing loading state');
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
@@ -364,9 +281,7 @@ const EditClient: React.FC = () => {
     );
   }
 
-  // Error state
   if (error) {
-    console.error('EditClient: Showing error state:', error);
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
@@ -382,9 +297,7 @@ const EditClient: React.FC = () => {
     );
   }
 
-  // No client found state
   if (!client) {
-    console.log('EditClient: Showing client not found state');
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
@@ -399,8 +312,6 @@ const EditClient: React.FC = () => {
       </div>
     );
   }
-
-  console.log('EditClient: Rendering main form for client:', client?.name);
 
   return (
     <div className="space-y-6 animate-fade-in">

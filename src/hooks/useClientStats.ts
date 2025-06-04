@@ -14,8 +14,6 @@ export const useClientStats = (clientId: string) => {
         throw new Error('Usuário não autenticado ou ID do cliente não fornecido');
       }
 
-      console.log('Fetching client stats for:', clientId);
-
       const [appointmentsResult, paymentsResult] = await Promise.all([
         supabase
           .from('appointments')

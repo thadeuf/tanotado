@@ -33,8 +33,6 @@ export const useClients = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('🔄 Fetching clients for user:', user?.id);
-      
       const { data, error } = await supabase
         .from('clients')
         .select('*')
@@ -42,7 +40,7 @@ export const useClients = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ Error fetching clients:', error);
+        console.error('Error fetching clients:', error);
         toast({
           title: "Erro ao carregar clientes",
           description: "Não foi possível carregar a lista de clientes.",
@@ -51,7 +49,6 @@ export const useClients = () => {
         throw error;
       }
 
-      console.log('✅ Clients fetched successfully:', data?.length || 0, 'clients');
       return data as Client[];
     },
     enabled: !!user?.id && !authLoading,
