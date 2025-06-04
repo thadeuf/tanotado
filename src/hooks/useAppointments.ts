@@ -45,6 +45,8 @@ export const useAppointments = () => {
         throw new Error('Usuário não autenticado');
       }
 
+      console.log('Fetching appointments for user:', user.id);
+
       const { data, error } = await supabase
         .from('appointments')
         .select(`
@@ -68,9 +70,10 @@ export const useAppointments = () => {
         throw error;
       }
 
+      console.log('Appointments fetched successfully:', data?.length);
       return data as Appointment[];
     },
     enabled: !!user?.id && !authLoading,
-    retry: 2,
+    // Usa as configurações globais do queryClient
   });
 };

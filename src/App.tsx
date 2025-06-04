@@ -4,34 +4,12 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AuthProvider } from './contexts/AuthContext';
 import SplashScreen from './components/SplashScreen';
 import AppRoutes from './components/AppRoutes';
-
-// Simplified and conservative configuration to prevent conflicts
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes - keep data fresh longer
-      gcTime: 10 * 60 * 1000, // 10 minutes in cache
-      refetchOnWindowFocus: true, // Keep default behavior
-      refetchOnReconnect: true,
-      refetchOnMount: true,
-      retry: 2, // Reduced retries
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-      networkMode: 'online',
-      // Add timeout to prevent hanging queries
-      meta: {
-        timeout: 30000, // 30 seconds
-      },
-    },
-    mutations: {
-      retry: 1, // Reduced retries for mutations
-      networkMode: 'online',
-    },
-  },
-});
+import { queryClient } from './config/queryClient';
 
 const AppContent: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -55,6 +33,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AppContent />
+      {/* React Query Devtools para debug - só aparece em desenvolvimento */}
+      <ReactQueryDevtools initialIsOpen={false} />
     </TooltipProvider>
   </QueryClientProvider>
 );

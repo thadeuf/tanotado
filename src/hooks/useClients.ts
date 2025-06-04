@@ -32,6 +32,8 @@ export const useClients = () => {
         throw new Error('Usuário não autenticado');
       }
 
+      console.log('Fetching clients for user:', user.id);
+
       const { data, error } = await supabase
         .from('clients')
         .select('*')
@@ -48,9 +50,10 @@ export const useClients = () => {
         throw error;
       }
 
+      console.log('Clients fetched successfully:', data?.length);
       return data as Client[];
     },
     enabled: !!user?.id && !authLoading,
-    retry: 2,
+    // Usa as configurações globais do queryClient
   });
 };

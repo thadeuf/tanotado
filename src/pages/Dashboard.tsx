@@ -6,12 +6,15 @@ import DashboardStats from '../components/dashboard/DashboardStats';
 import AppointmentsSection from '../components/dashboard/AppointmentsSection';
 import BirthdaysSection from '../components/dashboard/BirthdaysSection';
 import SubscriptionBanner from '../components/dashboard/SubscriptionBanner';
+import DebugPanel from '../components/DebugPanel';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   
   // Initialize session management
   useSessionManager();
+
+  const isDebugMode = process.env.NODE_ENV === 'development';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -36,6 +39,9 @@ const Dashboard: React.FC = () => {
           <BirthdaysSection />
         </div>
       </div>
+
+      {/* Debug Panel - apenas em desenvolvimento */}
+      {isDebugMode && <DebugPanel />}
     </div>
   );
 };
