@@ -24,7 +24,7 @@ export const queryClient = new QueryClient({
 // Função para debug do estado da rede
 export const checkNetworkStatus = () => {
   console.log('Navigator online:', navigator.onLine);
-  console.log('React Query online manager:', queryClient.getMutationCache().config.networkMode);
+  console.log('React Query default network mode:', queryClient.getDefaultOptions().queries?.networkMode);
 };
 
 // Função para forçar invalidação de todas as queries
