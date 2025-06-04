@@ -8,16 +8,29 @@ export const usePageVisibility = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('🔄 Page became visible, invalidating all queries');
-        // Força refetch de todas as queries quando a página fica visível
-        queryClient.invalidateQueries();
+        console.log('🔄 Page became visible, invalidating stale queries');
+        // Revalida apenas queries que estão stale
+        queryClient.invalidateQueries({ 
+          refetchType: 'active',
+          stale: true 
+        });
       }
     };
 
+    const handleFocus = () => {
+      console.log('🔄 Window focused, checking for stale data');
+      queryClient.invalidateQueries({ 
+        refetchType: 'active',
+        stale: true 
+      });
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [queryClient]);
 };

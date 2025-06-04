@@ -75,7 +75,6 @@ export const useAppointments = () => {
       return data as Appointment[];
     },
     enabled: !!user?.id && !authLoading,
-    networkMode: 'always', // Sempre tentar fazer a requisição
   });
 
   const memoizedData = useMemo(() => query.data || [], [query.data]);

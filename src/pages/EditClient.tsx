@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -84,11 +85,6 @@ const EditClient: React.FC = () => {
       }
     },
     enabled: !!clientId && !!user?.id && !authLoading,
-    staleTime: 0, // Sempre considerar dados como stale para forçar refetch
-    gcTime: 1 * 60 * 1000, // 1 minuto no cache
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    networkMode: 'always', // Sempre tentar fazer requisições
     retry: (failureCount, error) => {
       console.log('EditClient: Query retry attempt', failureCount, error);
       
@@ -96,14 +92,7 @@ const EditClient: React.FC = () => {
         return false;
       }
       
-      // Se a query ficou muito tempo tentando, força um reset
-      if (failureCount > 2) {
-        console.log('EditClient: Muitas tentativas falharam, forçando reset do cache...');
-        queryClient.removeQueries({ queryKey: ['client', clientId] });
-        return false;
-      }
-      
-      return failureCount < 3;
+      return failureCount < 2;
     },
     retryDelay: attemptIndex => {
       const delay = Math.min(1000 * 2 ** attemptIndex, 3000);
@@ -123,24 +112,6 @@ const EditClient: React.FC = () => {
       userId: user?.id
     });
   }, [isLoading, isSuccess, client, error, clientId, user?.id]);
-
-  // Timeout de emergência para detectar queries "presas"
-  useEffect(() => {
-    if (isLoading && clientId && user?.id) {
-      const timeoutId = setTimeout(() => {
-        console.warn('⚠️ EditClient: Query stuck em loading por muito tempo, forçando reset...');
-        queryClient.cancelQueries({ queryKey: ['client', clientId] });
-        queryClient.removeQueries({ queryKey: ['client', clientId] });
-        
-        // Força uma nova query
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-        }, 100);
-      }, 10000); // 10 segundos
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isLoading, clientId, user?.id, queryClient]);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -387,20 +358,6 @@ const EditClient: React.FC = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tanotado-purple mx-auto mb-4"></div>
             <p className="text-muted-foreground">Carregando cliente...</p>
-            <Button 
-              onClick={() => {
-                console.log('🔄 Botão de refresh manual clicado');
-                queryClient.cancelQueries({ queryKey: ['client', clientId] });
-                queryClient.removeQueries({ queryKey: ['client', clientId] });
-                setTimeout(() => {
-                  queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-                }, 100);
-              }}
-              variant="outline"
-              className="mt-4"
-            >
-              Tentar novamente
-            </Button>
           </div>
         </div>
       </div>
@@ -420,18 +377,6 @@ const EditClient: React.FC = () => {
         </div>
         <div className="text-center p-8">
           <p className="text-muted-foreground">Erro ao carregar cliente: {error.message}</p>
-          <Button 
-            onClick={() => {
-              console.log('🔄 Botão de retry clicado após erro');
-              queryClient.removeQueries({ queryKey: ['client', clientId] });
-              setTimeout(() => {
-                queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-              }, 100);
-            }} 
-            className="mt-4"
-          >
-            Tentar novamente
-          </Button>
         </div>
       </div>
     );

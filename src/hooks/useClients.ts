@@ -55,7 +55,6 @@ export const useClients = () => {
       return data as Client[];
     },
     enabled: !!user?.id && !authLoading,
-    networkMode: 'always', // Sempre tentar fazer a requisição
   });
 
   const memoizedData = useMemo(() => query.data || [], [query.data]);
