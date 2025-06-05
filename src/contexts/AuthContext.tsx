@@ -186,10 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
-      }
+      await supabase.auth.signOut();
       setUser(null);
       toast({
         title: "Logout realizado",
@@ -197,11 +194,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } catch (error) {
       console.error('Logout error:', error);
-      toast({
-        title: "Erro no logout",
-        description: "Tente novamente",
-        variant: "destructive",
-      });
     }
   };
 
