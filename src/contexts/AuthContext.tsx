@@ -26,11 +26,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Auth event:', event, session);
         
         if (session?.user) {
-          await loadUserProfile(session);
+          // Usar setTimeout para evitar loop infinito
+          setTimeout(() => {
+            loadUserProfile(session);
+          }, 0);
         } else {
           setUser(null);
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
@@ -48,14 +51,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserProfile = async (session: Session) => {
     try {
+      console.log('Loading profile for user:', session.user.id);
+      
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error loading profile:', error);
+        
+        // Se o perfil não existe, criar um novo
+        if (error.code === 'PGRST116' || !profile) {
+          console.log('Profile not found, creating new profile...');
+          await createNewProfile(session.user);
+          return;
+        }
+        
+        setIsLoading(false);
         return;
       }
 
@@ -76,10 +90,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: new Date(profile.created_at)
         };
         
+        console.log('Profile loaded successfully:', userData);
         setUser(userData);
+      } else {
+        // Se não encontrou o perfil, criar um novo
+        await createNewProfile(session.user);
       }
+      
+      setIsLoading(false);
     } catch (error) {
       console.error('Error loading user profile:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const createNewProfile = async (authUser: any) => {
+    try {
+      console.log('Creating new profile for user:', authUser.id);
+      
+      const newProfile = {
+        id: authUser.id,
+        email: authUser.email,
+        name: authUser.user_metadata?.name || authUser.email.split('@')[0],
+        whatsapp: authUser.user_metadata?.whatsapp || '',
+        cpf: authUser.user_metadata?.cpf || '',
+        role: 'user',
+        has_completed_onboarding: false,
+        client_nomenclature: 'cliente',
+        specialty: '',
+        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        is_subscribed: false,
+        subscription_status: 'trial'
+      };
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .insert([newProfile])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating profile:', error);
+        setIsLoading(false);
+        return;
+      }
+
+      if (profile) {
+        const userData: User = {
+          id: profile.id,
+          email: profile.email,
+          name: profile.name,
+          whatsapp: profile.whatsapp || '',
+          cpf: profile.cpf || '',
+          hasCompletedOnboarding: profile.has_completed_onboarding,
+          clientNomenclature: profile.client_nomenclature || 'cliente',
+          specialty: profile.specialty || '',
+          role: profile.role || 'user',
+          trialEndsAt: new Date(profile.trial_ends_at),
+          isSubscribed: profile.is_subscribed,
+          subscriptionStatus: (profile.subscription_status as 'active' | 'trial' | 'expired' | 'cancelled') || 'trial',
+          createdAt: new Date(profile.created_at)
+        };
+        
+        console.log('New profile created successfully:', userData);
+        setUser(userData);
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error creating new profile:', error);
+      setIsLoading(false);
     }
   };
 
