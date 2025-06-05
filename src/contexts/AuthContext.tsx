@@ -23,6 +23,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedUser) {
       try {
         const userData = JSON.parse(savedUser);
+        // Convert date strings back to Date objects
+        if (userData.trialEndsAt) {
+          userData.trialEndsAt = new Date(userData.trialEndsAt);
+        }
+        if (userData.createdAt) {
+          userData.createdAt = new Date(userData.createdAt);
+        }
         setUser(userData);
       } catch (error) {
         console.error('Error parsing saved user:', error);
