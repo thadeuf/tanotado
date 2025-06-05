@@ -1,153 +1,135 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Calendar, 
   User, 
   FileText, 
   Settings,
-  Shield,
-  DollarSign,
-  LayoutDashboard,
-  LogOut
+  Plus
 } from 'lucide-react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
-  SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 
 const mainMenuItems = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Dashboard', url: '/dashboard', icon: Calendar },
   { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Clientes', url: '/clientes', icon: User },
   { title: 'Prontuários', url: '/prontuarios', icon: FileText },
-  { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
 ];
 
-const adminItem = { title: 'Admin', url: '/admin', icon: Shield };
-const configItem = { title: 'Configurações', url: '/configuracoes', icon: Settings };
+const configItems = [
+  { title: 'Configurações', url: '/configuracoes', icon: Settings },
+];
 
 export function AppSidebar() {
-  const { state, setOpen } = useSidebar();
+  const { state } = useSidebar();
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const [isHovering, setIsHovering] = useState(false);
+  const { user } = useAuth();
   const currentPath = location.pathname;
-  const isCollapsed = state === 'collapsed';
+  const collapsed = state === 'collapsed';
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
-      ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium" 
+      ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium border-r-2 border-tanotado-pink" 
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
-  const handleMenuItemClick = (url: string) => {
-    navigate(url);
-  };
-
-  const handleMouseEnter = () => {
-    setIsHovering(true);
-    setOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovering(false);
-    setOpen(false);
-  };
-
-  // Criar array de itens combinados baseado no papel do usuário
-  const allMenuItems = [
-    ...mainMenuItems,
-    ...(user?.role === 'admin' ? [adminItem] : []),
-    configItem
-  ];
-
   return (
-    <div 
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      className="relative z-50"
-    >
-      <Sidebar className="border-r" collapsible="icon">
-        <SidebarTrigger 
-          className={`m-2 ${isCollapsed ? 'self-center' : 'self-end'}`}
-        />
-        
-        <SidebarContent className={isCollapsed ? 'px-0' : 'px-2'}>
-          {/* Logo */}
-          <div className="py-8 flex justify-center items-center">
-            {!isCollapsed ? (
-              <img 
-                src="/lovable-uploads/e9f368d9-2772-4192-8ba9-cb42acd149c0.png" 
-                alt="tanotado"
-                className="h-24 w-auto"
-              />
-            ) : (
-              <img 
-                src="/lovable-uploads/e257a8ed-f41d-4910-acd6-6c1ef051df1d.png" 
-                alt="tanotado"
-                className="w-8 h-8"
-              />
-            )}
+    <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible="icon">
+      <SidebarTrigger className="m-2 self-end" />
+      
+      <SidebarContent className="px-2">
+        {/* Logo */}
+        <div className="px-4 py-6 border-b">
+          {!collapsed ? (
+            <h1 className="tanotado-logo text-2xl">tanotado</h1>
+          ) : (
+            <div className="w-8 h-8 gradient-bg rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">T</span>
+            </div>
+          )}
+        </div>
+
+        {/* Menu Principal */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-tanotado-navy font-semibold">
+            {!collapsed && "Menu Principal"}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {mainMenuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className="h-12">
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      {!collapsed && <span className="ml-3">{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Botão Novo Agendamento */}
+        <div className="px-2 my-4">
+          <NavLink 
+            to="/agenda/novo"
+            className="flex items-center justify-center h-12 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105"
+          >
+            <Plus className="h-5 w-5" />
+            {!collapsed && <span className="ml-2 font-medium">Novo Agendamento</span>}
+          </NavLink>
+        </div>
+
+        {/* Configurações */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {configItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className="h-12">
+                    <NavLink to={item.url} className={getNavCls}>
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      {!collapsed && <span className="ml-3">{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Status da Assinatura */}
+        {!collapsed && user && (
+          <div className="mt-auto p-4 border-t">
+            <div className="text-xs text-muted-foreground mb-2">Status da Conta</div>
+            <div className={`px-3 py-2 rounded-lg text-xs font-medium ${
+              user.subscriptionStatus === 'trial' 
+                ? 'bg-tanotado-yellow/20 text-tanotado-navy' 
+                : user.subscriptionStatus === 'active'
+                ? 'bg-tanotado-green/20 text-tanotado-green'
+                : 'bg-red-100 text-red-700'
+            }`}>
+              {user.subscriptionStatus === 'trial' && 'Teste Gratuito'}
+              {user.subscriptionStatus === 'active' && 'Assinante Ativo'}
+              {user.subscriptionStatus === 'expired' && 'Assinatura Expirada'}
+            </div>
           </div>
-
-          {/* Menu Principal */}
-          <SidebarGroup className="mt-4">
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {allMenuItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
-                      className={`h-12 w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'}`}
-                    >
-                      <button
-                        onClick={() => handleMenuItemClick(item.url)}
-                        className={`${getNavCls({ isActive: isActive(item.url) })} w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'} cursor-pointer`}
-                      >
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
-                        {!isCollapsed && <span className="ml-3">{item.title}</span>}
-                      </button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-
-        {/* Footer com botão de logout */}
-        <SidebarFooter className={isCollapsed ? 'p-0' : 'p-2'}>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton 
-                asChild 
-                className={`h-12 w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'}`}
-              >
-                <Button 
-                  variant="ghost" 
-                  onClick={logout}
-                  className={`w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 ${isCollapsed ? 'justify-center' : 'justify-start'}`}
-                >
-                  <LogOut className="h-5 w-5 flex-shrink-0" />
-                  {!isCollapsed && <span className="ml-3">Sair</span>}
-                </Button>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-      </Sidebar>
-    </div>
+        )}
+      </SidebarContent>
+    </Sidebar>
   );
 }

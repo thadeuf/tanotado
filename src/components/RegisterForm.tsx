@@ -1,15 +1,12 @@
 
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Separator } from './ui/separator';
-import { Loader2 } from 'lucide-react';
-import { validatePasswordStrength, validateEmail, validateCPF, validatePhone, sanitizeText } from '@/utils/security';
-import PasswordStrength from './ui/password-strength';
+import { Link } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -18,205 +15,187 @@ const RegisterForm: React.FC = () => {
     password: '',
     confirmPassword: '',
     whatsapp: '',
-    cpf: '',
+    cpf: ''
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const { register } = useAuth();
-  const navigate = useNavigate();
+  const { register, isLoading } = useAuth();
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Name validation
-    if (!formData.name.trim()) {
-      newErrors.name = 'Nome é obrigatório';
-    }
-
-    // Email validation
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email é obrigatório';
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Email inválido';
-    }
-
-    // Password validation
-    const passwordValidation = validatePasswordStrength(formData.password);
-    if (!passwordValidation.isValid) {
-      newErrors.password = 'Senha não atende aos requisitos de segurança';
-    }
-
-    // Confirm password validation
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Senhas não coincidem';
-    }
-
-    // WhatsApp validation
-    if (!formData.whatsapp.trim()) {
-      newErrors.whatsapp = 'WhatsApp é obrigatório';
-    } else if (!validatePhone(formData.whatsapp)) {
-      newErrors.whatsapp = 'Número de WhatsApp inválido';
-    }
-
-    // CPF validation
-    if (!formData.cpf.trim()) {
-      newErrors.cpf = 'CPF é obrigatório';
-    } else if (!validateCPF(formData.cpf)) {
-      newErrors.cpf = 'CPF inválido';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    // Sanitize input
-    const sanitizedValue = sanitizeText(value);
-    
-    setFormData(prev => ({
-      ...prev,
-      [field]: sanitizedValue
-    }));
+  const validateCPF = (cpf: string) => {
+    // Remove pontos e traços
+    const cleanCPF = cpf.replace(/[^\d]/g, '');
+    return cleanCPF.length === 11;
+  };
 
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
-    }
+  const validateWhatsApp = (whatsapp: string) => {
+    // Validação básica de WhatsApp brasileiro
+    const cleanPhone = whatsapp.replace(/[^\d]/g, '');
+    return cleanPhone.length >= 10 && cleanPhone.length <= 11;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
+
+    // Validações
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Erro",
+        description: "As senhas não coincidem",
+        variant: "destructive",
+      });
       return;
     }
 
-    setIsLoading(true);
+    if (!formData.name.includes(' ')) {
+      toast({
+        title: "Erro",
+        description: "Por favor, insira seu nome completo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateCPF(formData.cpf)) {
+      toast({
+        title: "Erro",
+        description: "CPF inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateWhatsApp(formData.whatsapp)) {
+      toast({
+        title: "Erro",
+        description: "WhatsApp inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await register({
-        name: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
+        name: formData.name,
+        email: formData.email,
         password: formData.password,
-        whatsapp: formData.whatsapp.replace(/\D/g, ''),
-        cpf: formData.cpf.replace(/\D/g, ''),
+        whatsapp: formData.whatsapp,
+        cpf: formData.cpf
       });
-      navigate('/dashboard');
     } catch (error) {
-      // Error handling is done in the register function
-    } finally {
-      setIsLoading(false);
+      console.error('Register error:', error);
     }
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">Criar conta</CardTitle>
-        <CardDescription className="text-center">
-          Preencha os dados abaixo para criar sua conta
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <Card className="border-0 shadow-lg">
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-4 pt-6">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome completo</Label>
+            <Label htmlFor="name">Nome Completo</Label>
             <Input
               id="name"
+              name="name"
               type="text"
+              placeholder="João Silva"
               value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              className={errors.name ? 'border-red-500' : ''}
-              maxLength={100}
+              onChange={handleChange}
+              required
+              className="h-11"
             />
-            {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
+              placeholder="seu@email.com"
               value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              className={errors.email ? 'border-red-500' : ''}
-              maxLength={255}
+              onChange={handleChange}
+              required
+              className="h-11"
             />
-            {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
           </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp">WhatsApp</Label>
+              <Input
+                id="whatsapp"
+                name="whatsapp"
+                type="tel"
+                placeholder="(11) 99999-9999"
+                value={formData.whatsapp}
+                onChange={handleChange}
+                required
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                name="cpf"
+                type="text"
+                placeholder="000.000.000-00"
+                value={formData.cpf}
+                onChange={handleChange}
+                required
+                className="h-11"
+              />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>
             <Input
               id="password"
+              name="password"
               type="password"
+              placeholder="••••••••"
               value={formData.password}
-              onChange={(e) => handleInputChange('password', e.target.value)}
-              className={errors.password ? 'border-red-500' : ''}
-              maxLength={128}
+              onChange={handleChange}
+              required
+              className="h-11"
             />
-            <PasswordStrength password={formData.password} />
-            {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar senha</Label>
+            <Label htmlFor="confirmPassword">Confirmar Senha</Label>
             <Input
               id="confirmPassword"
+              name="confirmPassword"
               type="password"
+              placeholder="••••••••"
               value={formData.confirmPassword}
-              onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-              className={errors.confirmPassword ? 'border-red-500' : ''}
-              maxLength={128}
+              onChange={handleChange}
+              required
+              className="h-11"
             />
-            {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="whatsapp">WhatsApp</Label>
-            <Input
-              id="whatsapp"
-              type="tel"
-              value={formData.whatsapp}
-              onChange={(e) => handleInputChange('whatsapp', e.target.value)}
-              placeholder="(11) 99999-9999"
-              className={errors.whatsapp ? 'border-red-500' : ''}
-              maxLength={15}
-            />
-            {errors.whatsapp && <p className="text-sm text-red-500">{errors.whatsapp}</p>}
+          <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
+            <p className="font-medium text-tanotado-navy mb-1">🎉 Teste Gratuito de 7 dias!</p>
+            <p>Sem compromisso. Cancele quando quiser.</p>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="cpf">CPF</Label>
-            <Input
-              id="cpf"
-              type="text"
-              value={formData.cpf}
-              onChange={(e) => handleInputChange('cpf', e.target.value)}
-              placeholder="000.000.000-00"
-              className={errors.cpf ? 'border-red-500' : ''}
-              maxLength={14}
-            />
-            {errors.cpf && <p className="text-sm text-red-500">{errors.cpf}</p>}
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Criar conta
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-4">
+          <Button 
+            type="submit" 
+            className="w-full h-11 bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Criando conta...' : 'Começar Teste Gratuito'}
           </Button>
-        </form>
-
-        <Separator className="my-4" />
-
-        <div className="text-center text-sm">
-          Já tem uma conta?{' '}
-          <Link to="/login" className="text-primary hover:underline">
-            Fazer login
-          </Link>
-        </div>
-      </CardContent>
+          <p className="text-sm text-center text-muted-foreground">
+            Já tem uma conta?{' '}
+            <Link to="/login" className="text-tanotado-pink font-medium hover:underline">
+              Faça login
+            </Link>
+          </p>
+        </CardFooter>
+      </form>
     </Card>
   );
 };

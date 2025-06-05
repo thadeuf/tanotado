@@ -8,7 +8,6 @@ export interface User {
   hasCompletedOnboarding: boolean;
   clientNomenclature: string;
   specialty: string;
-  role: 'admin' | 'user';
   trialEndsAt: Date;
   isSubscribed: boolean;
   subscriptionStatus: 'active' | 'trial' | 'expired' | 'cancelled';
@@ -19,7 +18,7 @@ export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
   register: (userData: RegisterData) => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
 }
