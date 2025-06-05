@@ -129,8 +129,8 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <Routes>
           {/* Rotas públicas */}
           <Route path="/login" element={
@@ -185,8 +185,8 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 };
 
