@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, User, RegisterData } from '../types/auth';
 import { toast } from '@/hooks/use-toast';
@@ -114,7 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: authUser.user_metadata?.name || authUser.email.split('@')[0],
         whatsapp: authUser.user_metadata?.whatsapp || '',
         cpf: authUser.user_metadata?.cpf || '',
-        role: 'user',
+        role: 'user' as const,
         has_completed_onboarding: false,
         client_nomenclature: 'cliente',
         specialty: '',
@@ -125,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { data: profile, error } = await supabase
         .from('profiles')
-        .insert([newProfile])
+        .insert(newProfile)
         .select()
         .single();
 
