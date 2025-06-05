@@ -1,11 +1,13 @@
-
 import React from 'react';
 import { 
   Calendar, 
   User, 
   FileText, 
   Settings,
-  Plus
+  Shield,
+  DollarSign,
+  LayoutDashboard,
+  LogOut
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -18,15 +20,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
+  SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 const mainMenuItems = [
-  { title: 'Dashboard', url: '/dashboard', icon: Calendar },
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Clientes', url: '/clientes', icon: User },
   { title: 'Prontuários', url: '/prontuarios', icon: FileText },
+  { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
 ];
 
 const configItems = [
@@ -36,25 +41,37 @@ const configItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === 'collapsed';
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
-      ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium border-r-2 border-tanotado-pink" 
+      ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium" 
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible="icon">
+    <Sidebar className="border-r" collapsible="icon">
       <SidebarTrigger className="m-2 self-end" />
       
       <SidebarContent className="px-2">
         {/* Logo */}
         <div className="px-4 py-6 border-b">
           {!collapsed ? (
-            <h1 className="tanotado-logo text-2xl">tanotado</h1>
+            <img 
+              src="/lovable-uploads/a142e49f-c405-4af5-96d0-7ae0ebbb6627.png" 
+              alt="tanotado"
+              className="h-12 w-auto"
+            />
           ) : (
             <div className="w-8 h-8 gradient-bg rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-sm">T</span>
@@ -83,16 +100,26 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Botão Novo Agendamento */}
-        <div className="px-2 my-4">
-          <NavLink 
-            to="/agenda/novo"
-            className="flex items-center justify-center h-12 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105"
-          >
-            <Plus className="h-5 w-5" />
-            {!collapsed && <span className="ml-2 font-medium">Novo Agendamento</span>}
-          </NavLink>
-        </div>
+        {/* Menu Admin - Só aparece para admins */}
+        {user?.role === 'admin' && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-tanotado-navy font-semibold">
+              {!collapsed && "Administração"}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="h-12">
+                    <NavLink to="/admin" className={getNavCls}>
+                      <Shield className="h-5 w-5 flex-shrink-0" />
+                      {!collapsed && <span className="ml-3">Dashboard Admin</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Configurações */}
         <SidebarGroup>
@@ -111,25 +138,25 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Status da Assinatura */}
-        {!collapsed && user && (
-          <div className="mt-auto p-4 border-t">
-            <div className="text-xs text-muted-foreground mb-2">Status da Conta</div>
-            <div className={`px-3 py-2 rounded-lg text-xs font-medium ${
-              user.subscriptionStatus === 'trial' 
-                ? 'bg-tanotado-yellow/20 text-tanotado-navy' 
-                : user.subscriptionStatus === 'active'
-                ? 'bg-tanotado-green/20 text-tanotado-green'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              {user.subscriptionStatus === 'trial' && 'Teste Gratuito'}
-              {user.subscriptionStatus === 'active' && 'Assinante Ativo'}
-              {user.subscriptionStatus === 'expired' && 'Assinatura Expirada'}
-            </div>
-          </div>
-        )}
       </SidebarContent>
+
+      {/* Footer com botão de logout */}
+      <SidebarFooter className="p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild className="h-12">
+              <Button 
+                variant="ghost" 
+                onClick={handleLogout}
+                className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              >
+                <LogOut className="h-5 w-5 flex-shrink-0" />
+                {!collapsed && <span className="ml-3">Sair</span>}
+              </Button>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

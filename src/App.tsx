@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,9 +10,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import SplashScreen from './components/SplashScreen';
 import OnboardingFlow from './components/OnboardingFlow';
 import { AppSidebar } from './components/AppSidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Plus } from 'lucide-react';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import Clients from './pages/Clients';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -41,22 +45,61 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-50/50">
         <AppSidebar />
-        <main className="flex-1 overflow-hidden">
-          <header className="h-16 border-b bg-white flex items-center px-6">
-            <SidebarTrigger className="lg:hidden" />
-            <div className="ml-auto flex items-center space-x-4">
-              <div className="text-sm text-muted-foreground">
-                {user.name}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <header className="h-16 border-b bg-white flex items-center justify-between px-6 flex-shrink-0">
+            <div className="flex items-center space-x-4">
+              <SidebarTrigger className="lg:hidden" />
+              
+              {/* Botão Novo Agendamento */}
+              <NavLink 
+                to="/agenda/novo"
+                className="flex items-center justify-center h-10 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 px-4"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="ml-2 font-medium">Novo Agendamento</span>
+              </NavLink>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {/* Informações do usuário com foto */}
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src="" alt={user.name} />
+                  <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
+                    {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <div className="text-sm font-medium text-foreground">
+                    {user.name}
+                  </div>
+                  {user.role === 'admin' && (
+                    <div className="text-xs text-tanotado-purple">
+                      👑 Administrador
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </header>
-          <div className="p-6 overflow-auto h-[calc(100vh-4rem)]">
+          <main className="flex-1 p-6 overflow-auto">
             {children}
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );
+};
+
+// Componente para rotas de admin
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 // Componente para rotas públicas (já logado redireciona)
@@ -107,6 +150,16 @@ const AppContent: React.FC = () => {
               <Dashboard />
             </ProtectedRoute>
           } />
+          
+          {/* Rota do Admin */}
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/agenda" element={
             <ProtectedRoute>
               <div>Agenda (Em desenvolvimento)</div>
@@ -114,7 +167,7 @@ const AppContent: React.FC = () => {
           } />
           <Route path="/clientes" element={
             <ProtectedRoute>
-              <div>Clientes (Em desenvolvimento)</div>
+              <Clients />
             </ProtectedRoute>
           } />
           <Route path="/prontuarios" element={
