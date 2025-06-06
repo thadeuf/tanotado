@@ -7,7 +7,8 @@ import {
   Settings,
   Shield,
   DollarSign,
-  LayoutDashboard
+  LayoutDashboard,
+  LogOut
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -26,7 +27,7 @@ import { useAuth } from '../contexts/AuthContext';
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === 'collapsed';
 
@@ -47,33 +48,39 @@ export function AppSidebar() {
       ? "bg-gradient-to-r from-tanotado-pink/20 to-tanotado-purple/20 text-tanotado-navy font-medium" 
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
+  const handleLogout = () => {
+    logout();
+  };
+
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-56"} collapsible="icon">
-      <SidebarContent className="px-2">
+    <Sidebar className="border-r" collapsible="icon">
+      <SidebarContent className="px-0">
         {/* Logo */}
         <div className="px-4 py-6 border-b flex justify-center">
           {!collapsed ? (
             <img 
               src="/lovable-uploads/4a78275e-0af1-4fd5-ae15-9d988197bca6.png" 
               alt="tanotado"
-              className="h-12 w-auto"
+              className="h-8 w-auto"
             />
           ) : (
-            <img 
-              src="/lovable-uploads/4a78275e-0af1-4fd5-ae15-9d988197bca6.png" 
-              alt="tanotado"
-              className="h-8 w-8 object-contain"
-            />
+            <div className="w-8 h-8 flex items-center justify-center">
+              <img 
+                src="/lovable-uploads/4a78275e-0af1-4fd5-ae15-9d988197bca6.png" 
+                alt="tanotado"
+                className="h-6 w-6 object-contain"
+              />
+            </div>
           )}
         </div>
 
-        {/* Menu Único */}
-        <SidebarGroup className="mt-4">
+        {/* Menu Items */}
+        <SidebarGroup className="flex-1">
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="px-2">
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className={`h-12 ${collapsed ? 'justify-center px-0' : ''}`}>
+                  <SidebarMenuButton asChild className={`h-12 ${collapsed ? 'justify-center px-3' : 'px-4'}`}>
                     <NavLink to={item.url} className={getNavCls}>
                       <item.icon className={`h-5 w-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
                       {!collapsed && <span>{item.title}</span>}
@@ -81,6 +88,17 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              
+              {/* Logout Button */}
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={handleLogout}
+                  className={`h-12 hover:bg-destructive/10 hover:text-destructive ${collapsed ? 'justify-center px-3' : 'px-4'}`}
+                >
+                  <LogOut className={`h-5 w-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
+                  {!collapsed && <span>Sair</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
