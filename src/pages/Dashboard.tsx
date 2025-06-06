@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Calendar, Users, Clock, UserX, FileText, Video, MapPin, AlertCircle, CheckCircle, Play } from 'lucide-react';
+import { Calendar, Users, Clock, UserX, FileText, Video, MapPin, AlertCircle, CheckCircle, Play, Cake } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard: React.FC = () => {
@@ -102,10 +103,30 @@ const Dashboard: React.FC = () => {
     },
   ];
 
+  // Aniversariantes do dia
+  const birthdaysToday = [
+    {
+      name: 'Maria Silva',
+      age: 28,
+      phone: '(11) 99999-1234',
+      nextAppointment: 'Amanhã 14:00'
+    },
+    {
+      name: 'João Santos',
+      age: 35,
+      phone: '(11) 98888-5678',
+      nextAppointment: 'Hoje 15:30'
+    },
+    {
+      name: 'Ana Costa',
+      age: 42,
+      phone: '(11) 97777-9012',
+      nextAppointment: 'Segunda 10:00'
+    }
+  ];
+
   const handleStartVideoCall = (patientName: string) => {
-    // Aqui você pode integrar com sua plataforma de videochamada preferida
     console.log(`Iniciando videochamada com ${patientName}`);
-    // Exemplo: window.open('https://meet.google.com/nova-sala', '_blank');
   };
 
   const renderAppointment = (appointment: any, index: number) => (
@@ -232,30 +253,48 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Ações Rápidas */}
+        {/* Aniversariantes do Dia */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-tanotado-navy">Ações Rápidas</CardTitle>
+            <CardTitle className="text-tanotado-navy flex items-center gap-2">
+              <Cake className="h-5 w-5 text-tanotado-pink" />
+              Aniversariantes de Hoje
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <button className="p-4 rounded-lg border-2 border-dashed border-tanotado-pink/30 hover:border-tanotado-pink hover:bg-tanotado-pink/5 transition-all text-center">
-                <Calendar className="h-8 w-8 text-tanotado-pink mx-auto mb-2" />
-                <span className="text-sm font-medium text-tanotado-pink">Novo Agendamento</span>
-              </button>
-              <button className="p-4 rounded-lg border-2 border-dashed border-tanotado-blue/30 hover:border-tanotado-blue hover:bg-tanotado-blue/5 transition-all text-center">
-                <Users className="h-8 w-8 text-tanotado-blue mx-auto mb-2" />
-                <span className="text-sm font-medium text-tanotado-blue">Novo {user?.clientNomenclature || 'Cliente'}</span>
-              </button>
-              <button className="p-4 rounded-lg border-2 border-dashed border-tanotado-green/30 hover:border-tanotado-green hover:bg-tanotado-green/5 transition-all text-center">
-                <FileText className="h-8 w-8 text-tanotado-green mx-auto mb-2" />
-                <span className="text-sm font-medium text-tanotado-green">Novo Prontuário</span>
-              </button>
-              <button className="p-4 rounded-lg border-2 border-dashed border-tanotado-purple/30 hover:border-tanotado-purple hover:bg-tanotado-purple/5 transition-all text-center">
-                <Clock className="h-8 w-8 text-tanotado-purple mx-auto mb-2" />
-                <span className="text-sm font-medium text-tanotado-purple">Relatórios</span>
-              </button>
-            </div>
+            {birthdaysToday.length > 0 ? (
+              <div className="space-y-4">
+                {birthdaysToday.map((person, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-gradient-to-r from-tanotado-pink/10 to-tanotado-purple/10">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-tanotado-pink to-tanotado-purple rounded-full flex items-center justify-center">
+                        <Cake className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-tanotado-navy">{person.name}</p>
+                        <p className="text-sm text-muted-foreground">{person.age} anos</p>
+                        <p className="text-xs text-muted-foreground">{person.phone}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Próxima consulta</p>
+                      <p className="text-sm font-medium text-tanotado-navy">{person.nextAppointment}</p>
+                      <Button
+                        size="sm"
+                        className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg text-white mt-1 h-6 px-2 text-xs"
+                      >
+                        Parabenizar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Cake className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground">Nenhum aniversário hoje</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
