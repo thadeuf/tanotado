@@ -1,19 +1,46 @@
 
 -- ============================================================================
--- TANOTADO - DATABASE MIGRATION SCRIPT
--- Este script recria todo o banco de dados do sistema Tanotado
+-- TANOTADO - DATABASE MIGRATION SCRIPT (CLEAN REBUILD)
+-- Este script limpa completamente e recria todo o banco de dados do sistema Tanotado
 -- ============================================================================
 
--- 1. CRIAR EXTENSÕES NECESSÁRIAS
+-- 1. REMOVER TODAS AS TABELAS E DEPENDÊNCIAS EXISTENTES
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS update_updated_at_column();
+
+-- Remover triggers
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
+DROP TRIGGER IF EXISTS update_clients_updated_at ON clients;
+DROP TRIGGER IF EXISTS update_appointments_updated_at ON appointments;
+DROP TRIGGER IF EXISTS update_medical_records_updated_at ON medical_records;
+DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
+DROP TRIGGER IF EXISTS update_user_settings_updated_at ON user_settings;
+
+-- Remover tabelas (em ordem para evitar problemas de foreign key)
+DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS medical_records CASCADE;
+DROP TABLE IF EXISTS appointments CASCADE;
+DROP TABLE IF EXISTS user_settings CASCADE;
+DROP TABLE IF EXISTS clients CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+
+-- Remover tipos existentes
+DROP TYPE IF EXISTS recurrence_type CASCADE;
+DROP TYPE IF EXISTS payment_status CASCADE;
+DROP TYPE IF EXISTS appointment_status CASCADE;
+DROP TYPE IF EXISTS user_role CASCADE;
+
+-- 2. CRIAR EXTENSÕES NECESSÁRIAS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. CRIAR ENUMS
+-- 3. CRIAR ENUMS
 CREATE TYPE user_role AS ENUM ('admin', 'user');
 CREATE TYPE appointment_status AS ENUM ('scheduled', 'confirmed', 'completed', 'cancelled', 'no_show');
 CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'overdue', 'cancelled');
 CREATE TYPE recurrence_type AS ENUM ('none', 'daily', 'weekly', 'monthly');
 
--- 3. CRIAR TABELAS
+-- 4. CRIAR TABELAS
 
 -- Tabela de perfis de usuários
 CREATE TABLE profiles (
@@ -109,7 +136,7 @@ CREATE TABLE user_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. CRIAR ÍNDICES PARA MELHOR PERFORMANCE
+-- 5. CRIAR ÍNDICES PARA MELHOR PERFORMANCE
 CREATE INDEX idx_clients_user_id ON clients(user_id);
 CREATE INDEX idx_appointments_user_id ON appointments(user_id);
 CREATE INDEX idx_appointments_client_id ON appointments(client_id);
@@ -120,7 +147,7 @@ CREATE INDEX idx_payments_user_id ON payments(user_id);
 CREATE INDEX idx_payments_client_id ON payments(client_id);
 CREATE INDEX idx_user_settings_user_id ON user_settings(user_id);
 
--- 5. HABILITAR RLS (ROW LEVEL SECURITY)
+-- 6. HABILITAR RLS (ROW LEVEL SECURITY)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
@@ -128,7 +155,7 @@ ALTER TABLE medical_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
--- 6. CRIAR POLÍTICAS RLS
+-- 7. CRIAR POLÍTICAS RLS
 
 -- Políticas para profiles
 CREATE POLICY "Users can view own profile" ON profiles
@@ -205,7 +232,7 @@ CREATE POLICY "Users can update own settings" ON user_settings
 CREATE POLICY "Users can delete own settings" ON user_settings
     FOR DELETE USING (auth.uid() = user_id);
 
--- 7. CRIAR FUNÇÕES E TRIGGERS
+-- 8. CRIAR FUNÇÕES E TRIGGERS
 
 -- Função para atualizar updated_at automaticamente
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -257,13 +284,16 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================================================
--- FIM DO SCRIPT
+-- REBUILD CONCLUÍDO
 -- ============================================================================
 
--- Para executar este script:
--- 1. Copie todo o conteúdo deste arquivo
--- 2. Cole no SQL Editor do seu projeto Supabase
--- 3. Execute o script
+-- Este script:
+-- 1. Remove completamente todas as estruturas existentes
+-- 2. Recria todas as tabelas, políticas RLS, índices e triggers
+-- 3. Configura o sistema para funcionamento completo
 -- 
--- Este script irá recriar completamente a estrutura do banco de dados
--- incluindo todas as tabelas, políticas RLS, índices e triggers necessários.
+-- Para executar:
+-- 1. Cole este script no SQL Editor do Supabase
+-- 2. Execute o script completo
+-- 3. O banco será completamente recriado e funcional
+
