@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -7,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import SplashScreen from './components/SplashScreen';
+import SplashScreen from './components/SplashScreen'; // <-- Lembre-se de usar o SplashScreen com a imagem
 import OnboardingFlow from './components/OnboardingFlow';
 import { AppSidebar } from './components/AppSidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,10 +17,14 @@ import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Clients from './pages/Clients';
 import NotFound from './pages/NotFound';
+import 'react-datepicker/dist/react-datepicker.css';
+import EditClient from './pages/EditClient'; 
+import Agenda from './pages/Agenda';
+
 
 const queryClient = new QueryClient();
 
-// Componente para rotas protegidas
+// Componente para rotas protegidas (sem alterações)
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
@@ -91,7 +94,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   );
 };
 
-// Componente para rotas de admin
+// Componente para rotas de admin (sem alterações)
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
 
@@ -102,7 +105,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// Componente para rotas públicas (já logado redireciona)
+// Componente para rotas públicas (sem alterações)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
@@ -121,65 +124,44 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// ==================================================================
+// INÍCIO DAS MUDANÇAS
+// ==================================================================
 const AppContent: React.FC = () => {
-  const [showSplash, setShowSplash] = useState(true);
+  // MUDANÇA 1: O estado inicial agora depende do sessionStorage.
+  const [isSplashActive, setIsSplashActive] = useState(!sessionStorage.getItem('splashScreenShown'));
 
-  if (showSplash) {
-    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  // MUDANÇA 2: Criada uma função para ser chamada no final do splash.
+  const handleSplashComplete = () => {
+    sessionStorage.setItem('splashScreenShown', 'true'); // Grava a flag
+    setIsSplashActive(false); // Atualiza o estado para remover o splash
+  };
+
+  // MUDANÇA 3: A condição usa o novo estado e a nova função.
+  if (isSplashActive) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
   }
 
+  // O código abaixo só é renderizado APÓS o splash (se ele for exibido).
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
           {/* Rotas públicas */}
-          <Route path="/login" element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          } />
-          <Route path="/register" element={
-            <PublicRoute>
-              <Register />
-            </PublicRoute>
-          } />
+          <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />
+          <Route path="/register" element={ <PublicRoute> <Register /> </PublicRoute> } />
 
           {/* Rotas protegidas */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
+          <Route path="/dashboard" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
+          <Route path="/admin" element={ <ProtectedRoute> <AdminRoute> <AdminDashboard /> </AdminRoute> </ProtectedRoute> } />
+          <Route path="/clientes" element={ <ProtectedRoute> <Clients /> </ProtectedRoute> } />
+          <Route path="/clientes/editar/:clientId" element={ <ProtectedRoute> <EditClient /> </ProtectedRoute> } />
           
-          {/* Rota do Admin */}
-          <Route path="/admin" element={
-            <ProtectedRoute>
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/agenda" element={
-            <ProtectedRoute>
-              <div>Agenda (Em desenvolvimento)</div>
-            </ProtectedRoute>
-          } />
-          <Route path="/clientes" element={
-            <ProtectedRoute>
-              <div>Clientes (Em desenvolvimento)</div>
-            </ProtectedRoute>
-          } />
-          <Route path="/prontuarios" element={
-            <ProtectedRoute>
-              <div>Prontuários (Em desenvolvimento)</div>
-            </ProtectedRoute>
-          } />
-          <Route path="/configuracoes" element={
-            <ProtectedRoute>
-              <div>Configurações (Em desenvolvimento)</div>
-            </ProtectedRoute>
-          } />
+          {/* Rotas em desenvolvimento */}
+          <Route path="/agenda" element={ <ProtectedRoute> <Agenda /> </ProtectedRoute> } />
+          <Route path="/agenda/novo" element={ <ProtectedRoute> <div>Novo Agendamento (Em desenvolvimento)</div> </ProtectedRoute> } />
+          <Route path="/prontuarios" element={ <ProtectedRoute> <div>Prontuários (Em desenvolvimento)</div> </ProtectedRoute> } />
+          <Route path="/configuracoes" element={ <ProtectedRoute> <div>Configurações (Em desenvolvimento)</div> </ProtectedRoute> } />
 
           {/* Redirecionamentos */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -189,6 +171,9 @@ const AppContent: React.FC = () => {
     </AuthProvider>
   );
 };
+// ==================================================================
+// FIM DAS MUDANÇAS
+// ==================================================================
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

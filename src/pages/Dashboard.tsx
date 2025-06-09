@@ -109,19 +109,16 @@ const Dashboard: React.FC = () => {
       name: 'Maria Silva',
       age: 28,
       phone: '(11) 99999-1234',
-      nextAppointment: 'Amanhã 14:00'
     },
     {
       name: 'João Santos',
       age: 35,
       phone: '(11) 98888-5678',
-      nextAppointment: 'Hoje 15:30'
     },
     {
       name: 'Ana Costa',
       age: 42,
       phone: '(11) 97777-9012',
-      nextAppointment: 'Segunda 10:00'
     }
   ];
 
@@ -277,7 +274,6 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Próxima consulta</p>
                       <p className="text-sm font-medium text-tanotado-navy">{person.nextAppointment}</p>
                       <Button
                         size="sm"
