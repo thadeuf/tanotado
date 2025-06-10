@@ -12,15 +12,15 @@ import {
   Edit,
   Trash2,
   Loader2,
-  Video
+  Video,
+  Repeat,
+  Briefcase
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -34,26 +34,23 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // <<<< CORREÇÃO APLICADA AQUI
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, addDays, startOfWeek, isSameDay, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DateSelector from '@/components/agenda/DateSelector';
 import AppointmentForm from '@/components/agenda/AppointmentForm';
-import { useAppointments } from '@/hooks/useAppointments';
+import { useAppointments, Appointment } from '@/hooks/useAppointments';
 import { useClients } from '@/hooks/useClients';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-// Importações para a nova visão mensal (react-big-calendar)
 import { Calendar as BigCalendar, Views } from 'react-big-calendar';
 import { localizer } from '@/lib/calendarLocalizer';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './Agenda.css';
 
-// Componente para personalizar a aparência do evento na visão mensal
 const CustomEvent = ({ event }: { event: any }) => (
   <div className="rbc-event-content text-white text-xs p-1 h-full truncate">
     <strong>{format(event.start, 'HH:mm')}</strong> {event.title}
@@ -64,32 +61,60 @@ const Agenda: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
-
-  // Estados para o formulário de agendamento
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [formStartDate, setFormStartDate] = useState<Date | null>(null);
   const [formStartTime, setFormStartTime] = useState<string>('');
+  
+  // ==================================================================
+  // INÍCIO DAS MUDANÇAS
+  // ==================================================================
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
 
   const { data: appointments = [], isLoading } = useAppointments();
   const { data: clients = [] } = useClients();
   const queryClient = useQueryClient();
 
   const deleteAppointmentMutation = useMutation({
-    mutationFn: async (appointmentId: string) => {
-      const { error } = await supabase.from('appointments').delete().eq('id', appointmentId);
-      if (error) throw error;
+    mutationFn: async ({ id, scope, recurrence_group_id }: { id: string; scope: 'one' | 'all'; recurrence_group_id?: string | null }) => {
+      let response;
+      if (scope === 'all' && recurrence_group_id) {
+        // Excluir toda a série recorrente
+        response = await supabase.from('appointments').delete().eq('recurrence_group_id', recurrence_group_id);
+      } else {
+        // Excluir apenas um agendamento
+        response = await supabase.from('appointments').delete().eq('id', id);
+      }
+      if (response.error) throw response.error;
+      return response.data;
     },
     onSuccess: () => {
-      toast({ title: "Agendamento excluído!", description: "O agendamento foi removido da sua agenda." });
+      toast({ title: "Agendamento(s) excluído(s)!", description: "A sua agenda foi atualizada." });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      setAppointmentToDelete(null); // Fecha o modal após a exclusão
     },
     onError: (error) => {
       toast({ title: "Erro ao excluir", description: "Não foi possível remover o agendamento.", variant: "destructive" });
       console.error("Erro ao deletar agendamento:", error);
+      setAppointmentToDelete(null);
     },
   });
 
+  // Handler para abrir o modal de confirmação de exclusão
+  const handleDeleteClick = (appointment: Appointment) => {
+    setAppointmentToDelete(appointment);
+  };
+
+  const handleEditClick = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setShowForm(true);
+  };
+  // ==================================================================
+  // FIM DAS MUDANÇAS
+  // ==================================================================
+
   const handleFormClose = () => {
     setShowForm(false);
+    setEditingAppointment(null);
     setFormStartDate(null);
     setFormStartTime('');
   };
@@ -139,6 +164,7 @@ const Agenda: React.FC = () => {
     setFormStartDate(start);
     setFormStartTime(format(start, 'HH:mm'));
     setShowForm(true);
+    setEditingAppointment(null);
   }, []);
 
   const dailyAppointments = getDayAppointments(selectedDate);
@@ -201,28 +227,16 @@ const Agenda: React.FC = () => {
                   endAccessor="end"
                   defaultView={Views.MONTH}
                   view={Views.MONTH}
-                  onView={() => {}}
-                  date={selectedDate}
                   onNavigate={date => setSelectedDate(date)}
+                  date={selectedDate}
                   style={{ height: '100%' }}
                   culture="pt-BR"
-                  messages={{
-                    next: "Próximo",
-                    previous: "Anterior",
-                    today: "Hoje",
-                    month: "Mês",
-                    week: "Semana",
-                    day: "Dia",
-                    noEventsInRange: "Não há agendamentos neste período.",
-                    showMore: total => `+${total} mais`
-                  }}
+                  messages={{ next: "Próximo", previous: "Anterior", today: "Hoje", month: "Mês", week: "Semana", day: "Dia", noEventsInRange: "Não há agendamentos.", showMore: total => `+${total} mais` }}
                   eventPropGetter={eventStyleGetter}
                   onSelectSlot={handleSelectSlot}
+                  onSelectEvent={(event) => { const app = appointments.find(a => a.id === event.id); if (app) handleEditClick(app); }}
                   selectable
-                  components={{
-                    event: CustomEvent,
-                    toolbar: () => null // Esta linha remove o cabeçalho
-                  }}
+                  components={{ event: CustomEvent, toolbar: () => null }}
                 />
               </CardContent>
             </Card>
@@ -235,15 +249,9 @@ const Agenda: React.FC = () => {
                       {format(getWeekDays()[0], 'dd/MM')} - {format(getWeekDays()[6], 'dd/MM/yyyy', { locale: ptBR })}
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(addDays(selectedDate, -7))}>
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(new Date())}>
-                        Hoje
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(addDays(selectedDate, 7))}>
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(addDays(selectedDate, -7))}> <ChevronLeft className="h-4 w-4" /> </Button>
+                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(new Date())}> Hoje </Button>
+                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(addDays(selectedDate, 7))}> <ChevronRight className="h-4 w-4" /> </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -281,9 +289,21 @@ const Agenda: React.FC = () => {
                                 <AvatarFallback className="bg-tanotado-pink text-white font-medium">{getInitials(appointment.title)}</AvatarFallback>
                               </Avatar>
                               <div>
-                                <div className="flex items-center gap-3 mb-1">
+                                <div className="flex items-center flex-wrap gap-2 mb-1">
                                   <span className="font-semibold text-sm">{format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}</span>
                                   <Badge variant="secondary" className={getStatusInfo(appointment.status).className}>{getStatusInfo(appointment.status).text}</Badge>
+                                  {/* INÍCIO DA MUDANÇA: BADGES CONDICIONAIS */}
+                                  {appointment.recurrence_group_id && (
+                                    <Badge variant="outline" className="border-tanotado-purple/50 text-tanotado-purple flex items-center gap-1">
+                                      <Repeat className="h-3 w-3" /> Recorrente
+                                    </Badge>
+                                  )}
+                                  {!appointment.client_id && (
+                                    <Badge variant="outline" className="border-gray-500/50 text-gray-600 flex items-center gap-1">
+                                      <Briefcase className="h-3 w-3" /> Compromisso
+                                    </Badge>
+                                  )}
+                                  {/* FIM DA MUDANÇA: BADGES CONDICIONAIS */}
                                 </div>
                                 <div className="font-medium text-tanotado-navy">{appointment.title || 'Cliente não informado'}</div>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
@@ -292,27 +312,12 @@ const Agenda: React.FC = () => {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600"><Trash2 className="h-4 w-4" /></Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta ação não pode ser desfeita. Isso irá excluir permanentemente o agendamento de <strong className="mx-1">{appointment.title}</strong> para <strong className="ml-1">{format(new Date(appointment.start_time), "dd/MM/yyyy 'às' HH:mm")}</strong>.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deleteAppointmentMutation.mutate(appointment.id)} disabled={deleteAppointmentMutation.isPending}>
-                                      {deleteAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                      Confirmar
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(appointment)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => handleDeleteClick(appointment)}>
+                                  <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                         )
@@ -334,14 +339,64 @@ const Agenda: React.FC = () => {
           )}
         </main>
       </div>
-
-      {showForm && formStartDate && (
+      
+      {(showForm || editingAppointment) && (
         <AppointmentForm
-          selectedDate={formStartDate}
-          selectedTime={formStartTime}
+          selectedDate={editingAppointment ? new Date(editingAppointment.start_time) : (formStartDate || new Date())}
+          selectedTime={editingAppointment ? format(new Date(editingAppointment.start_time), 'HH:mm') : formStartTime}
           onClose={handleFormClose}
+          initialData={editingAppointment}
         />
       )}
+      
+      {/* INÍCIO DA MUDANÇA: MODAL DE EXCLUSÃO ÚNICO */}
+      <AlertDialog open={!!appointmentToDelete} onOpenChange={(isOpen) => !isOpen && setAppointmentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              {appointmentToDelete?.recurrence_group_id ? (
+                `Este é um agendamento recorrente. Deseja excluir apenas este agendamento de ${format(new Date(appointmentToDelete.start_time), 'dd/MM/yyyy')} ou toda a série?`
+              ) : (
+                `Você tem certeza que deseja excluir o agendamento de ${appointmentToDelete?.title} em ${appointmentToDelete ? format(new Date(appointmentToDelete.start_time), "dd/MM/yyyy 'às' HH:mm") : ''}?`
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setAppointmentToDelete(null)}>Cancelar</AlertDialogCancel>
+            {appointmentToDelete?.recurrence_group_id ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="destructive"
+                  onClick={() => appointmentToDelete && deleteAppointmentMutation.mutate({ id: appointmentToDelete.id, scope: 'one' })}
+                  disabled={deleteAppointmentMutation.isPending}
+                >
+                  {deleteAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Excluir Somente Este
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="bg-red-700 hover:bg-red-800"
+                  onClick={() => appointmentToDelete && deleteAppointmentMutation.mutate({ id: appointmentToDelete.id, scope: 'all', recurrence_group_id: appointmentToDelete.recurrence_group_id })}
+                  disabled={deleteAppointmentMutation.isPending}
+                >
+                  {deleteAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Excluir Toda a Série
+                </Button>
+              </div>
+            ) : (
+              <AlertDialogAction
+                onClick={() => appointmentToDelete && deleteAppointmentMutation.mutate({ id: appointmentToDelete.id, scope: 'one' })}
+                disabled={deleteAppointmentMutation.isPending}
+              >
+                {deleteAppointmentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Confirmar Exclusão
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* FIM DA MUDANÇA: MODAL DE EXCLUSÃO ÚNICO */}
     </div>
   );
 };

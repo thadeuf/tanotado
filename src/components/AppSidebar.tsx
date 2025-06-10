@@ -47,7 +47,7 @@ export function AppSidebar() {
     <Sidebar className="border-r" collapsible="icon">
       <SidebarContent className="px-0 flex flex-col">
         {/* Logo */}
-        <div className="px-4 py-6 border-b flex justify-center">
+        <div className="px-4 py-6 flex justify-center">
           {!collapsed ? (
             <img src="/lovable-uploads/4a78275e-0af1-4fd5-ae15-9d988197bca6.png" alt="tanotado" className="h-16 w-auto" />
           ) : (

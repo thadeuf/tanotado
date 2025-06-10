@@ -44,7 +44,7 @@ const Clients: React.FC = () => {
     const { data, error } = await supabase
       .from('clients')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('name', { ascending: true })
       .eq('user_id', user.id);
 
     if (error) {
@@ -142,7 +142,7 @@ const Clients: React.FC = () => {
               <Input placeholder="Pesquisar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="gap-2"><Filter className="h-4 w-4" />Filtros</Button>
+              
               <div className="flex items-center gap-2">
                 <Button variant={activeFilter === 'active' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('active')} className={activeFilter === 'active' ? 'bg-tanotado-blue hover:bg-tanotado-blue/90' : ''}>Ativos</Button>
                 <Button variant={activeFilter === 'inactive' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('inactive')} className={activeFilter === 'inactive' ? 'bg-gray-500 hover:bg-gray-500/90' : ''}>Inativos</Button>

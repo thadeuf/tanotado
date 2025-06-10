@@ -20,6 +20,7 @@ import NotFound from './pages/NotFound';
 import 'react-datepicker/dist/react-datepicker.css';
 import EditClient from './pages/EditClient'; 
 import Agenda from './pages/Agenda';
+import Financial from './pages/Financial';
 
 
 const queryClient = new QueryClient();
@@ -156,6 +157,7 @@ const AppContent: React.FC = () => {
           <Route path="/admin" element={ <ProtectedRoute> <AdminRoute> <AdminDashboard /> </AdminRoute> </ProtectedRoute> } />
           <Route path="/clientes" element={ <ProtectedRoute> <Clients /> </ProtectedRoute> } />
           <Route path="/clientes/editar/:clientId" element={ <ProtectedRoute> <EditClient /> </ProtectedRoute> } />
+          <Route path="/financeiro" element={ <ProtectedRoute> <Financial /> </ProtectedRoute> } />
           
           {/* Rotas em desenvolvimento */}
           <Route path="/agenda" element={ <ProtectedRoute> <Agenda /> </ProtectedRoute> } />

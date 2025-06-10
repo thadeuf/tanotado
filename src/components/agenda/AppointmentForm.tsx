@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+// src/components/agenda/AppointmentForm.tsx
+
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,6 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Form,
   FormControl,
@@ -29,12 +41,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Calendar, Clock, User, Loader2, Check, ChevronsUpDown, Video, DollarSign, Palette, Users, Repeat, UserCheck } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar, Clock, User, Loader2, Check, ChevronsUpDown, Video, Repeat, UserCheck, Briefcase, AlertCircle, DollarSign } from 'lucide-react';
+import { format, addWeeks, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -42,28 +62,32 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useAppointments, Appointment } from '@/hooks/useAppointments';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { v4 as uuidv4 } from 'uuid';
 
-// Tipos de sessão com ícones
+
 const SESSION_TYPES = [
-  { value: 'sessao_unica', label: 'Sessão Única', color: 'bg-blue-500', icon: UserCheck },
-  { value: 'sessoes_recorrentes', label: 'Sessões recorrentes', color: 'bg-green-500', icon: Repeat },
-  { value: 'compromisso_pessoal', label: 'Compromisso pessoal', color: 'bg-purple-500', icon: User },
+  { value: 'sessao_unica', label: 'Sessão Única', icon: UserCheck },
+  { value: 'sessoes_recorrentes', label: 'Sessões recorrentes', icon: Repeat },
+  { value: 'compromisso_pessoal', label: 'Compromisso pessoal', icon: Briefcase },
 ] as const;
 
-// Cores disponíveis para personalização
 const APPOINTMENT_COLORS = [
-  { value: '#3B82F6', label: 'Azul', color: 'bg-blue-500' },
-  { value: '#EF4444', label: 'Vermelho', color: 'bg-red-500' },
-  { value: '#10B981', label: 'Verde', color: 'bg-green-500' },
-  { value: '#F59E0B', label: 'Amarelo', color: 'bg-yellow-500' },
-  { value: '#8B5CF6', label: 'Roxo', color: 'bg-purple-500' },
-  { value: '#EC4899', label: 'Rosa', color: 'bg-pink-500' },
-  { value: '#06B6D4', label: 'Ciano', color: 'bg-cyan-500' },
-  { value: '#84CC16', label: 'Lima', color: 'bg-lime-500' },
+  { value: '#3B82F6', label: 'Azul' },
+  { value: '#EF4444', label: 'Vermelho' },
+  { value: '#10B981', label: 'Verde' },
+  { value: '#F59E0B', label: 'Amarelo' },
+  { value: '#8B5CF6', label: 'Roxo' },
+  { value: '#EC4899', label: 'Rosa' },
+  { value: '#06B6D4', label: 'Ciano' },
+  { value: '#84CC16', label: 'Lima' },
 ] as const;
 
+// MUDANÇA 1: Aprimorar a validação com superRefine
 const appointmentSchema = z.object({
-  clientId: z.string().min(1, 'Selecione um cliente'),
+  clientId: z.string().optional(),
+  title: z.string().optional(),
   sessionType: z.enum(['sessao_unica', 'sessoes_recorrentes', 'compromisso_pessoal'], {
     required_error: 'Selecione o tipo de sessão',
   }),
@@ -75,23 +99,44 @@ const appointmentSchema = z.object({
   price: z.string().optional(),
   launchFinancial: z.boolean().default(false),
   color: z.string().default('#3B82F6'),
-}).refine(data => data.end_time > data.start_time, {
-  message: "O horário de término deve ser maior que o de início.",
-  path: ["end_time"],
-}).refine(data => {
-  if (data.isOnline && data.onlineUrl && data.onlineUrl.trim()) {
-    try {
-      new URL(data.onlineUrl);
-      return true;
-    } catch {
-      return false;
+  recurrence_frequency: z.string().optional(),
+  recurrence_count: z.coerce.number().int().positive().optional(),
+}).superRefine((data, ctx) => {
+  if (data.sessionType === 'compromisso_pessoal') {
+    if (!data.title || data.title.trim().length < 2) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['title'], message: 'O título do compromisso é obrigatório.' });
+    }
+  } else {
+    if (!data.clientId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['clientId'], message: 'Selecione um cliente.' });
     }
   }
-  return true;
-}, {
-  message: "URL inválida para a sessão online.",
-  path: ["onlineUrl"],
+  if (data.sessionType === 'sessoes_recorrentes') {
+    if (!data.recurrence_count || data.recurrence_count <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['recurrence_count'], message: 'A quantidade de repetições deve ser maior que 0.' });
+    }
+    if (!data.recurrence_frequency) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A frequência é obrigatória.', path: ['recurrence_frequency'] });
+    }
+  }
+  if (data.end_time <= data.start_time) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_time'], message: 'O horário de término deve ser posterior ao de início.' });
+  }
+  if (data.isOnline && data.onlineUrl && data.onlineUrl.trim()) {
+    try { new URL(data.onlineUrl); } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['onlineUrl'], message: 'URL da sessão online inválida.' });
+    }
+  }
+  // Se o lançamento financeiro estiver ativo, o preço deve ser maior que zero
+  if (data.launchFinancial && (!data.price || parseFloat(data.price) <= 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['price'],
+      message: 'O valor é obrigatório para fazer o lançamento financeiro.',
+    });
+  }
 });
+
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
@@ -99,318 +144,354 @@ interface AppointmentFormProps {
   selectedDate: Date;
   selectedTime: string;
   onClose: () => void;
+  initialData?: Appointment | null;
 }
+
+type FullAppointment = Appointment & {
+  recurrence_group_id?: string | null;
+  online_url?: string | null;
+};
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({
   selectedDate,
   selectedTime,
-  onClose
+  onClose,
+  initialData
 }) => {
   const { user } = useAuth();
   const { data: clientsData, isLoading: clientsLoading, error: clientsError } = useClients();
+  const { data: allAppointmentsData = [] } = useAppointments();
+  const allAppointments = allAppointmentsData as FullAppointment[];
   const queryClient = useQueryClient();
-  
   const clients = Array.isArray(clientsData) ? clientsData : [];
-  
+
+  const [appointmentDate, setAppointmentDate] = useState<Date>(initialData ? new Date(initialData.start_time) : selectedDate);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientComboOpen, setClientComboOpen] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
+  const [timeConflict, setTimeConflict] = useState<FullAppointment | null>(null);
+  const [isUpdateAlertOpen, setIsUpdateAlertOpen] = useState(false);
+  const [formDataToUpdate, setFormDataToUpdate] = useState<AppointmentFormData | null>(null);
+
+  const isEditing = !!initialData;
+  const initial = initialData as FullAppointment | null;
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
-      clientId: '',
       sessionType: 'sessao_unica',
-      description: '',
-      price: '',
       start_time: selectedTime || '',
-      end_time: '',
       isOnline: false,
-      onlineUrl: '',
       launchFinancial: false,
       color: '#3B82F6',
+      recurrence_frequency: 'weekly',
+      recurrence_count: 4,
     },
   });
 
+  useEffect(() => {
+    if (isEditing && initial) {
+        let sessionType: AppointmentFormData['sessionType'] = 'sessao_unica';
+        if (initial.recurrence_group_id) {
+            sessionType = 'sessoes_recorrentes';
+        } else if (!initial.client_id) {
+            sessionType = 'compromisso_pessoal';
+        }
+
+        let recurrenceCount = 0;
+        if (initial.recurrence_group_id && allAppointments.length > 0) {
+            recurrenceCount = allAppointments.filter(
+                app => app.recurrence_group_id === initial?.recurrence_group_id
+            ).length;
+        }
+
+        form.reset({
+            clientId: initial.client_id || undefined,
+            title: initial.title || '',
+            sessionType: sessionType,
+            start_time: format(new Date(initial.start_time), 'HH:mm'),
+            end_time: format(new Date(initial.end_time), 'HH:mm'),
+            isOnline: initial.is_online,
+            onlineUrl: initial.online_url || '',
+            description: initial.description || '',
+            price: initial.price?.toString() || '',
+            launchFinancial: !!initial.price,
+            color: initial.color || '#3B82F6',
+            recurrence_frequency: initial.recurrence_type || 'weekly',
+            recurrence_count: recurrenceCount > 0 ? recurrenceCount : undefined,
+        });
+    }
+  }, [initial, isEditing, allAppointments, form]);
+
+  const watchedStartTime = form.watch('start_time');
+  const watchedEndTime = form.watch('end_time');
   const watchedClient = form.watch('clientId');
   const watchedIsOnline = form.watch('isOnline');
+  const watchedSessionType = form.watch('sessionType');
+  // MUDANÇA 2: Observar o estado do switch financeiro
+  const watchedLaunchFinancial = form.watch('launchFinancial');
 
-  // Atualiza o preço quando o cliente é selecionado
-  React.useEffect(() => {
-    if (watchedClient) {
+  useEffect(() => {
+    if (!watchedStartTime || !watchedEndTime) {
+      setTimeConflict(null);
+      return;
+    }
+    try {
+      const [startHours, startMinutes] = watchedStartTime.split(':').map(Number);
+      const newStartTime = new Date(appointmentDate);
+      newStartTime.setHours(startHours, startMinutes, 0, 0);
+
+      const [endHours, endMinutes] = watchedEndTime.split(':').map(Number);
+      const newEndTime = new Date(appointmentDate);
+      newEndTime.setHours(endHours, endMinutes, 0, 0);
+
+      const conflictingAppointment = allAppointments.find(app => {
+        if (isEditing && app.id === initial?.id) return false;
+        const existingStartTime = new Date(app.start_time);
+        const existingEndTime = new Date(app.end_time);
+        return newStartTime < existingEndTime && newEndTime > existingStartTime;
+      });
+      setTimeConflict(conflictingAppointment || null);
+    } catch (e) {
+      setTimeConflict(null);
+    }
+  }, [appointmentDate, watchedStartTime, watchedEndTime, allAppointments, isEditing, initial]);
+
+  useEffect(() => {
+    if (watchedClient && !isEditing) {
       const selectedClient = clients.find(c => c.id === watchedClient);
-      if (selectedClient?.default_price) {
-        form.setValue('price', selectedClient.default_price.toString());
+      if (selectedClient?.session_value) { 
+        form.setValue('price', selectedClient.session_value.toString());
       }
     }
-  }, [watchedClient, clients, form]);
+  }, [watchedClient, clients, form, isEditing]);
 
-  const filteredClients = clients.filter(client => {
-    const searchTerm = clientSearch.toLowerCase().trim();
-    const clientName = client.name?.toLowerCase() || '';
-    const clientEmail = client.email?.toLowerCase() || '';
-    const clientPhone = client.phone || '';
-    
-    return clientName.includes(searchTerm) ||
-           clientEmail.includes(searchTerm) ||
-           clientPhone.includes(searchTerm);
-  });
-
-  const createAppointmentMutation = useMutation({
+  const filteredClients = clients.filter(client => 
+    client.name?.toLowerCase().includes(clientSearch.toLowerCase().trim())
+  );
+  
+  const createMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
       if (!user?.id) throw new Error('Usuário não autenticado');
-
-      const selectedClient = clients.find(c => c.id === data.clientId);
-      if (!selectedClient) {
-        throw new Error("Cliente selecionado não encontrado.");
-      }
-
+      
       const [startHours, startMinutes] = data.start_time.split(':').map(Number);
-      const startDateTime = new Date(selectedDate);
+      const startDateTime = new Date(appointmentDate);
       startDateTime.setHours(startHours, startMinutes, 0, 0);
-
       const [endHours, endMinutes] = data.end_time.split(':').map(Number);
-      const endDateTime = new Date(selectedDate);
+      const endDateTime = new Date(appointmentDate);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
-
-      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-        throw new RangeError('O valor do horário fornecido é inválido.');
+      
+      let appointmentsToInsert = [];
+      const baseAppointment = {
+          user_id: user.id, description: data.description || null, status: 'scheduled' as const,
+          price: data.price ? parseFloat(data.price) : null,
+          is_online: data.isOnline, online_url: data.isOnline && data.onlineUrl ? data.onlineUrl : null,
+          color: data.color
+      };
+      
+      if (data.sessionType === 'sessoes_recorrentes' && data.clientId) {
+          const recurrence_group_id = uuidv4();
+          const count = data.recurrence_count || 1;
+          const selectedClient = clients.find(c => c.id === data.clientId);
+          if (!selectedClient) throw new Error("Cliente não encontrado.");
+          for (let i = 0; i < count; i++) {
+              let nextStart = new Date(startDateTime);
+              let nextEnd = new Date(endDateTime);
+              if (i > 0) {
+                  if (data.recurrence_frequency === 'weekly') { nextStart = addWeeks(nextStart, i); nextEnd = addWeeks(nextEnd, i); }
+                  else if (data.recurrence_frequency === 'biweekly') { nextStart = addWeeks(nextStart, i * 2); nextEnd = addWeeks(nextEnd, i * 2); }
+                  else if (data.recurrence_frequency === 'monthly') { nextStart = addMonths(nextStart, i); nextEnd = addMonths(nextEnd, i); }
+              }
+              appointmentsToInsert.push({
+                  ...baseAppointment, client_id: data.clientId!, title: selectedClient.name,
+                  start_time: nextStart.toISOString(), end_time: nextEnd.toISOString(),
+                  recurrence_group_id, recurrence_type: data.recurrence_frequency,
+              });
+          }
+      } else {
+          const selectedClient = data.clientId ? clients.find(c => c.id === data.clientId) : null;
+          appointmentsToInsert.push({
+              ...baseAppointment,
+              client_id: data.sessionType === 'compromisso_pessoal' ? null : data.clientId!,
+              title: data.sessionType === 'compromisso_pessoal' ? data.title! : selectedClient!.name,
+              start_time: startDateTime.toISOString(), end_time: endDateTime.toISOString(),
+          });
       }
 
-      const appointmentData = {
-        user_id: user.id,
-        client_id: data.clientId,
-        title: selectedClient.name,
-        session_type: data.sessionType,
-        description: data.description || null,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        status: 'scheduled' as const,
-        price: data.price ? parseFloat(data.price) : null,
-        payment_status: 'pending' as const,
-        is_online: data.isOnline,
-        online_url: data.isOnline && data.onlineUrl ? data.onlineUrl : null,
-        color: data.color,
-      };
+      const { data: newlyCreatedAppointments, error } = await supabase
+          .from('appointments')
+          .insert(appointmentsToInsert)
+          .select();
 
-      const { error } = await supabase
-        .from('appointments')
-        .insert([appointmentData]);
+      if (error) throw error;
+      if (!newlyCreatedAppointments) return;
 
-      if (error) {
-        throw error;
+      if (data.launchFinancial && data.price && parseFloat(data.price) > 0 && data.sessionType !== 'compromisso_pessoal') {
+        const paymentsToInsert = newlyCreatedAppointments.map(app => ({
+          user_id: user.id,
+          client_id: app.client_id,
+          appointment_id: app.id,
+          amount: app.price,
+          status: 'pending' as const,
+          due_date: app.start_time,
+          notes: `Referente à sessão: ${app.title}`
+        }));
+
+        if (paymentsToInsert.length > 0) {
+          const { error: paymentError } = await supabase
+            .from('payments')
+            .insert(paymentsToInsert);
+
+          if (paymentError) {
+            toast({
+              title: "Atenção: Erro no Financeiro",
+              description: "Os agendamentos foram criados, mas houve um erro ao gerar os lançamentos financeiros.",
+              variant: "destructive",
+            });
+            console.error("Erro ao criar lançamentos financeiros:", paymentError);
+          }
+        }
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Agendamento criado",
-        description: "O agendamento foi criado com sucesso.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      onClose();
+        toast({ title: "Agendamento(s) criado(s)!", description: "Seu(s) agendamento(s) foi/foram adicionado(s) com sucesso." });
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['payments'] });
+        onClose();
     },
-    onError: (error) => {
-      console.error('Erro ao criar agendamento:', error);
-      toast({
-        title: "Erro ao criar agendamento",
-        description: error.message || "Não foi possível criar o agendamento. Tente novamente.",
-        variant: "destructive",
-      });
+    onError: (error) => { toast({ title: "Erro ao salvar", description: `Ocorreu um erro: ${error.message}`, variant: "destructive" }); },
+    onSettled: () => { setIsSubmitting(false); }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (vars: { scope: 'one' | 'all'; updates: Partial<AppointmentFormData> }) => {
+        const { scope, updates } = vars;
+        if (!initial) throw new Error("Agendamento inicial não encontrado para edição.");
+
+        const getUpdatesPayload = (data: AppointmentFormData) => {
+            const selectedClient = data.clientId ? clients.find(c => c.id === data.clientId) : null;
+            const startDateTime = new Date(appointmentDate);
+            const [startHours, startMinutes] = data.start_time.split(':').map(Number);
+            startDateTime.setHours(startHours, startMinutes, 0, 0);
+            const endDateTime = new Date(appointmentDate);
+            const [endHours, endMinutes] = data.end_time.split(':').map(Number);
+            endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+            return {
+                client_id: data.sessionType === 'compromisso_pessoal' ? null : data.clientId,
+                title: data.sessionType === 'compromisso_pessoal' ? data.title : selectedClient?.name,
+                start_time: startDateTime.toISOString(),
+                end_time: endDateTime.toISOString(),
+                is_online: data.isOnline,
+                online_url: data.isOnline && data.onlineUrl ? data.onlineUrl : null,
+                description: data.description,
+                price: data.price ? parseFloat(data.price) : null,
+                color: data.color,
+            };
+        };
+
+        const finalUpdates = getUpdatesPayload(updates as AppointmentFormData);
+
+        if (scope === 'all' && initial.recurrence_group_id) {
+            const newStartTimeOfDay = new Date(finalUpdates.start_time);
+            const newEndTimeOfDay = new Date(finalUpdates.end_time);
+
+            const seriesAppointments = allAppointments.filter(a => a.recurrence_group_id === initial?.recurrence_group_id);
+            const updatePromises = seriesAppointments.map(app => {
+                const currentStartDate = new Date(app.start_time);
+                const newAppStartTime = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), currentStartDate.getDate(), newStartTimeOfDay.getHours(), newStartTimeOfDay.getMinutes());
+                const newAppEndTime = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), currentStartDate.getDate(), newEndTimeOfDay.getHours(), newEndTimeOfDay.getMinutes());
+                
+                return supabase.from('appointments').update({ ...finalUpdates, start_time: newAppStartTime.toISOString(), end_time: newAppEndTime.toISOString() }).eq('id', app.id);
+            });
+            const results = await Promise.all(updatePromises);
+            const firstError = results.find(res => res.error)?.error;
+            if (firstError) throw firstError;
+        } else {
+            const { error } = await supabase.from('appointments').update(finalUpdates).eq('id', initial.id);
+            if (error) throw error;
+        }
     },
+    onSuccess: () => {
+        toast({ title: "Agendamento atualizado!", description: "Sua agenda foi atualizada." });
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        onClose();
+    },
+    onError: (error: any) => { toast({ title: "Erro ao atualizar", description: `Ocorreu um erro: ${error.message}`, variant: "destructive" }); },
+    onSettled: () => {
+        setIsSubmitting(false);
+        setFormDataToUpdate(null);
+        setIsUpdateAlertOpen(false);
+    }
   });
 
   const onSubmit = async (data: AppointmentFormData) => {
     setIsSubmitting(true);
-    try {
-      await createAppointmentMutation.mutateAsync(data);
-    } finally {
-      setIsSubmitting(false);
+    if (isEditing && initial) {
+        const dateChanged = new Date(initial.start_time).toDateString() !== appointmentDate.toDateString();
+        const timeChanged = format(new Date(initial.start_time), 'HH:mm') !== data.start_time || format(new Date(initial.end_time), 'HH:mm') !== data.end_time;
+        
+        if (initial.recurrence_group_id && (dateChanged || timeChanged)) {
+            setFormDataToUpdate(data);
+            setIsUpdateAlertOpen(true);
+            return;
+        }
+        updateMutation.mutate({ scope: 'one', updates: data });
+    } else {
+        createMutation.mutate(data);
     }
   };
 
   if (clientsError) {
-    return (
-      <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Erro ao carregar dados
-            </DialogTitle>
-          </DialogHeader>
-          <div className="p-4 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              Não foi possível carregar a lista de clientes. Tente novamente.
-            </p>
-            <Button onClick={onClose}>Fechar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
+    return ( <Dialog open={true} onOpenChange={onClose}><DialogContent><DialogHeader><DialogTitle>Erro</DialogTitle></DialogHeader><p className="text-red-500">Não foi possível carregar a lista de clientes.</p></DialogContent></Dialog> );
   }
-
   const selectedClient = clients.find(client => client.id === form.watch('clientId'));
 
   return (
+    <>
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Novo Agendamento
+            {isEditing ? 'Editar Agendamento' : 'Novo Agendamento'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg mb-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="h-4 w-4 text-tanotado-blue" />
-            <span>{format(selectedDate, "d 'de' MMMM 'de' uuuu", { locale: ptBR })}</span>
-          </div>
-        </div>
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="clientId"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Cliente
-                  </FormLabel>
-                  <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
+            
+            <div className="p-3 border rounded-lg flex items-center justify-between bg-muted/30">
+                <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-sm text-foreground">
+                        {format(appointmentDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                    </span>
+                </div>
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                     <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
-                          disabled={clientsLoading}
-                        >
-                          {clientsLoading ? (
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Carregando clientes...
-                            </div>
-                          ) : selectedClient ? (
-                            <div className="flex items-center gap-2 truncate">
-                              <User className="h-4 w-4 shrink-0" />
-                              <span className="truncate">{selectedClient.name}</span>
-                            </div>
-                          ) : clients.length === 0 ? (
-                            "Nenhum cliente cadastrado"
-                          ) : (
-                            "Selecione um cliente"
-                          )}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
+                        <Button variant="outline" size="sm" type="button">Alterar</Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <Command shouldFilter={false}>
-                        <CommandInput
-                          placeholder="Buscar cliente..."
-                          value={clientSearch}
-                          onValueChange={setClientSearch}
-                        />
-                        <CommandList>
-                          {clientsLoading ? (
-                            <CommandEmpty>
-                              <div className="flex items-center gap-2 py-2">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Carregando...
-                              </div>
-                            </CommandEmpty>
-                          ) : filteredClients.length === 0 ? (
-                            <CommandEmpty>
-                              {clients.length === 0 
-                                ? "Nenhum cliente cadastrado" 
-                                : "Nenhum cliente encontrado"
-                              }
-                            </CommandEmpty>
-                          ) : (
-                            <CommandGroup>
-                              {filteredClients.map((client) => (
-                                <CommandItem
-                                  key={client.id}
-                                  value={client.id}
-                                  onSelect={() => {
-                                    field.onChange(client.id);
-                                    setClientComboOpen(false);
-                                    setClientSearch('');
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                                    <User className="h-4 w-4 shrink-0" />
-                                    <div className="flex flex-col min-w-0 flex-1">
-                                      <span className="font-medium truncate">{client.name}</span>
-                                      {client.email && (
-                                        <span className="text-xs text-muted-foreground truncate">
-                                          {client.email}
-                                        </span>
-                                      )}
-                                      {client.phone && (
-                                        <span className="text-xs text-muted-foreground">
-                                          {client.phone}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <Check
-                                    className={cn(
-                                      "ml-2 h-4 w-4 shrink-0",
-                                      client.id === field.value ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          )}
-                        </CommandList>
-                      </Command>
+                    <PopoverContent className="w-auto p-0" align="center">
+                        <CalendarPicker mode="single" selected={appointmentDate} onSelect={(date) => { if (date) { setAppointmentDate(date); setIsDatePickerOpen(false); } }} initialFocus />
                     </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                  {clients.length === 0 && !clientsLoading && (
-                    <p className="text-xs text-muted-foreground">
-                      Nenhum cliente cadastrado. 
-                      <span className="text-primary cursor-pointer hover:underline ml-1">
-                        Cadastre um cliente primeiro.
-                      </span>
-                    </p>
-                  )}
-                </FormItem>
-              )}
-            />
-
-            {/* Tipo de Sessão com ícones */}
+                </Popover>
+            </div>
+            
             <FormField
-              control={form.control}
-              name="sessionType"
-              render={({ field }) => (
+              control={form.control} name="sessionType" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Sessão</FormLabel>
                   <FormControl>
                     <div className="grid grid-cols-3 gap-2">
                       {SESSION_TYPES.map((type) => {
                         const IconComponent = type.icon;
                         return (
-                          <Button
-                            key={type.value}
-                            type="button"
-                            variant={field.value === type.value ? "default" : "outline"}
-                            className={cn(
-                              "h-auto p-3 flex flex-col items-center gap-2",
-                              field.value === type.value && "bg-gradient-to-r from-tanotado-pink to-tanotado-purple"
-                            )}
-                            onClick={() => field.onChange(type.value)}
-                          >
+                          <Button key={type.value} type="button" variant={field.value === type.value ? "default" : "outline"}
+                            className={cn("h-auto p-3 flex flex-col items-center gap-2 text-center", field.value === type.value && "bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white")}
+                            onClick={() => field.onChange(type.value)} disabled={isEditing}>
                             <IconComponent className="w-4 h-4" />
-                            <span className="text-xs font-medium text-center leading-tight">{type.label}</span>
+                            <span className="text-xs font-medium leading-tight">{type.label}</span>
                           </Button>
                         );
                       })}
@@ -421,223 +502,165 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               )}
             />
             
+            {watchedSessionType === 'compromisso_pessoal' ? (
+                <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Título do Compromisso</FormLabel><FormControl><Input placeholder="Ex: Reunião de equipe, Consulta médica" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            ) : (
+                <FormField control={form.control} name="clientId" render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                    <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />Cliente</FormLabel>
+                    <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
+                        <PopoverTrigger asChild>
+                        <FormControl>
+                            <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={clientsLoading || isEditing}>
+                            {clientsLoading ? (<><Loader2 className="h-4 w-4 animate-spin" />Carregando...</>) : selectedClient ? (<div className="flex items-center gap-2 truncate"><User className="h-4 w-4 shrink-0" /><span className="truncate">{selectedClient.name}</span></div>) : "Selecione um cliente"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                        <Command shouldFilter={false}>
+                            <CommandInput placeholder="Buscar cliente..." value={clientSearch} onValueChange={setClientSearch} />
+                            <CommandList>
+                            {filteredClients.length === 0 ? (<CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>) : (<CommandGroup>{filteredClients.map((client) => (<CommandItem key={client.id} value={client.id} onSelect={() => { field.onChange(client.id); setClientComboOpen(false); }}><Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />{client.name}</CommandItem>))}</CommandGroup>)}
+                            </CommandList>
+                        </Command>
+                        </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+            )}
+            
+            {watchedSessionType === 'sessoes_recorrentes' && !isEditing && (
+                <div className="p-3 border rounded-lg space-y-4 bg-muted/30">
+                    <FormField control={form.control} name="recurrence_frequency" render={({ field }) => (
+                        <FormItem><FormLabel>Frequência</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                            <SelectContent><SelectItem value="weekly">Semanal</SelectItem><SelectItem value="biweekly">Quinzenal</SelectItem><SelectItem value="monthly">Mensal</SelectItem></SelectContent>
+                        </Select><FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="recurrence_count" render={({ field }) => (
+                        <FormItem><FormLabel>Repetir por</FormLabel>
+                        <div className="flex items-center gap-2"><FormControl><Input type="number" min="1" className="w-20" {...field} disabled={isEditing} /></FormControl><span className="text-sm text-muted-foreground">sessões</span></div>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="start_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Início
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="end_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Término
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="start_time" render={({ field }) => (<FormItem><FormLabel>Início</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="end_time" render={({ field }) => (<FormItem><FormLabel>Término</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>
 
-            {/* Switch Sessão Online */}
-            <FormField
-              control={form.control}
-              name="isOnline"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel className="flex items-center gap-2 text-base">
-                      <Video className="h-4 w-4" />
-                      Sessão Online
-                    </FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Ativar para sessões por videoconferência
+            {timeConflict && ( <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Atenção: Conflito de Horário!</AlertTitle><AlertDescription>Já existe um agendamento com <strong>"{timeConflict.title}"</strong> que se sobrepõe a este horário.</AlertDescription></Alert> )}
+            
+            <FormField control={form.control} name="isOnline" render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                        <FormLabel className="text-base flex items-center gap-2">
+                            <Video className="h-4 w-4" />
+                            Sessão Online
+                        </FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                            Ativar para sessões por videoconferência
+                        </p>
                     </div>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
+                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                 </FormItem>
-              )}
-            />
+            )} />
+            
+            {watchedIsOnline && (<FormField control={form.control} name="onlineUrl" render={({ field }) => (<FormItem><FormLabel>URL da Sala</FormLabel><FormControl><Input placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem>)} />)}
+            
+            {/* MUDANÇA 3: Lógica de exibição invertida */}
+            {watchedSessionType !== 'compromisso_pessoal' && !isEditing && (
+              <div className="space-y-4">
+                  <FormField
+                      control={form.control}
+                      name="launchFinancial"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                              <div className="space-y-0.5">
+                                  <FormLabel className="text-base flex items-center gap-2">
+                                      <DollarSign className="h-4 w-4" />
+                                      Lançar no Financeiro
+                                  </FormLabel>
+                                  <p className="text-sm text-muted-foreground">
+                                      Registrar valor automaticamente no controle financeiro
+                                  </p>
+                              </div>
+                              <FormControl>
+                                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                          </FormItem>
+                      )}
+                  />
 
-            {/* URL da Sala Online */}
-            {watchedIsOnline && (
-              <FormField
-                control={form.control}
-                name="onlineUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL da Sala de Reunião (opcional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://meet.google.com/xxx-xxxx-xxx"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                    <p className="text-xs text-muted-foreground">
-                      Link para Google Meet, Zoom, Teams ou outra plataforma
-                    </p>
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {/* Switch Lançar Financeiro */}
-            <FormField
-              control={form.control}
-              name="launchFinancial"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel className="flex items-center gap-2 text-base">
-                      <DollarSign className="h-4 w-4" />
-                      Lançar no Financeiro
-                    </FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Registrar valor automaticamente no controle financeiro
-                    </div>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor (opcional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0,00"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  {selectedClient?.default_price && (
-                    <p className="text-xs text-muted-foreground">
-                      Valor padrão do cliente: R$ {selectedClient.default_price.toFixed(2).replace('.', ',')}
-                    </p>
-                  )}
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações (opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Adicione observações sobre a consulta..."
-                      className="min-h-[80px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Cor do Agendamento - apenas bolinhas coloridas */}
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Palette className="h-4 w-4" />
-                    Cor do Agendamento
-                  </FormLabel>
-                  <FormControl>
-                    <div className="flex flex-wrap gap-2">
-                      {APPOINTMENT_COLORS.map((colorOption) => (
-                        <Button
-                          key={colorOption.value}
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "w-8 h-8 p-0 rounded-full border-2",
-                            field.value === colorOption.value 
-                              ? "ring-2 ring-offset-2 ring-primary border-primary" 
-                              : "border-muted-foreground/20"
-                          )}
-                          onClick={() => field.onChange(colorOption.value)}
-                        >
-                          <div 
-                            className="w-5 h-5 rounded-full"
-                            style={{ backgroundColor: colorOption.value }}
+                  {/* Campo de valor agora aparece SE o switch estiver ligado */}
+                  {watchedLaunchFinancial && (
+                      <div className="animate-fade-in pl-4 border-l-2 border-primary/50">
+                          <FormField
+                              control={form.control}
+                              name="price"
+                              render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Valor da sessão</FormLabel>
+                                      <FormControl>
+                                          <Input type="number" step="0.01" placeholder="Ex: 150.00" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
                           />
-                        </Button>
-                      ))}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      </div>
+                  )}
+              </div>
+            )}
+            
+            <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Observações (opcional)</FormLabel><FormControl><Textarea placeholder="Adicione observações importantes..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="color" render={({ field }) => (<FormItem><FormLabel>Cor do Agendamento</FormLabel><FormControl><div className="flex flex-wrap gap-2">{APPOINTMENT_COLORS.map(c => (<button type="button" key={c.value} onClick={() => field.onChange(c.value)} className={cn("w-8 h-8 rounded-full border-2", field.value === c.value ? 'ring-2 ring-offset-2 ring-primary border-primary' : 'border-transparent')} style={{ backgroundColor: c.value }} />))}</div></FormControl></FormItem>)} />
 
             <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || clientsLoading || clients.length === 0}
-                className="flex-1 bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200"
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Criando...
-                  </div>
-                ) : (
-                  'Criar Agendamento'
-                )}
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting || clientsLoading || updateMutation.isPending || createMutation.isPending} className="flex-1 bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all">
+                {(isSubmitting || updateMutation.isPending || createMutation.isPending) ? (<><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</>) : (isEditing ? 'Salvar Alterações' : 'Criar Agendamento')}
               </Button>
             </div>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={isUpdateAlertOpen} onOpenChange={setIsUpdateAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Editar Agendamento Recorrente</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Você alterou a data ou o horário de um agendamento recorrente. Deseja aplicar esta alteração apenas a este agendamento ou a toda a série?
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+                <AlertDialogCancel onClick={() => setIsSubmitting(false)}>Cancelar</AlertDialogCancel>
+                <Button
+                  variant="outline"
+                  onClick={() => formDataToUpdate && updateMutation.mutate({ scope: 'one', updates: formDataToUpdate })}
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Alterar Somente Este
+                </Button>
+                <Button
+                  onClick={() => formDataToUpdate && updateMutation.mutate({ scope: 'all', updates: formDataToUpdate })}
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Alterar Toda a Série
+                </Button>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
