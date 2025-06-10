@@ -1,14 +1,16 @@
 // src/pages/EditClient.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientForm } from '@/components/forms/ClientForm';
-import { ClientProfileSidebar } from '@/components/ClientProfileSidebar'; // Importa o novo componente
+import { ClientProfileSidebar } from '@/components/ClientProfileSidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
+import { ProntuarioContainer } from '@/components/prontuarios/ProntuarioContainer'; // A importação correta
+
+// O BLOCO DE CÓDIGO QUE DEFINIA O PLACEHOLDER 'ProntuarioContainer' FOI REMOVIDO DAQUI.
 
 const EditClient: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -16,6 +18,8 @@ const EditClient: React.FC = () => {
   const [clientData, setClientData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [activeView, setActiveView] = useState('dados');
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -25,18 +29,21 @@ const EditClient: React.FC = () => {
         return;
       }
       
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', clientId)
-        .single();
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', clientId)
+          .single();
 
-      if (error) {
-        console.error("Erro ao buscar cliente:", error);
-        setError("Não foi possível carregar os dados do cliente.");
-        setIsLoading(false);
-      } else {
+        if (fetchError) throw fetchError;
+        
         setClientData(data);
+      } catch (e: any) {
+        console.error("Erro ao buscar cliente:", e);
+        setError("Não foi possível carregar os dados do cliente.");
+        toast({ title: "Erro ao carregar", description: e.message, variant: "destructive" });
+      } finally {
         setIsLoading(false);
       }
     };
@@ -44,48 +51,64 @@ const EditClient: React.FC = () => {
     fetchClient();
   }, [clientId]);
 
-  const handleSuccess = () => {
-    navigate('/clientes'); // Volta para a lista após salvar
+  const handleFormSuccess = () => {
+    toast({ title: "Sucesso!", description: "Dados do cliente salvos." });
   };
 
-  // Renderização principal do componente
   if (isLoading) {
     return (
-        <div className="grid md:grid-cols-[320px_1fr] gap-8">
-            {/* Skeleton da Sidebar */}
-            <div className="space-y-6">
-                <div className="flex flex-col items-center"><Skeleton className="h-20 w-20 rounded-full" /><Skeleton className="h-6 w-32 mt-4" /><Skeleton className="h-4 w-40 mt-2" /></div>
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
-            </div>
-            {/* Skeleton do Formulário */}
-            <div className="space-y-6"><Skeleton className="h-12 w-1/2" /><Skeleton className="h-64 w-full" /></div>
+      <div className="grid md:grid-cols-[320px_1fr] gap-8">
+        <div className="space-y-6">
+          <div className="flex flex-col items-center"><Skeleton className="h-20 w-20 rounded-full" /><Skeleton className="h-6 w-32 mt-4" /><Skeleton className="h-4 w-40 mt-2" /></div>
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+        </div>
+        <div className="space-y-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-64 w-full" /></div>
       </div>
     );
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return <p className="text-destructive text-center">{error}</p>;
   }
 
   return (
     <div className="grid md:grid-cols-[320px_1fr] gap-8 items-start">
-      {/* Coluna da Esquerda com as informações do cliente */}
       <aside className="sticky top-6">
-        <ClientProfileSidebar client={clientData} />
+        <ClientProfileSidebar 
+            client={clientData} 
+            activeView={activeView}
+            onViewChange={setActiveView}
+        />
       </aside>
 
-      {/* Coluna da Direita com o formulário de edição */}
       <main>
-        <Card>
-          <CardHeader>
-            <CardTitle>Editar Dados Principais</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ClientForm onSuccess={handleSuccess} initialData={clientData} />
-          </CardContent>
-        </Card>
+        {activeView === 'dados' && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Editar Dados Principais</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ClientForm onSuccess={handleFormSuccess} initialData={clientData} />
+                </CardContent>
+            </Card>
+        )}
+
+        {activeView === 'prontuario' && clientData && (
+            <ProntuarioContainer client={clientData} />
+        )}
+
+        {activeView !== 'dados' && activeView !== 'prontuario' && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="capitalize">{activeView}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-center py-8 text-muted-foreground">A seção de "{activeView}" será implementada aqui.</p>
+                </CardContent>
+            </Card>
+        )}
       </main>
     </div>
   );

@@ -55,7 +55,7 @@ const formSchema = z.object({
   emergency_contact_name: z.string().optional(),
   emergency_contact_whatsapp: z.string().optional(),
   gender: z.string().optional(),
-  birth_date: z.date().optional(),
+  birth_date: z.date().optional().nullable(), // Permitir nulo
   nationality: z.string().optional(),
   education: z.string().optional(),
   occupation: z.string().optional(),
@@ -80,6 +80,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(formSchema),
+    // INÍCIO DA MUDANÇA: Garantir que todos os campos tenham um valor padrão controlado
     defaultValues: {
       name: '',
       whatsapp: '',
@@ -96,6 +97,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
       address_city: '',
       address_state: '',
       address_complement: '',
+      session_value: undefined, // Valores numéricos podem começar como undefined
+      billing_day: undefined,
+      send_billing_reminder: false,
       financial_responsible_name: '',
       financial_responsible_whatsapp: '',
       financial_responsible_email: '',
@@ -104,39 +108,42 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
       emergency_contact_name: '',
       emergency_contact_whatsapp: '',
       gender: '',
+      birth_date: null, // Nulo é um valor controlado para o DatePicker
       nationality: '',
       education: '',
       occupation: '',
       forwarding: '',
       marital_status: '',
       notes: '',
-      send_billing_reminder: false,
       send_session_reminder: true,
       is_active: true,
+      avatar_url: null,
     },
+    // FIM DA MUDANÇA
   });
 
   useEffect(() => {
     if (initialData) {
-      const formData: Partial<ClientFormData> = {};
-      
-      // Processa cada campo do schema
-      Object.keys(formSchema.shape).forEach((key) => {
-        const value = (initialData as any)[key];
-        
-        if (key === 'birth_date') {
-          formData[key] = value ? new Date(value) : undefined;
-        } else if (key === 'send_billing_reminder' || key === 'send_session_reminder' || key === 'is_active') {
-          formData[key] = Boolean(value);
-        } else if (key === 'session_value' || key === 'billing_day') {
-          formData[key] = value ? Number(value) : undefined;
-        } else {
-          formData[key] = value || '';
+      // INÍCIO DA MUDANÇA: Sanitizar os dados antes de passá-los para o formulário
+      const sanitizedData = { ...initialData };
+
+      // Itera sobre as chaves do schema para garantir que nenhum valor `null` seja passado para inputs de texto
+      Object.keys(formSchema.shape).forEach(key => {
+        if (sanitizedData[key as keyof typeof sanitizedData] === null) {
+          sanitizedData[key as keyof typeof sanitizedData] = ''; // Transforma null em string vazia
         }
       });
       
-      form.reset(formData);
+      // Trata a data de nascimento separadamente para garantir que seja um objeto Date ou nulo
+      sanitizedData.birth_date = initialData.birth_date ? new Date(initialData.birth_date) : null;
+      
+      // Trata campos numéricos separadamente
+      sanitizedData.session_value = initialData.session_value || undefined;
+      sanitizedData.billing_day = initialData.billing_day || undefined;
+      
+      form.reset(sanitizedData as any); // Reseta o formulário com os dados sanitizados
       setPreview(initialData.avatar_url || null);
+      // FIM DA MUDANÇA
     }
   }, [initialData, form]);
   
@@ -159,7 +166,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
     try {
       let avatarUrl = values.avatar_url;
       
-      // Só faz upload se há um arquivo novo selecionado
       if (values.avatar_file && values.avatar_file instanceof File) {
         try {
           const fileExt = values.avatar_file.name.split('.').pop();
@@ -171,7 +177,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
           
           if (uploadError) {
             console.warn('Erro no upload da imagem:', uploadError);
-            // Continua sem fazer upload
           } else {
             const { data: { publicUrl } } = supabase.storage
               .from('photos')
@@ -181,7 +186,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
           }
         } catch (storageError) {
           console.warn('Erro ao acessar storage:', storageError);
-          // Continua sem fazer upload
         }
       }
       
@@ -233,12 +237,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
     }
   };
 
-  // =====> MUDANÇA 1: Nova função para buscar o CEP <=====
   const handleCepBlur = async (event: React.FocusEvent<HTMLInputElement>) => {
-    const cep = event.target.value.replace(/\D/g, ''); // Remove caracteres não numéricos
+    const cep = event.target.value.replace(/\D/g, '');
 
     if (cep.length !== 8) {
-      return; // Se não tem 8 dígitos, não faz nada
+      return;
     }
 
     try {
@@ -248,13 +251,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
       }
       const data = await response.json();
       
-      // Preenche os campos do formulário com a resposta da API
       form.setValue('address', data.address || '');
       form.setValue('address_neighborhood', data.district || '');
       form.setValue('address_city', data.city || '');
       form.setValue('address_state', data.state || '');
 
-      // Coloca o foco no campo de número para o usuário preencher
       form.setFocus('address_number');
 
     } catch (error) {
@@ -295,7 +296,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
             </div>
 
             <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><MapPin className="h-5 w-5" />Endereço</h3>
-              {/* =====> MUDANÇA 2: Conectando a função ao campo CEP <===== */}
               <FormField
                 control={form.control}
                 name="cep"
@@ -306,7 +306,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
                       <Input 
                         placeholder="00000-000" 
                         {...field}
-                        onBlur={handleCepBlur} // A função é chamada aqui
+                        onBlur={handleCepBlur}
                       />
                     </FormControl>
                   </FormItem>
