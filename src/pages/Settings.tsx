@@ -21,6 +21,7 @@ import { MyAccountForm } from '@/components/settings/MyAccountForm';
 import { GroupSettingsForm } from '@/components/settings/GroupSettingsForm';
 import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 import { useAuth } from '../contexts/AuthContext';
+import { ResetPasswordForm } from '@/components/settings/ResetPasswordForm'; // <<< NOVO IMPORT
 
 type SettingItem = {
   icon: React.ElementType;
@@ -34,6 +35,7 @@ const Settings: React.FC = () => {
   const [isMyAccountOpen, setIsMyAccountOpen] = useState(false);
   const [isGroupsModalOpen, setIsGroupsModalOpen] = useState(false);
   const [isAgendaSettingsModalOpen, setIsAgendaSettingsModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false); // <<< NOVO ESTADO
   const [isSignOutAlertOpen, setIsSignOutAlertOpen] = useState(false);
   const [isUpdateAlertOpen, setIsUpdateAlertOpen] = useState(false);
   const navigate = useNavigate();
@@ -85,7 +87,6 @@ const Settings: React.FC = () => {
       title: 'Modelos de Documentos',
       description: 'Crie e gerencie modelos de prontuários, contratos e recibos.',
     },
-    // AQUI ESTÁ A MUDANÇA: Ação para navegar para a página de assinatura
     {
       id: 'subscription',
       icon: CreditCard,
@@ -93,12 +94,15 @@ const Settings: React.FC = () => {
       description: 'Gerencie seu plano, faturas e método de pagamento.',
       action: () => navigate('/assinatura'),
     },
+    // <<< INÍCIO DA ALTERAÇÃO >>>
     {
       id: 'reset-password',
       icon: Lock,
       title: 'Redefinir senha',
       description: 'Altere sua senha de acesso para manter sua conta segura.',
+      action: () => setIsResetPasswordModalOpen(true),
     },
+    // <<< FIM DA ALTERAÇÃO >>>
     {
       id: 'logout-all',
       icon: LogOut,
@@ -176,6 +180,21 @@ const Settings: React.FC = () => {
           <AgendaSettingsForm onSuccess={() => setIsAgendaSettingsModalOpen(false)} />
         </DialogContent>
       </Dialog>
+      
+      {/* <<< INÍCIO DO NOVO MODAL >>> */}
+      {/* Modal Redefinir Senha */}
+      <Dialog open={isResetPasswordModalOpen} onOpenChange={setIsResetPasswordModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Redefinir Senha</DialogTitle>
+            <DialogDescription>
+              Crie uma nova senha forte e segura para sua conta.
+            </DialogDescription>
+          </DialogHeader>
+          <ResetPasswordForm onSuccess={() => setIsResetPasswordModalOpen(false)} />
+        </DialogContent>
+      </Dialog>
+      {/* <<< FIM DO NOVO MODAL >>> */}
 
       {/* AlertDialog para Sair de Todos os Dispositivos */}
       <AlertDialog open={isSignOutAlertOpen} onOpenChange={setIsSignOutAlertOpen}>

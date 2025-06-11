@@ -4,7 +4,6 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 
-// Interface atualizada com TODAS as novas funções
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -15,6 +14,7 @@ export interface AuthContextType {
   updateUser: (updates: Partial<User>) => Promise<void>;
   refetchUser: () => Promise<void>;
   forceAppUpdate: () => Promise<void>;
+  resetPassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -157,6 +157,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.error('Login error:', error);
       toast({ title: "Erro no login", description: error.message || "Verifique suas credenciais e tente novamente", variant: "destructive" });
+      // <<< INÍCIO DA CORREÇÃO >>>
+      // Garante que o loading seja desativado em caso de erro.
+      setIsLoading(false);
+      // <<< FIM DA CORREÇÃO >>>
       throw error;
     }
   };
@@ -263,6 +267,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      toast({
+        title: "Erro ao redefinir a senha",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+    toast({
+      title: "Senha alterada com sucesso!",
+    });
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -274,6 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refetchUser,
       signOutFromAllDevices,
       forceAppUpdate,
+      resetPassword,
     }}>
       {children}
     </AuthContext.Provider>
