@@ -1,3 +1,5 @@
+// src/pages/Settings.tsx
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -83,11 +85,13 @@ const Settings: React.FC = () => {
       title: 'Modelos de Documentos',
       description: 'Crie e gerencie modelos de prontuários, contratos e recibos.',
     },
+    // AQUI ESTÁ A MUDANÇA: Ação para navegar para a página de assinatura
     {
       id: 'subscription',
       icon: CreditCard,
       title: 'Minha Assinatura',
       description: 'Gerencie seu plano, faturas e método de pagamento.',
+      action: () => navigate('/assinatura'),
     },
     {
       id: 'reset-password',

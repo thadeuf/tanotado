@@ -25,13 +25,14 @@ import Agenda from './pages/Agenda';
 import Financial from './pages/Financial';
 import Prontuarios from './pages/Prontuarios';
 import Settings from './pages/Settings';
-// AQUI ESTÁ A CORREÇÃO: Importando o componente que faltava
 import MessageSettings from './pages/MessageSettings';
+// AQUI ESTÁ A MUDANÇA: Importando a nova página de assinatura
+import Subscription from './pages/Subscription';
 
 
 const queryClient = new QueryClient();
 
-// Componente para rotas protegidas (sem alterações)
+// AQUI ESTÁ A MUDANÇA: Lógica de redirecionamento no ProtectedRoute
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
@@ -46,6 +47,15 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
+  // --- INÍCIO DA LÓGICA DE ASSINATURA ---
+  const isTrialExpired = user && new Date(user.trialEndsAt) < new Date() && !user.isSubscribed;
+
+  if (isTrialExpired) {
+    // Se o trial expirou e não é assinante, redireciona para a página de assinatura
+    return <Navigate to="/assinatura" replace />;
+  }
+  // --- FIM DA LÓGICA DE ASSINATURA ---
 
   if (!user.hasCompletedOnboarding) {
     return <OnboardingFlow />;
@@ -62,16 +72,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* Informações do usuário com foto */}
               <div className="flex items-center space-x-3">
                 <Avatar className="h-8 w-8">
-                  {/*
-                    *
-                    * AJUSTE FEITO AQUI: 
-                    * O 'src' agora busca a URL do avatar do usuário.
-                    * O '|| ""' garante que, se a URL for nula, passemos uma string vazia.
-                    *
-                  */}
                   <AvatarImage src={user.avatar_url || ""} alt={user.name} />
                   <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
                     {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
@@ -99,7 +101,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   );
 };
 
-// Componente para rotas de admin (sem alterações)
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
 
@@ -110,7 +111,6 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// Componente para rotas públicas (sem alterações)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
@@ -128,6 +128,27 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return <>{children}</>;
 };
+
+// AQUI ESTÁ A MUDANÇA: Componente para a página de assinatura, que é acessível
+// mesmo com o trial expirado, mas apenas se o usuário estiver logado.
+const SubscriptionRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-tanotado-pink"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 
 const AppContent: React.FC = () => {
   const [isSplashActive, setIsSplashActive] = useState(!sessionStorage.getItem('splashScreenShown'));
@@ -149,6 +170,9 @@ const AppContent: React.FC = () => {
           <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />
           <Route path="/register" element={ <PublicRoute> <Register /> </PublicRoute> } />
 
+          {/* AQUI ESTÁ A MUDANÇA: Rota para a página de assinatura */}
+          <Route path="/assinatura" element={ <SubscriptionRoute> <Subscription /> </SubscriptionRoute> } />
+
           {/* Rotas protegidas */}
           <Route path="/dashboard" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
           <Route path="/admin" element={ <ProtectedRoute> <AdminRoute> <AdminDashboard /> </AdminRoute> </ProtectedRoute> } />
@@ -157,14 +181,9 @@ const AppContent: React.FC = () => {
           <Route path="/financeiro" element={ <ProtectedRoute> <Financial /> </ProtectedRoute> } />
           <Route path="/prontuarios" element={ <ProtectedRoute> <Prontuarios /> </ProtectedRoute> } />
           <Route path="/configuracoes" element={ <ProtectedRoute> <Settings /> </ProtectedRoute> } />
-          
-          {/* AQUI ESTÁ A CORREÇÃO: Usando o componente importado */}
           <Route path="/configuracoes/mensagens" element={ <ProtectedRoute> <MessageSettings /> </ProtectedRoute> } />
           
-          
-          {/* Rotas em desenvolvimento */}
           <Route path="/agenda" element={ <ProtectedRoute> <Agenda /> </ProtectedRoute> } />
-          <Route path="/agenda/novo" element={ <ProtectedRoute> <div>Novo Agendamento (Em desenvolvimento)</div> </ProtectedRoute> } />
           
           {/* Redirecionamentos */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

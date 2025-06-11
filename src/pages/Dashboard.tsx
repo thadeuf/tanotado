@@ -4,7 +4,6 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-// Ícone MessageSquare e componente Badge importados
 import { Calendar, Users, Clock, UserX, Video, MapPin, AlertCircle, CheckCircle, Play, Cake, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +12,8 @@ import { useClients } from '../hooks/useClients';
 import { format, isToday, isTomorrow, startOfWeek, endOfWeek, isWithinInterval, parseISO, getMonth, getDate, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
+// AQUI ESTÁ A MUDANÇA: Importando o Link para navegação
+import { Link } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -106,7 +107,6 @@ const Dashboard: React.FC = () => {
     return `https://wa.me/${cleaned}`;
   }
 
-  // #region INÍCIO DA ALTERAÇÃO
   const renderAppointment = (appointment: Appointment, index: number) => {
     const client = appointment.client_id ? clientMap.get(appointment.client_id) : null;
     const timeLabel = `${format(parseISO(appointment.start_time), 'HH:mm')} - ${format(parseISO(appointment.end_time), 'HH:mm')}`;
@@ -114,11 +114,8 @@ const Dashboard: React.FC = () => {
 
     return (
       <div key={appointment.id || index} className="relative p-4 border rounded-lg hover:bg-muted/50 transition-colors overflow-hidden">
-        {/* Linha lateral colorida */}
         <div className="absolute left-0 top-0 h-full w-2" style={{ backgroundColor: appointment.color || '#e2e8f0' }} />
-
         <div className="ml-4 space-y-2">
-          {/* Linha Superior */}
           <div className="flex items-start justify-between">
             <p className="font-bold text-tanotado-navy">{displayName}</p>
             {appointment.is_online && (
@@ -131,8 +128,6 @@ const Dashboard: React.FC = () => {
               </button>
             )}
           </div>
-
-          {/* Seção Inferior */}
           <div className="flex items-start text-sm text-muted-foreground">
             <div className="flex flex-col items-start">
               <div className="flex items-center gap-2">
@@ -149,7 +144,6 @@ const Dashboard: React.FC = () => {
       </div>
     );
   };
-  // #endregion FIM DA ALTERAÇÃO
   
   const renderEmptyState = (text: string) => (
     <div className="text-center py-10 text-muted-foreground">
@@ -186,23 +180,31 @@ const Dashboard: React.FC = () => {
         </p>
       </div>
 
-      {user?.subscriptionStatus === 'trial' && user.trialEndsAt && (
+      {/* INÍCIO DA ALTERAÇÃO */}
+      {user && !user.isSubscribed && user.trialEndsAt && (
         <Card className="border-tanotado-yellow/50 bg-gradient-to-r from-tanotado-yellow/10 to-tanotado-orange/10">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-center sm:text-left">
                 <h3 className="font-semibold text-tanotado-navy">🎉 Teste Gratuito Ativo</h3>
                 <p className="text-sm text-muted-foreground">
-                  Restam {Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} dias do seu teste
+                  {new Date(user.trialEndsAt) > new Date()
+                    ? `Restam ${Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} dias do seu teste.`
+                    : 'Seu período de teste terminou.'
+                  }
                 </p>
               </div>
-              <button className="px-4 py-2 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all">
-                Assinar Agora
-              </button>
+              <Button asChild className="px-4 py-2 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all w-full sm:w-auto">
+                <Link to="/assinatura">
+                  Assinar Agora
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
       )}
+      {/* FIM DA ALTERAÇÃO */}
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {isLoading ? (
