@@ -1,16 +1,18 @@
+// src/components/ClientProfileSidebar.tsx
+
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Calendar, CheckCircle, XCircle, User, FileText, MessageSquare, ClipboardList, DollarSign, Bell, Paperclip, Download,
+  Calendar, CheckCircle, XCircle, User, FileText, MessageSquare, DollarSign, Bell, Paperclip, Download, FileSignature,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
+import { cn } from '@/lib/utils';
 
-// Tipos da Ficha do Cliente (ajustados para refletir a estrutura completa)
+// Tipos da Ficha do Cliente
 type ClientData = {
   id: string;
   name: string;
@@ -22,22 +24,22 @@ type ClientData = {
   gender?: string | null;
   marital_status?: string | null;
   address?: string | null;
-  neighborhood?: string | null; // Corrigido de 'address_neighborhood' para 'neighborhood'
-  city?: string | null; // Corrigido
-  state?: string | null; // Corrigido
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
   session_value?: number | null;
-  // Simulação de dados que viriam de outras tabelas
   total_sessions?: number;
   attended_sessions?: number;
   missed_sessions?: number;
   total_due?: number;
 };
 
-// Props do componente, agora recebendo a view ativa e a função para trocá-la
+// Props do componente com a função para gerar o documento
 interface ClientProfileSidebarProps {
   client: ClientData | null;
   activeView: string;
   onViewChange: (view: string) => void;
+  onGenerateDocument: () => void;
 }
 
 const getInitials = (name: string) => {
@@ -45,17 +47,18 @@ const getInitials = (name: string) => {
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 };
 
-export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ client, activeView, onViewChange }) => {
-  if (!client) return null; // Retorna nulo se não houver cliente
+export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ client, activeView, onViewChange, onGenerateDocument }) => {
+  if (!client) return null;
 
-  // Cada item do menu agora tem um 'id' para identificar a view
+  // MUDANÇA AQUI: Adicionamos "Criar Documento" à lista do menu
   const menuItems = [
     { id: 'dados', label: 'Dados principais', icon: User },
     { id: 'prontuario', label: 'Prontuário', icon: FileText },
     { id: 'anotacoes', label: 'Anotações da Sessão', icon: MessageSquare },
+    { id: 'generate-doc', label: 'Criar Documento', icon: FileSignature }, // Item de Ação
+    { id: 'documentos', label: 'Documentos Salvos', icon: Paperclip },
     { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
     { id: 'cobrancas', label: 'Cobranças', icon: Bell },
-    { id: 'documentos', label: 'Documentos', icon: Paperclip },
   ];
 
   const handleExport = () => {
@@ -116,7 +119,7 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         )}
       </div>
 
-      {/* Bloco de Estatísticas (Simulado) */}
+      {/* Bloco de Estatísticas */}
       <Card>
         <CardContent className="p-4 flex justify-around">
           <div className="text-center">
@@ -137,7 +140,7 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         </CardContent>
       </Card>
 
-      {/* Bloco Financeiro (Simulado) */}
+      {/* Bloco Financeiro */}
       <div className="bg-primary/10 p-3 rounded-lg flex justify-between items-center">
         <span className="text-sm font-medium text-primary">Total vencidos:</span>
         <span className="text-lg font-bold text-primary">R$ {(client.total_due || 0).toFixed(2)}</span>
@@ -148,11 +151,22 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         {menuItems.map((item) => (
           <Button
             key={item.id}
-            variant={activeView === item.id ? "secondary" : "ghost"} // Estilo diferente para o item ativo
+            variant={activeView === item.id ? "secondary" : "ghost"}
             className="justify-start gap-3 px-3"
-            onClick={() => onViewChange(item.id)} // Chama a função para trocar a view
+            // MUDANÇA AQUI: Lógica para decidir qual função chamar
+            onClick={() => {
+              if (item.id === 'generate-doc') {
+                onGenerateDocument(); // Chama a função para abrir o modal
+              } else {
+                onViewChange(item.id); // Comportamento padrão de trocar a view
+              }
+            }}
           >
-            <item.icon className={cn("h-4 w-4", activeView === item.id ? "text-primary" : "text-muted-foreground")} />
+            <item.icon className={cn(
+                "h-4 w-4", 
+                activeView === item.id ? "text-primary" : "text-muted-foreground",
+                item.id === 'generate-doc' && 'text-tanotado-blue' // cor especial para a ação
+            )} />
             <span>{item.label}</span>
           </Button>
         ))}

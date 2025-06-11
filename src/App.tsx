@@ -26,8 +26,9 @@ import Financial from './pages/Financial';
 import Prontuarios from './pages/Prontuarios';
 import Settings from './pages/Settings';
 import MessageSettings from './pages/MessageSettings';
-// AQUI ESTÁ A MUDANÇA: Importando a nova página de assinatura
 import Subscription from './pages/Subscription';
+import DocumentTemplates from './pages/DocumentTemplates';
+import EditDocumentTemplate from './pages/EditDocumentTemplate';
 
 
 const queryClient = new QueryClient();
@@ -184,6 +185,10 @@ const AppContent: React.FC = () => {
           <Route path="/configuracoes/mensagens" element={ <ProtectedRoute> <MessageSettings /> </ProtectedRoute> } />
           
           <Route path="/agenda" element={ <ProtectedRoute> <Agenda /> </ProtectedRoute> } />
+
+          <Route path="/configuracoes/modelos" element={ <ProtectedRoute> <DocumentTemplates /> </ProtectedRoute> } />
+          <Route path="/configuracoes/modelos/novo" element={ <ProtectedRoute> <EditDocumentTemplate /> </ProtectedRoute> } />
+          <Route path="/configuracoes/modelos/editar/:templateId" element={ <ProtectedRoute> <EditDocumentTemplate /> </ProtectedRoute> } />
           
           {/* Redirecionamentos */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

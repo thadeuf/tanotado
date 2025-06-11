@@ -86,6 +86,7 @@ const Settings: React.FC = () => {
       icon: FileText,
       title: 'Modelos de Documentos',
       description: 'Crie e gerencie modelos de prontuários, contratos e recibos.',
+      action: () => navigate('/configuracoes/modelos'), 
     },
     {
       id: 'subscription',

@@ -1,25 +1,27 @@
 // src/pages/EditClient.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientForm } from '@/components/forms/ClientForm';
 import { ClientProfileSidebar } from '@/components/ClientProfileSidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
-import { ProntuarioContainer } from '@/components/prontuarios/ProntuarioContainer'; // A importação correta
-
-// O BLOCO DE CÓDIGO QUE DEFINIA O PLACEHOLDER 'ProntuarioContainer' FOI REMOVIDO DAQUI.
+import { ProntuarioContainer } from '@/components/prontuarios/ProntuarioContainer';
+import { GenerateDocumentDialog } from '@/components/documents/GenerateDocumentDialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const EditClient: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
-  const navigate = useNavigate();
-  const [clientData, setClientData] = useState(null);
+  const [clientData, setClientData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
   const [activeView, setActiveView] = useState('dados');
+  
+  // Novos estados e hooks
+  const { user } = useAuth();
+  const [isGenerateDocOpen, setIsGenerateDocOpen] = useState(false);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -74,43 +76,53 @@ const EditClient: React.FC = () => {
   }
 
   return (
-    <div className="grid md:grid-cols-[320px_1fr] gap-8 items-start">
-      <aside className="sticky top-6">
-        <ClientProfileSidebar 
-            client={clientData} 
-            activeView={activeView}
-            onViewChange={setActiveView}
-        />
-      </aside>
+    <>
+      <div className="grid md:grid-cols-[320px_1fr] gap-8 items-start">
+        <aside className="sticky top-6">
+          <ClientProfileSidebar 
+              client={clientData} 
+              activeView={activeView}
+              onViewChange={setActiveView}
+              onGenerateDocument={() => setIsGenerateDocOpen(true)}
+          />
+        </aside>
 
-      <main>
-        {activeView === 'dados' && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Editar Dados Principais</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ClientForm onSuccess={handleFormSuccess} initialData={clientData} />
-                </CardContent>
-            </Card>
-        )}
+        <main>
+          {activeView === 'dados' && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Editar Dados Principais</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <ClientForm onSuccess={handleFormSuccess} initialData={clientData} />
+                  </CardContent>
+              </Card>
+          )}
 
-        {activeView === 'prontuario' && clientData && (
-            <ProntuarioContainer client={clientData} />
-        )}
+          {activeView === 'prontuario' && clientData && (
+              <ProntuarioContainer client={clientData} />
+          )}
 
-        {activeView !== 'dados' && activeView !== 'prontuario' && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="capitalize">{activeView}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-center py-8 text-muted-foreground">A seção de "{activeView}" será implementada aqui.</p>
-                </CardContent>
-            </Card>
-        )}
-      </main>
-    </div>
+          {activeView !== 'dados' && activeView !== 'prontuario' && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle className="capitalize">{activeView}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <p className="text-center py-8 text-muted-foreground">A seção de "{activeView}" será implementada aqui.</p>
+                  </CardContent>
+              </Card>
+          )}
+        </main>
+      </div>
+      
+      {/* O diálogo é renderizado aqui, mas só fica visível quando `isOpen` é true */}
+      <GenerateDocumentDialog
+        client={clientData}
+        isOpen={isGenerateDocOpen}
+        onOpenChange={setIsGenerateDocOpen}
+      />
+    </>
   );
 };
 
