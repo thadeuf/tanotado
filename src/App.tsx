@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -6,7 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import SplashScreen from './components/SplashScreen'; // <-- Lembre-se de usar o SplashScreen com a imagem
+import SplashScreen from './components/SplashScreen';
 import OnboardingFlow from './components/OnboardingFlow';
 import { AppSidebar } from './components/AppSidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,11 +20,13 @@ import AdminDashboard from './pages/AdminDashboard';
 import Clients from './pages/Clients';
 import NotFound from './pages/NotFound';
 import 'react-datepicker/dist/react-datepicker.css';
-import EditClient from './pages/EditClient'; 
+import EditClient from './pages/EditClient';
 import Agenda from './pages/Agenda';
 import Financial from './pages/Financial';
 import Prontuarios from './pages/Prontuarios';
 import Settings from './pages/Settings';
+// AQUI ESTÁ A CORREÇÃO: Importando o componente que faltava
+import MessageSettings from './pages/MessageSettings';
 
 
 const queryClient = new QueryClient();
@@ -55,15 +59,20 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
           <header className="h-16 border-b bg-white flex items-center justify-between px-6">
             <div className="flex items-center space-x-4">
               <SidebarTrigger className="lg:hidden" />
-              
-              
             </div>
 
             <div className="flex items-center space-x-4">
               {/* Informações do usuário com foto */}
               <div className="flex items-center space-x-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="" alt={user.name} />
+                  {/*
+                    *
+                    * AJUSTE FEITO AQUI: 
+                    * O 'src' agora busca a URL do avatar do usuário.
+                    * O '|| ""' garante que, se a URL for nula, passemos uma string vazia.
+                    *
+                  */}
+                  <AvatarImage src={user.avatar_url || ""} alt={user.name} />
                   <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
                     {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                   </AvatarFallback>
@@ -120,25 +129,18 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// ==================================================================
-// INÍCIO DAS MUDANÇAS
-// ==================================================================
 const AppContent: React.FC = () => {
-  // MUDANÇA 1: O estado inicial agora depende do sessionStorage.
   const [isSplashActive, setIsSplashActive] = useState(!sessionStorage.getItem('splashScreenShown'));
 
-  // MUDANÇA 2: Criada uma função para ser chamada no final do splash.
   const handleSplashComplete = () => {
-    sessionStorage.setItem('splashScreenShown', 'true'); // Grava a flag
-    setIsSplashActive(false); // Atualiza o estado para remover o splash
+    sessionStorage.setItem('splashScreenShown', 'true'); 
+    setIsSplashActive(false); 
   };
 
-  // MUDANÇA 3: A condição usa o novo estado e a nova função.
   if (isSplashActive) {
     return <SplashScreen onComplete={handleSplashComplete} />;
   }
 
-  // O código abaixo só é renderizado APÓS o splash (se ele for exibido).
   return (
     <AuthProvider>
       <BrowserRouter>
@@ -156,6 +158,10 @@ const AppContent: React.FC = () => {
           <Route path="/prontuarios" element={ <ProtectedRoute> <Prontuarios /> </ProtectedRoute> } />
           <Route path="/configuracoes" element={ <ProtectedRoute> <Settings /> </ProtectedRoute> } />
           
+          {/* AQUI ESTÁ A CORREÇÃO: Usando o componente importado */}
+          <Route path="/configuracoes/mensagens" element={ <ProtectedRoute> <MessageSettings /> </ProtectedRoute> } />
+          
+          
           {/* Rotas em desenvolvimento */}
           <Route path="/agenda" element={ <ProtectedRoute> <Agenda /> </ProtectedRoute> } />
           <Route path="/agenda/novo" element={ <ProtectedRoute> <div>Novo Agendamento (Em desenvolvimento)</div> </ProtectedRoute> } />
@@ -168,9 +174,6 @@ const AppContent: React.FC = () => {
     </AuthProvider>
   );
 };
-// ==================================================================
-// FIM DAS MUDANÇAS
-// ==================================================================
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

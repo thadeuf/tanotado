@@ -4,6 +4,19 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 
+// Interface atualizada com TODAS as novas funções
+export interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  signOutFromAllDevices: () => Promise<void>;
+  register: (userData: RegisterData) => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
+  refetchUser: () => Promise<void>;
+  forceAppUpdate: () => Promise<void>;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
@@ -50,7 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Após criar, recarrega o perfil para garantir todos os dados
       await loadUserProfile(supabase.auth.getSession()?.data?.session);
       
     } catch (error) {
@@ -74,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
         if (error && error.code === 'PGRST116') {
-            // Perfil não encontrado, vamos criar um.
             await createNewProfile(session.user);
         } else if (error) {
             throw error;
@@ -115,17 +126,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Restaurando a lógica original e mais estável
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        // O setTimeout é crucial aqui para evitar o loop
         setTimeout(() => {
           loadUserProfile(session);
         }, 0);
       }
     );
 
-    // Carrega a sessão inicial de forma assíncrona
     supabase.auth.getSession().then(({ data: { session } }) => {
       loadUserProfile(session);
     });
@@ -150,8 +158,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login error:', error);
       toast({ title: "Erro no login", description: error.message || "Verifique suas credenciais e tente novamente", variant: "destructive" });
       throw error;
-    } finally {
-        // O listener onAuthStateChange cuidará de setar o loading para false
     }
   };
 
@@ -205,6 +211,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signOutFromAllDevices = async () => {
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) throw error;
+      setUser(null);
+      toast({
+        title: "Sessão encerrada em todos os dispositivos",
+        description: "Você foi desconectado de todas as suas sessões ativas.",
+      });
+    } catch (error: any) {
+      console.error('Global sign out error:', error);
+      toast({
+        title: "Erro ao desconectar",
+        description: "Não foi possível encerrar as outras sessões. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const forceAppUpdate = async () => {
+    try {
+      toast({
+        title: "Atualizando o aplicativo...",
+        description: "Limpando o cache para obter a versão mais recente.",
+      });
+
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        console.log("Caches limpos com sucesso.");
+      }
+
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(reg => reg.unregister()));
+        console.log("Service workers desregistrados.");
+      }
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+
+    } catch (error) {
+      console.error("Erro ao forçar a atualização:", error);
+      toast({
+        title: "Erro na atualização",
+        description: "Não foi possível limpar o cache. Tente atualizar a página manualmente (Ctrl+Shift+R).",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -214,6 +272,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       register,
       updateUser,
       refetchUser,
+      signOutFromAllDevices,
+      forceAppUpdate,
     }}>
       {children}
     </AuthContext.Provider>

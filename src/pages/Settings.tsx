@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   User,
@@ -13,9 +14,11 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MyAccountForm } from '@/components/settings/MyAccountForm';
 import { GroupSettingsForm } from '@/components/settings/GroupSettingsForm';
 import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
+import { useAuth } from '../contexts/AuthContext';
 
 type SettingItem = {
   icon: React.ElementType;
@@ -29,6 +32,21 @@ const Settings: React.FC = () => {
   const [isMyAccountOpen, setIsMyAccountOpen] = useState(false);
   const [isGroupsModalOpen, setIsGroupsModalOpen] = useState(false);
   const [isAgendaSettingsModalOpen, setIsAgendaSettingsModalOpen] = useState(false);
+  const [isSignOutAlertOpen, setIsSignOutAlertOpen] = useState(false);
+  const [isUpdateAlertOpen, setIsUpdateAlertOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const { signOutFromAllDevices, forceAppUpdate } = useAuth();
+
+  const handleSignOutAllClick = async () => {
+    await signOutFromAllDevices();
+    setIsSignOutAlertOpen(false);
+  };
+
+  const handleForceUpdateClick = async () => {
+    await forceAppUpdate();
+    setIsUpdateAlertOpen(false);
+  };
 
   const settingsList: SettingItem[] = [
     {
@@ -57,6 +75,7 @@ const Settings: React.FC = () => {
       icon: MessageSquare,
       title: 'Configurações de Mensagens',
       description: 'Configure lembretes e mensagens automáticas para seus clientes.',
+      action: () => navigate('/configuracoes/mensagens'),
     },
     {
       id: 'document-templates',
@@ -81,12 +100,14 @@ const Settings: React.FC = () => {
       icon: LogOut,
       title: 'Sair em todos os dispositivos',
       description: 'Desconecte sua conta de todos os outros computadores e celulares.',
+      action: () => setIsSignOutAlertOpen(true),
     },
     {
       id: 'update-app',
       icon: RefreshCw,
       title: 'Atualizar App',
       description: 'Verifique se há uma nova versão do aplicativo disponível.',
+      action: () => setIsUpdateAlertOpen(true),
     }
   ];
 
@@ -147,10 +168,46 @@ const Settings: React.FC = () => {
 
       {/* Modal Configurações da Agenda */}
       <Dialog open={isAgendaSettingsModalOpen} onOpenChange={setIsAgendaSettingsModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg h-[90vh] flex flex-col">
           <AgendaSettingsForm onSuccess={() => setIsAgendaSettingsModalOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog para Sair de Todos os Dispositivos */}
+      <AlertDialog open={isSignOutAlertOpen} onOpenChange={setIsSignOutAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação desconectará sua conta de todos os dispositivos, incluindo este. Você precisará fazer login novamente em todos eles.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOutAllClick} className="bg-destructive hover:bg-destructive/90">
+              Confirmar e Sair
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog para Atualizar o App */}
+      <AlertDialog open={isUpdateAlertOpen} onOpenChange={setIsUpdateAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Atualizar Aplicativo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso limpará o cache local e recarregará a página para garantir que você esteja usando a versão mais recente do tanotado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleForceUpdateClick}>
+              Atualizar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

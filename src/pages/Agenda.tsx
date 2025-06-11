@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, addDays, startOfWeek, isSameDay, isToday } from 'date-fns';
+import { format, addDays, startOfWeek, isSameDay, isToday, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import DateSelector from '@/components/agenda/DateSelector';
 import AppointmentForm from '@/components/agenda/AppointmentForm';
@@ -53,6 +53,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './Agenda.css';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 const CustomEvent = ({ event }: { event: any }) => (
   <div className="rbc-event-content text-white text-xs p-1 h-full truncate">
@@ -73,7 +74,27 @@ const Agenda: React.FC = () => {
 
   const { data: appointments = [], isLoading } = useAppointments();
   const { data: clients = [] } = useClients();
+  const { data: settings } = useUserSettings();
   const queryClient = useQueryClient();
+
+  const isDayDisabled = useCallback((date: Date): boolean => {
+    if (date < new Date(new Date().setHours(0, 0, 0, 0)) && !isSameDay(date, new Date())) {
+      return true;
+    }
+
+    if (settings && settings.working_hours) {
+      const workingDays = settings.working_hours as any;
+      const dayOfWeek = getDay(date);
+      const dayKeyMap: { [key: number]: string } = {
+        0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday',
+      };
+      const dayKey = dayKeyMap[dayOfWeek];
+      if (workingDays[dayKey] && workingDays[dayKey].enabled === false) {
+        return true;
+      }
+    }
+    return false;
+  }, [settings]);
 
   const deleteAppointmentMutation = useMutation({
     mutationFn: async ({ id, scope, recurrence_group_id }: { id: string; scope: 'one' | 'all'; recurrence_group_id?: string | null }) => {
@@ -156,11 +177,20 @@ const Agenda: React.FC = () => {
   }), []);
 
   const handleSelectSlot = useCallback(({ start }: { start: Date }) => {
+    if (isDayDisabled(start)) {
+      toast({
+        title: "Dia não disponível para agendamentos",
+        description: "Você configurou que não atende neste dia. Por favor, selecione uma data válida.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setFormStartDate(start);
     setFormStartTime(format(start, 'HH:mm'));
     setShowForm(true);
     setEditingAppointment(null);
-  }, []);
+  }, [isDayDisabled]);
 
   const dailyAppointments = getDayAppointments(selectedDate);
 
@@ -202,7 +232,7 @@ const Agenda: React.FC = () => {
           <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsSettingsModalOpen(true)}>
             <SettingsIcon className="h-4 w-4" />
           </Button>
-          <Button onClick={() => handleSelectSlot({ start: new Date() })} className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200 gap-2" size="sm">
+          <Button onClick={() => handleSelectSlot({ start: selectedDate })} className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200 gap-2" size="sm">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Novo Agendamento</span>
           </Button>
@@ -393,7 +423,7 @@ const Agenda: React.FC = () => {
       </AlertDialog>
       
       <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg h-[90vh] flex flex-col">
           <AgendaSettingsForm onSuccess={() => setIsSettingsModalOpen(false)} />
         </DialogContent>
       </Dialog>

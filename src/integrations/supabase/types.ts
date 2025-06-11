@@ -283,6 +283,7 @@ export type Database = {
           created_at: string | null
           email_reminders_enabled: boolean | null
           id: string
+          message_templates: Json | null
           notifications_enabled: boolean | null
           updated_at: string | null
           user_id: string
@@ -295,6 +296,7 @@ export type Database = {
           created_at?: string | null
           email_reminders_enabled?: boolean | null
           id?: string
+          message_templates?: Json | null
           notifications_enabled?: boolean | null
           updated_at?: string | null
           user_id: string
@@ -307,6 +309,7 @@ export type Database = {
           created_at?: string | null
           email_reminders_enabled?: boolean | null
           id?: string
+          message_templates?: Json | null
           notifications_enabled?: boolean | null
           updated_at?: string | null
           user_id?: string

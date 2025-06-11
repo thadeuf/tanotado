@@ -1,6 +1,6 @@
 // src/components/agenda/AppointmentForm.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -54,7 +54,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Calendar, Clock, User, Loader2, Check, ChevronsUpDown, Video, Repeat, UserCheck, Briefcase, AlertCircle, DollarSign } from 'lucide-react';
-import { format, addWeeks, addMonths } from 'date-fns';
+import { format, addWeeks, addMonths, getDay, isSameDay, addMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -65,6 +65,7 @@ import { cn } from '@/lib/utils';
 import { useAppointments, Appointment } from '@/hooks/useAppointments';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { v4 as uuidv4 } from 'uuid';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 
 const SESSION_TYPES = [
@@ -84,7 +85,6 @@ const APPOINTMENT_COLORS = [
   { value: '#84CC16', label: 'Lima' },
 ] as const;
 
-// MUDANÇA 1: Aprimorar a validação com superRefine
 const appointmentSchema = z.object({
   clientId: z.string().optional(),
   title: z.string().optional(),
@@ -127,7 +127,6 @@ const appointmentSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['onlineUrl'], message: 'URL da sessão online inválida.' });
     }
   }
-  // Se o lançamento financeiro estiver ativo, o preço deve ser maior que zero
   if (data.launchFinancial && (!data.price || parseFloat(data.price) <= 0)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -161,6 +160,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const { user } = useAuth();
   const { data: clientsData, isLoading: clientsLoading, error: clientsError } = useClients();
   const { data: allAppointmentsData = [] } = useAppointments();
+  const { data: settings } = useUserSettings();
   const allAppointments = allAppointmentsData as FullAppointment[];
   const queryClient = useQueryClient();
   const clients = Array.isArray(clientsData) ? clientsData : [];
@@ -189,6 +189,24 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       recurrence_count: 4,
     },
   });
+
+  const isDayDisabled = useCallback((date: Date): boolean => {
+    if (date < new Date(new Date().setHours(0, 0, 0, 0)) && !isSameDay(date, new Date())) {
+      return true;
+    }
+    if (settings && settings.working_hours) {
+        const workingDays = settings.working_hours as any;
+        const dayOfWeek = getDay(date);
+        const dayKeyMap: { [key: number]: string } = {
+            0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday',
+        };
+        const dayKey = dayKeyMap[dayOfWeek];
+        if (workingDays[dayKey] && workingDays[dayKey].enabled === false) {
+            return true;
+        }
+    }
+    return false;
+  }, [settings]);
 
   useEffect(() => {
     if (isEditing && initial) {
@@ -229,7 +247,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const watchedClient = form.watch('clientId');
   const watchedIsOnline = form.watch('isOnline');
   const watchedSessionType = form.watch('sessionType');
-  // MUDANÇA 2: Observar o estado do switch financeiro
   const watchedLaunchFinancial = form.watch('launchFinancial');
 
   useEffect(() => {
@@ -300,7 +317,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               let nextEnd = new Date(endDateTime);
               if (i > 0) {
                   if (data.recurrence_frequency === 'weekly') { nextStart = addWeeks(nextStart, i); nextEnd = addWeeks(nextEnd, i); }
-                  else if (data.recurrence_frequency === 'biweekly') { nextStart = addWeeks(nextStart, i * 2); nextEnd = addWeeks(nextEnd, i * 2); }
+                  else if (data.recurrence_frequency === 'biweekly') { nextStart = addWeeks(nextEnd, i * 2); }
                   else if (data.recurrence_frequency === 'monthly') { nextStart = addMonths(nextStart, i); nextEnd = addMonths(nextEnd, i); }
               }
               appointmentsToInsert.push({
@@ -427,6 +444,30 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   });
 
   const onSubmit = async (data: AppointmentFormData) => {
+    if (isDayDisabled(appointmentDate)) {
+      toast({
+        title: "Data Inválida",
+        description: "Não é possível criar ou mover um agendamento para um dia que você não atende.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (settings && settings.working_hours) {
+        const workingHours = settings.working_hours as any;
+        const settingsStartTime = workingHours.start_time || '00:00';
+        const settingsEndTime = workingHours.end_time || '23:59';
+
+        if (data.start_time < settingsStartTime || data.end_time > settingsEndTime) {
+            toast({
+                title: "Horário fora do expediente",
+                description: `Seu horário de atendimento neste dia é das ${settingsStartTime} às ${settingsEndTime}.`,
+                variant: "destructive",
+            });
+            return;
+        }
+    }
+
     setIsSubmitting(true);
     if (isEditing && initial) {
         const dateChanged = new Date(initial.start_time).toDateString() !== appointmentDate.toDateString();
@@ -474,7 +515,13 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         <Button variant="outline" size="sm" type="button">Alterar</Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="center">
-                        <CalendarPicker mode="single" selected={appointmentDate} onSelect={(date) => { if (date) { setAppointmentDate(date); setIsDatePickerOpen(false); } }} initialFocus />
+                        <CalendarPicker 
+                          mode="single" 
+                          selected={appointmentDate} 
+                          onSelect={(date) => { if (date) { setAppointmentDate(date); setIsDatePickerOpen(false); } }} 
+                          initialFocus 
+                          disabled={isDayDisabled}
+                        />
                     </PopoverContent>
                 </Popover>
             </div>
@@ -550,7 +597,34 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             )}
             
             <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="start_time" render={({ field }) => (<FormItem><FormLabel>Início</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField 
+                control={form.control} 
+                name="start_time" 
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Início</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="time" 
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e); // Propaga a mudança para o react-hook-form
+                          const startTimeValue = e.target.value;
+                          if (startTimeValue && /^\d{2}:\d{2}$/.test(startTimeValue) && settings?.appointment_duration) {
+                            const [hours, minutes] = startTimeValue.split(':').map(Number);
+                            const startDate = new Date();
+                            startDate.setHours(hours, minutes, 0, 0);
+                            const newEndDate = addMinutes(startDate, settings.appointment_duration);
+                            const newEndTime = format(newEndDate, 'HH:mm');
+                            form.setValue('end_time', newEndTime, { shouldValidate: true });
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} 
+              />
               <FormField control={form.control} name="end_time" render={({ field }) => (<FormItem><FormLabel>Término</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>
 
@@ -573,7 +647,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             
             {watchedIsOnline && (<FormField control={form.control} name="onlineUrl" render={({ field }) => (<FormItem><FormLabel>URL da Sala</FormLabel><FormControl><Input placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem>)} />)}
             
-            {/* MUDANÇA 3: Lógica de exibição invertida */}
             {watchedSessionType !== 'compromisso_pessoal' && !isEditing && (
               <div className="space-y-4">
                   <FormField
@@ -597,7 +670,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                       )}
                   />
 
-                  {/* Campo de valor agora aparece SE o switch estiver ligado */}
                   {watchedLaunchFinancial && (
                       <div className="animate-fade-in pl-4 border-l-2 border-primary/50">
                           <FormField

@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const agendaSettingsSchema = z.object({
   start_time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Hora inválida."),
@@ -173,94 +174,96 @@ export const AgendaSettingsForm: React.FC<AgendaSettingsFormProps> = ({ onSucces
 
   return (
     <Form {...form}>
-        <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-6">
+        <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="flex flex-col flex-1 min-h-0">
             <DialogHeader>
                 <DialogTitle className="text-2xl">Configurações da Agenda</DialogTitle>
                 <DialogDescription>
                   Defina seus horários de trabalho e intervalos de agendamento.
                 </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="start_time"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Início da agenda</FormLabel>
-                                <FormControl>
-                                    <Input type="time" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="end_time"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Fim da agenda</FormLabel>
-                                <FormControl>
-                                    <Input type="time" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-                <FormField
-                    control={form.control}
-                    name="interval"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Intervalo entre agendamentos</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="5">5 minutos</SelectItem>
-                                    <SelectItem value="10">10 minutos</SelectItem>
-                                    <SelectItem value="15">15 minutos</SelectItem>
-                                    <SelectItem value="30">30 minutos</SelectItem>
-                                    <SelectItem value="35">35 minutos</SelectItem>
-                                    <SelectItem value="40">40 minutos</SelectItem>
-                                    <SelectItem value="50">50 minutos</SelectItem>
-                                    <SelectItem value="60">60 minutos</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <div className="space-y-2 pt-4">
-                    <FormLabel>Dias de trabalho</FormLabel>
-                    {daysOfWeek.map(day => (
-                         <FormField
-                            key={day.id}
-                            control={form.control}
-                            name={`working_days.${day.id}`}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                    <div className="space-y-0.5">
-                                        <FormLabel>{day.label}</FormLabel>
-                                    </div>
-                                    <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-                    ))}
-                </div>
-            </div>
-             <div className="flex justify-end pt-6 border-t mt-6">
+            <ScrollArea className="flex-1 my-4 pr-6 -mr-6">
+              <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                          control={form.control}
+                          name="start_time"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Início da agenda</FormLabel>
+                                  <FormControl>
+                                      <Input type="time" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                      <FormField
+                          control={form.control}
+                          name="end_time"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Fim da agenda</FormLabel>
+                                  <FormControl>
+                                      <Input type="time" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                  </div>
+                  <FormField
+                      control={form.control}
+                      name="interval"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Intervalo entre agendamentos</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                  <SelectTrigger>
+                                      <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                      <SelectItem value="5">5 minutos</SelectItem>
+                                      <SelectItem value="10">10 minutos</SelectItem>
+                                      <SelectItem value="15">15 minutos</SelectItem>
+                                      <SelectItem value="30">30 minutos</SelectItem>
+                                      <SelectItem value="35">35 minutos</SelectItem>
+                                      <SelectItem value="40">40 minutos</SelectItem>
+                                      <SelectItem value="50">50 minutos</SelectItem>
+                                      <SelectItem value="60">60 minutos</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <div className="space-y-2 pt-4">
+                      <FormLabel>Dias de trabalho</FormLabel>
+                      {daysOfWeek.map(day => (
+                          <FormField
+                              key={day.id}
+                              control={form.control}
+                              name={`working_days.${day.id}`}
+                              render={({ field }) => (
+                                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                      <div className="space-y-0.5">
+                                          <FormLabel>{day.label}</FormLabel>
+                                      </div>
+                                      <FormControl>
+                                          <Switch
+                                              checked={field.value}
+                                              onCheckedChange={field.onChange}
+                                          />
+                                      </FormControl>
+                                  </FormItem>
+                              )}
+                          />
+                      ))}
+                  </div>
+              </div>
+            </ScrollArea>
+             <div className="flex justify-end pt-4 border-t">
                 <Button type="submit" disabled={mutation.isPending}>
                     {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Salvar Alterações
