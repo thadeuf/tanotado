@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -13,6 +12,17 @@ export interface User {
   isSubscribed: boolean;
   subscriptionStatus: 'active' | 'trial' | 'expired' | 'cancelled';
   createdAt: Date;
+  // Novos campos adicionados
+  avatar_url?: string | null;
+  council_registration?: string | null;
+  about_you?: string | null;
+  cep?: string | null;
+  address?: string | null;
+  address_number?: string | null;
+  address_neighborhood?: string | null;
+  address_city?: string | null;
+  address_state?: string | null;
+  address_complement?: string | null;
 }
 
 export interface AuthContextType {
@@ -22,6 +32,7 @@ export interface AuthContextType {
   logout: () => void;
   register: (userData: RegisterData) => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
+  refetchUser: () => Promise<void>; // Adicionada função para recarregar dados do usuário
 }
 
 export interface RegisterData {

@@ -1,4 +1,7 @@
 
+@import "react-phone-number-input/style.css";
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

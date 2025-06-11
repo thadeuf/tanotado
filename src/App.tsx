@@ -22,6 +22,7 @@ import EditClient from './pages/EditClient';
 import Agenda from './pages/Agenda';
 import Financial from './pages/Financial';
 import Prontuarios from './pages/Prontuarios';
+import Settings from './pages/Settings';
 
 
 const queryClient = new QueryClient();
@@ -55,14 +56,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
             <div className="flex items-center space-x-4">
               <SidebarTrigger className="lg:hidden" />
               
-              {/* Botão Novo Agendamento */}
-              <NavLink 
-                to="/agenda/novo"
-                className="flex items-center justify-center h-10 bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 px-4"
-              >
-                <Plus className="h-4 w-4" />
-                <span className="ml-2 font-medium">Novo Agendamento</span>
-              </NavLink>
+              
             </div>
 
             <div className="flex items-center space-x-4">
@@ -160,13 +154,12 @@ const AppContent: React.FC = () => {
           <Route path="/clientes/editar/:clientId" element={ <ProtectedRoute> <EditClient /> </ProtectedRoute> } />
           <Route path="/financeiro" element={ <ProtectedRoute> <Financial /> </ProtectedRoute> } />
           <Route path="/prontuarios" element={ <ProtectedRoute> <Prontuarios /> </ProtectedRoute> } />
+          <Route path="/configuracoes" element={ <ProtectedRoute> <Settings /> </ProtectedRoute> } />
           
           {/* Rotas em desenvolvimento */}
           <Route path="/agenda" element={ <ProtectedRoute> <Agenda /> </ProtectedRoute> } />
           <Route path="/agenda/novo" element={ <ProtectedRoute> <div>Novo Agendamento (Em desenvolvimento)</div> </ProtectedRoute> } />
           
-          <Route path="/configuracoes" element={ <ProtectedRoute> <div>Configurações (Em desenvolvimento)</div> </ProtectedRoute> } />
-
           {/* Redirecionamentos */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFound />} />

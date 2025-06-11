@@ -14,7 +14,8 @@ import {
   Loader2,
   Video,
   Repeat,
-  Briefcase
+  Briefcase,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -50,6 +51,8 @@ import { Calendar as BigCalendar, Views } from 'react-big-calendar';
 import { localizer } from '@/lib/calendarLocalizer';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './Agenda.css';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 
 const CustomEvent = ({ event }: { event: any }) => (
   <div className="rbc-event-content text-white text-xs p-1 h-full truncate">
@@ -65,10 +68,8 @@ const Agenda: React.FC = () => {
   const [formStartDate, setFormStartDate] = useState<Date | null>(null);
   const [formStartTime, setFormStartTime] = useState<string>('');
   
-  // ==================================================================
-  // INÍCIO DAS MUDANÇAS
-  // ==================================================================
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const { data: appointments = [], isLoading } = useAppointments();
   const { data: clients = [] } = useClients();
@@ -78,10 +79,8 @@ const Agenda: React.FC = () => {
     mutationFn: async ({ id, scope, recurrence_group_id }: { id: string; scope: 'one' | 'all'; recurrence_group_id?: string | null }) => {
       let response;
       if (scope === 'all' && recurrence_group_id) {
-        // Excluir toda a série recorrente
         response = await supabase.from('appointments').delete().eq('recurrence_group_id', recurrence_group_id);
       } else {
-        // Excluir apenas um agendamento
         response = await supabase.from('appointments').delete().eq('id', id);
       }
       if (response.error) throw response.error;
@@ -90,7 +89,7 @@ const Agenda: React.FC = () => {
     onSuccess: () => {
       toast({ title: "Agendamento(s) excluído(s)!", description: "A sua agenda foi atualizada." });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      setAppointmentToDelete(null); // Fecha o modal após a exclusão
+      setAppointmentToDelete(null); 
     },
     onError: (error) => {
       toast({ title: "Erro ao excluir", description: "Não foi possível remover o agendamento.", variant: "destructive" });
@@ -99,7 +98,6 @@ const Agenda: React.FC = () => {
     },
   });
 
-  // Handler para abrir o modal de confirmação de exclusão
   const handleDeleteClick = (appointment: Appointment) => {
     setAppointmentToDelete(appointment);
   };
@@ -108,9 +106,6 @@ const Agenda: React.FC = () => {
     setEditingAppointment(appointment);
     setShowForm(true);
   };
-  // ==================================================================
-  // FIM DAS MUDANÇAS
-  // ==================================================================
 
   const handleFormClose = () => {
     setShowForm(false);
@@ -204,6 +199,9 @@ const Agenda: React.FC = () => {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsSettingsModalOpen(true)}>
+            <SettingsIcon className="h-4 w-4" />
+          </Button>
           <Button onClick={() => handleSelectSlot({ start: new Date() })} className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200 gap-2" size="sm">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Novo Agendamento</span>
@@ -292,7 +290,6 @@ const Agenda: React.FC = () => {
                                 <div className="flex items-center flex-wrap gap-2 mb-1">
                                   <span className="font-semibold text-sm">{format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}</span>
                                   <Badge variant="secondary" className={getStatusInfo(appointment.status).className}>{getStatusInfo(appointment.status).text}</Badge>
-                                  {/* INÍCIO DA MUDANÇA: BADGES CONDICIONAIS */}
                                   {appointment.recurrence_group_id && (
                                     <Badge variant="outline" className="border-tanotado-purple/50 text-tanotado-purple flex items-center gap-1">
                                       <Repeat className="h-3 w-3" /> Recorrente
@@ -303,7 +300,6 @@ const Agenda: React.FC = () => {
                                       <Briefcase className="h-3 w-3" /> Compromisso
                                     </Badge>
                                   )}
-                                  {/* FIM DA MUDANÇA: BADGES CONDICIONAIS */}
                                 </div>
                                 <div className="font-medium text-tanotado-navy">{appointment.title || 'Cliente não informado'}</div>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
@@ -349,7 +345,6 @@ const Agenda: React.FC = () => {
         />
       )}
       
-      {/* INÍCIO DA MUDANÇA: MODAL DE EXCLUSÃO ÚNICO */}
       <AlertDialog open={!!appointmentToDelete} onOpenChange={(isOpen) => !isOpen && setAppointmentToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -396,7 +391,12 @@ const Agenda: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {/* FIM DA MUDANÇA: MODAL DE EXCLUSÃO ÚNICO */}
+      
+      <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <AgendaSettingsForm onSuccess={() => setIsSettingsModalOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
