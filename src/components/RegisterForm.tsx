@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +6,8 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { CpfInput } from './ui/CpfInput';
+import { CustomPhoneInput } from './ui/phone-input';
 
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -19,6 +20,7 @@ const RegisterForm: React.FC = () => {
   });
   const { register, isLoading } = useAuth();
 
+  // O handler genérico agora funciona para todos os campos, incluindo os mascarados
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -27,13 +29,11 @@ const RegisterForm: React.FC = () => {
   };
 
   const validateCPF = (cpf: string) => {
-    // Remove pontos e traços
     const cleanCPF = cpf.replace(/[^\d]/g, '');
     return cleanCPF.length === 11;
   };
 
   const validateWhatsApp = (whatsapp: string) => {
-    // Validação básica de WhatsApp brasileiro
     const cleanPhone = whatsapp.replace(/[^\d]/g, '');
     return cleanPhone.length >= 10 && cleanPhone.length <= 11;
   };
@@ -41,50 +41,37 @@ const RegisterForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validações
     if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As senhas não coincidem",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "As senhas não coincidem", variant: "destructive" });
       return;
     }
 
     if (!formData.name.includes(' ')) {
-      toast({
-        title: "Erro",
-        description: "Por favor, insira seu nome completo",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Por favor, insira seu nome completo", variant: "destructive" });
       return;
     }
 
     if (!validateCPF(formData.cpf)) {
-      toast({
-        title: "Erro",
-        description: "CPF inválido",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "CPF inválido. Preencha todos os 11 dígitos.", variant: "destructive" });
       return;
     }
 
     if (!validateWhatsApp(formData.whatsapp)) {
-      toast({
-        title: "Erro",
-        description: "WhatsApp inválido",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "WhatsApp inválido.", variant: "destructive" });
       return;
     }
 
     try {
+      // Limpa os dados da máscara ANTES de enviar para a função de registro
+      const cleanCPF = formData.cpf.replace(/[^\d]/g, '');
+      const cleanWhatsApp = formData.whatsapp.replace(/[^\d]/g, '');
+
       await register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        whatsapp: formData.whatsapp,
-        cpf: formData.cpf
+        whatsapp: cleanWhatsApp,
+        cpf: cleanCPF
       });
     } catch (error) {
       console.error('Register error:', error);
@@ -124,11 +111,9 @@ const RegisterForm: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="whatsapp">WhatsApp</Label>
-              <Input
+              <CustomPhoneInput
                 id="whatsapp"
                 name="whatsapp"
-                type="tel"
-                placeholder="(11) 99999-9999"
                 value={formData.whatsapp}
                 onChange={handleChange}
                 required
@@ -137,11 +122,9 @@ const RegisterForm: React.FC = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="cpf">CPF</Label>
-              <Input
+              <CpfInput
                 id="cpf"
                 name="cpf"
-                type="text"
-                placeholder="000.000.000-00"
                 value={formData.cpf}
                 onChange={handleChange}
                 required

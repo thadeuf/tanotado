@@ -1,3 +1,5 @@
+// src/contexts/AuthContext.tsx
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, User, RegisterData } from '../types/auth';
 import { toast } from '@/hooks/use-toast';
@@ -179,8 +181,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return; 
       }
       
-      // --- ALTERAÇÃO AQUI: Bloco de verificação de trial expirado foi REMOVIDO daqui ---
-
       await loadUserProfile(authData.session);
       toast({ title: "Login realizado com sucesso!", description: "Bem-vindo de volta!" });
 
@@ -195,16 +195,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (userData: RegisterData) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const cleanCPF = userData.cpf.replace(/[^\d]/g, '');
+
+      // Chama a função RPC para verificar se o CPF existe
+      const { data: cpfAlreadyExists, error: rpcError } = await supabase
+        .rpc('cpf_exists', { cpf_to_check: cleanCPF });
+
+      // Se a chamada da função der erro, interrompe o processo
+      if (rpcError) {
+        throw rpcError;
+      }
+
+      // Se a função retornar 'true', o CPF já existe
+      if (cpfAlreadyExists) {
+        toast({
+          title: "Erro no Cadastro",
+          description: "Este CPF já está cadastrado em nosso sistema. Por favor, entre em contato com o suporte.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return; // Sai da função sem registrar
+      }
+
+      // Se o CPF for único, prossegue com o cadastro
+      const { error: signUpError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
         options: {
-          data: { name: userData.name, whatsapp: userData.whatsapp, cpf: userData.cpf },
+          data: {
+            name: userData.name,
+            whatsapp: userData.whatsapp,
+            cpf: cleanCPF
+          },
           emailRedirectTo: `${window.location.origin}/`
         }
       });
-      if (error) throw error;
-      toast({ title: "Cadastro realizado com sucesso!", description: "Verifique seu email para confirmar a conta." });
+
+      if (signUpError) throw signUpError;
+
+      toast({ title: "Cadastro realizado com sucesso!", description: "Vá para Login e Acesse sua conta." });
     } catch (error: any) {
       console.error('Register error:', error);
       toast({ title: "Erro no cadastro", description: error.message || "Tente novamente.", variant: "destructive" });
