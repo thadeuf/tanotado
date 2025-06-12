@@ -15,7 +15,8 @@ import {
     MessageSquare, 
     Search, 
     Loader2,
-    AlertTriangle
+    AlertTriangle,
+    UserCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,10 +59,14 @@ const AdminDashboard: React.FC = () => {
 
   const [isClientInfoOpen, setIsClientInfoOpen] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  
+  // --- INÍCIO DA ALTERAÇÃO ---
   const [userToDeactivate, setUserToDeactivate] = useState<ProfileWithCounts | null>(null);
+  const [userToActivate, setUserToActivate] = useState<ProfileWithCounts | null>(null);
 
   const deactivateUserMutation = useMutation({
     mutationFn: async (userId: string) => {
+      // Supõe-se que a função 'deactivate_user_profile' exista no Supabase
       const { error } = await supabase.rpc('deactivate_user_profile', { p_user_id: userId });
       if (error) throw error;
     },
@@ -77,6 +82,25 @@ const AdminDashboard: React.FC = () => {
     }
   });
 
+  const activateUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      // Supõe-se que a função 'activate_user_profile' exista no Supabase
+      const { error } = await supabase.rpc('activate_user_profile', { p_user_id: userId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Usuário ativado com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ['all_users_admin_with_counts'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao ativar usuário", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      setUserToActivate(null);
+    }
+  });
+  // --- FIM DA ALTERAÇÃO ---
+
   const { data: allUsers = [], isLoading: isLoadingUsers } = useQuery<ProfileWithCounts[], Error>({
     queryKey: ['all_users_admin_with_counts'],
     queryFn: async () => {
@@ -90,22 +114,17 @@ const AdminDashboard: React.FC = () => {
     enabled: user?.role === 'admin',
   });
 
-  // --- LÓGICA DE STATUS CORRIGIDA E MAIS SEGURA ---
   const determineUserDisplayStatus = (profile: ProfileWithCounts) => {
-    // Verificação explícita para o status "Desativado"
     if (profile.is_active === false) {
       return { main: 'deactivated' };
     }
-
     if (profile.is_subscribed) {
       return { main: 'active', sub: 'subscribed' };
     }
-    
     const trialHasExpired = profile.trial_ends_at && new Date(profile.trial_ends_at) < new Date();
     if (trialHasExpired) {
       return { main: 'active', sub: 'trial_expired' };
     }
-    
     return { main: 'active', sub: 'trial' };
   };
 
@@ -295,16 +314,48 @@ const AdminDashboard: React.FC = () => {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); alert('Forçar Login (lógica a ser implementada)'); }}>Forçar Login</DropdownMenuItem>
-                                                {profile.is_active && (
-                                                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setUserToDeactivate(profile); }} className="text-red-600 focus:text-red-600">Desativar</DropdownMenuItem>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                <MoreHorizontal className="h-4 w-4" />
+            </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            {/* --- INÍCIO DA ALTERAÇÃO --- */}
+            <DropdownMenuItem 
+                onSelect={(e) => { 
+                    e.stopPropagation(); 
+                    alert('Forçar Login (lógica a ser implementada)'); 
+                }}
+            >
+                Forçar Login
+            </DropdownMenuItem>
+            
+            {profile.is_active ? (
+                <DropdownMenuItem 
+                    onSelect={(e) => { 
+                        e.stopPropagation(); 
+                        setUserToDeactivate(profile); 
+                    }} 
+                    className="text-red-600 focus:text-red-600"
+                >
+                    <UserX className="mr-2 h-4 w-4" />Desativar
+                </DropdownMenuItem>
+            ) : (
+                <DropdownMenuItem 
+                    onSelect={(e) => { 
+                        e.stopPropagation(); 
+                        setUserToActivate(profile); 
+                    }} 
+                    className="text-green-600 focus:text-green-600"
+                >
+                    <UserCheck className="mr-2 h-4 w-4" />Ativar
+                </DropdownMenuItem>
+            )}
+            {/* --- FIM DA ALTERAÇÃO --- */}
+        </DropdownMenuContent>
+    </DropdownMenu>
+</TableCell>
                                 </TableRow>
                             ))
                         )}
@@ -321,6 +372,7 @@ const AdminDashboard: React.FC = () => {
         onOpenChange={setIsClientInfoOpen}
       />
       
+      {/* --- INÍCIO DA ALTERAÇÃO --- */}
       <AlertDialog open={!!userToDeactivate} onOpenChange={() => setUserToDeactivate(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -342,6 +394,29 @@ const AdminDashboard: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!userToActivate} onOpenChange={() => setUserToActivate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Ativação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja ativar o usuário <strong>{userToActivate?.name}</strong>? Ele poderá acessar a plataforma novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-green-600 hover:bg-green-700"
+              disabled={activateUserMutation.isPending}
+              onClick={() => userToActivate && activateUserMutation.mutate(userToActivate.id)}
+            >
+              {activateUserMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar e Ativar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* --- FIM DA ALTERAÇÃO --- */}
 
     </TooltipProvider>
   );

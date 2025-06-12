@@ -47,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         specialty: '',
         trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         is_subscribed: false,
+        is_active: true, 
         subscription_status: 'trial',
         avatar_url: authUser.user_metadata?.avatar_url || null,
       };
@@ -114,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               address_city: profile.address_city,
               address_state: profile.address_state,
               address_complement: profile.address_complement,
+              is_active: profile.is_active,
             };
             setUser(userData);
             setIsLoading(false);
@@ -151,16 +153,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      toast({ title: "Login realizado com sucesso!", description: "Bem-vindo ao tanotado" });
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Usuário não encontrado após login.");
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError) {
+        await supabase.auth.signOut();
+        throw new Error("Perfil de usuário não encontrado.");
+      }
+      
+      if (profile.is_active === false) {
+        await supabase.auth.signOut();
+        toast({
+            title: "Acesso Negado",
+            description: "Sua conta foi desativada. Por favor, entre em contato com o suporte.",
+            variant: "destructive",
+        });
+        setIsLoading(false);
+        return; 
+      }
+      
+      // --- ALTERAÇÃO AQUI: Bloco de verificação de trial expirado foi REMOVIDO daqui ---
+
+      await loadUserProfile(authData.session);
+      toast({ title: "Login realizado com sucesso!", description: "Bem-vindo de volta!" });
+
     } catch (error: any) {
       console.error('Login error:', error);
       toast({ title: "Erro no login", description: error.message || "Verifique suas credenciais e tente novamente", variant: "destructive" });
-      // <<< INÍCIO DA CORREÇÃO >>>
-      // Garante que o loading seja desativado em caso de erro.
       setIsLoading(false);
-      // <<< FIM DA CORREÇÃO >>>
       throw error;
     }
   };

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Check, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 
 const plans = [
   {
@@ -50,19 +51,17 @@ const plans = [
 ];
 
 const Subscription: React.FC = () => {
-    const { user } = useAuth();
-    const isTrialExpired = user && new Date(user.trialEndsAt) < new Date() && !user.isSubscribed;
+    const { user, logout } = useAuth();
+    const isTrialExpired = user && user.trialEndsAt && new Date(user.trialEndsAt) < new Date() && !user.isSubscribed;
 
     return (
         <div className="min-h-screen w-full bg-gray-50/50 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
             <div className="max-w-5xl w-full text-center space-y-4">
-                {/* INÍCIO DA ALTERAÇÃO: Logotipo adicionado */}
                 <img 
                   src="/lovable-uploads/4a78275e-0af1-4fd5-ae15-9d988197bca6.png" 
                   alt="Logotipo tanotado" 
                   className="w-40 h-auto mx-auto mb-6"
                 />
-                {/* FIM DA ALTERAÇÃO */}
 
                 {isTrialExpired && (
                     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md text-left mb-8 max-w-4xl mx-auto">
@@ -117,7 +116,6 @@ const Subscription: React.FC = () => {
                     ))}
                 </div>
                 
-                {/* INÍCIO DA ALTERAÇÃO: Badges de segurança */}
                 <div className="pt-12 flex flex-col sm:flex-row items-center justify-center gap-6 text-muted-foreground">
                     <div className="flex items-center gap-2">
                         <ShieldCheck className="h-5 w-5 text-green-600" />
@@ -132,18 +130,25 @@ const Subscription: React.FC = () => {
                         <span className="text-sm">Dados Criptografados</span>
                     </div>
                 </div>
-                {/* FIM DA ALTERAÇÃO */}
-
-                 {!isTrialExpired && (
-                    <div className="pt-8">
-                         <Button variant="link" asChild>
-                            <a href="/dashboard">Voltar para o Dashboard</a>
+                
+                {/* --- INÍCIO DA ALTERAÇÃO --- */}
+                <div className="pt-8 flex items-center justify-center gap-x-6">
+                    {!isTrialExpired && (
+                        <Button variant="link" asChild>
+                            <Link to="/dashboard">Voltar para o Dashboard</Link>
                         </Button>
-                    </div>
-                 )}
+                    )}
+                    <Button 
+                        variant="link" 
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={logout}
+                    >
+                        Sair desta página
+                    </Button>
+                </div>
+                {/* --- FIM DA ALTERAÇÃO --- */}
             </div>
 
-            {/* INÍCIO DA ALTERAÇÃO: Rodapé */}
             <footer className="w-full text-center text-muted-foreground mt-16 border-t pt-8">
                 <p className="text-sm">&copy; {new Date().getFullYear()} tanotado. Todos os direitos reservados.</p>
                 <p className="text-sm">Tanotado Soluções Digitais LTDA - CNPJ: 99.999.999/0001-99</p>
@@ -153,7 +158,6 @@ const Subscription: React.FC = () => {
                     <a href="#" className="text-xs hover:underline">Contato</a>
                 </div>
             </footer>
-            {/* FIM DA ALTERAÇÃO */}
         </div>
     );
 };
