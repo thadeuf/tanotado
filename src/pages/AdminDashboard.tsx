@@ -1,9 +1,22 @@
 // src/pages/AdminDashboard.tsx
 
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, UserPlus, UserX, MoreHorizontal, CheckCircle, Clock, Calendar as CalendarIcon, MessageSquare, Search } from 'lucide-react';
+import { 
+    Users, 
+    TrendingUp, 
+    UserPlus, 
+    UserX, 
+    MoreHorizontal, 
+    CheckCircle, 
+    Clock, 
+    Calendar as CalendarIcon, 
+    MessageSquare, 
+    Search, 
+    Loader2,
+    AlertTriangle
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
@@ -19,23 +32,49 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { ClientInfoDialog } from '@/components/admin/ClientInfoDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-// Tipos para os dados do dashboard
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type ProfileWithCounts = Profile & {
   client_count: number;
   appointment_count: number;
   last_sign_in_at: string | null;
   login_count: number | null;
+  is_active: boolean;
 };
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  
   const [filters, setFilters] = useState({
     subscribed: true,
     trial: true,
-    inactive: false,
+    trial_expired: true,
+    deactivated: true,
+  });
+
+  const [isClientInfoOpen, setIsClientInfoOpen] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [userToDeactivate, setUserToDeactivate] = useState<ProfileWithCounts | null>(null);
+
+  const deactivateUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.rpc('deactivate_user_profile', { p_user_id: userId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Usuário desativado com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ['all_users_admin_with_counts'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao desativar usuário", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      setUserToDeactivate(null);
+    }
   });
 
   const { data: allUsers = [], isLoading: isLoadingUsers } = useQuery<ProfileWithCounts[], Error>({
@@ -51,41 +90,75 @@ const AdminDashboard: React.FC = () => {
     enabled: user?.role === 'admin',
   });
 
-  // Função para determinar o status do usuário (usado na lógica de filtro)
-  const getUserStatus = (profile: Profile) => {
-    if (profile.is_subscribed) return 'subscribed';
-    if (profile.trial_ends_at && new Date(profile.trial_ends_at) < new Date()) return 'inactive';
-    return 'trial';
+  // --- LÓGICA DE STATUS CORRIGIDA E MAIS SEGURA ---
+  const determineUserDisplayStatus = (profile: ProfileWithCounts) => {
+    // Verificação explícita para o status "Desativado"
+    if (profile.is_active === false) {
+      return { main: 'deactivated' };
+    }
+
+    if (profile.is_subscribed) {
+      return { main: 'active', sub: 'subscribed' };
+    }
+    
+    const trialHasExpired = profile.trial_ends_at && new Date(profile.trial_ends_at) < new Date();
+    if (trialHasExpired) {
+      return { main: 'active', sub: 'trial_expired' };
+    }
+    
+    return { main: 'active', sub: 'trial' };
   };
 
   const filteredUsers = useMemo(() => {
-    const selectedStatuses: string[] = [];
-    if (filters.subscribed) selectedStatuses.push('subscribed');
-    if (filters.trial) selectedStatuses.push('trial');
-    if (filters.inactive) selectedStatuses.push('inactive');
-
     return allUsers.filter(profile => {
+      const status = determineUserDisplayStatus(profile);
+      
+      const filterMap = {
+        subscribed: status.sub === 'subscribed',
+        trial: status.sub === 'trial',
+        trial_expired: status.sub === 'trial_expired',
+        deactivated: status.main === 'deactivated',
+      };
+      
+      const matchesFilter = Object.entries(filters).some(([key, value]) => {
+          return value && filterMap[key as keyof typeof filterMap];
+      });
+
+      if (!matchesFilter) return false;
+
       const lowerCaseSearch = searchTerm.toLowerCase();
-      const matchesSearch = lowerCaseSearch === '' ||
+      return lowerCaseSearch === '' ||
         profile.name?.toLowerCase().includes(lowerCaseSearch) ||
         profile.email?.toLowerCase().includes(lowerCaseSearch) ||
         profile.whatsapp?.toLowerCase().includes(lowerCaseSearch);
-
-      if (!matchesSearch) return false;
-
-      if (selectedStatuses.length === 0) return true;
-
-      const userStatus = getUserStatus(profile);
-      return selectedStatuses.includes(userStatus);
     });
   }, [allUsers, searchTerm, filters]);
 
+
+  const getStatusBadge = (profile: ProfileWithCounts) => {
+    const status = determineUserDisplayStatus(profile);
+
+    if (status.main === 'deactivated') {
+        return <div className="flex items-center gap-1.5 text-sm text-red-600 font-medium"><UserX className="h-4 w-4" /> Desativado</div>;
+    }
+
+    switch(status.sub) {
+        case 'subscribed':
+            return <div className="flex items-center gap-1.5 text-sm text-green-600 font-medium"><CheckCircle className="h-4 w-4" /> Assinante</div>;
+        case 'trial_expired':
+            return <div className="flex items-center gap-1.5 text-sm text-orange-600 font-medium"><AlertTriangle className="h-4 w-4" /> Trial Expirado</div>;
+        case 'trial':
+        default:
+            return <div className="flex items-center gap-1.5 text-sm text-blue-600 font-medium"><Clock className="h-4 w-4" /> Em Teste</div>;
+    }
+  };
+  
   const stats = useMemo(() => {
     if (!allUsers) return { totalUsers: 0, totalSubscribers: 0, newSubscribersCount: 0, cancellationsCount: 0 };
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const totalUsers = allUsers.length;
-    const totalSubscribers = allUsers.filter(u => u.is_subscribed).length;
+    const totalSubscribers = allUsers.filter(u => u.is_subscribed && u.is_active).length;
     const newSubscribersCount = allUsers.filter(u => u.subscribed_at && new Date(u.subscribed_at) >= startOfMonth).length;
     const cancellationsCount = allUsers.filter(u => u.canceled_at && new Date(u.canceled_at) >= startOfMonth).length;
     return { totalUsers, totalSubscribers, newSubscribersCount, cancellationsCount };
@@ -99,14 +172,7 @@ const AdminDashboard: React.FC = () => {
   ];
 
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '';
-  
-  const handleRowClick = (profile: Profile) => {
-    toast({
-        title: `Cliente: ${profile.name}`,
-        description: 'Em breve: um modal com detalhes completos será exibido aqui.'
-    });
-  };
-  
+  const handleRowClick = (profile: Profile) => { setSelectedProfileId(profile.id); setIsClientInfoOpen(true); };
   const formatDisplayWhatsApp = (phone: string | null): string => {
     if (!phone) return '-';
     const cleaned = phone.replace(/\D/g, '');
@@ -114,22 +180,17 @@ const AdminDashboard: React.FC = () => {
     if (cleaned.length === 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
     return phone;
   };
-
   const formatWhatsAppLink = (phone: string | null): string => {
     if (!phone) return '#';
     let cleaned = phone.replace(/\D/g, '');
     if (cleaned.length >= 10 && cleaned.length <= 11) cleaned = `55${cleaned}`;
     return `https://api.whatsapp.com/send?phone=${cleaned}`;
   };
-
   const formatLastLogin = (dateString: string | null) => {
     if (!dateString) return 'Nenhum login';
     return formatDistanceToNow(parseISO(dateString), { addSuffix: true, locale: ptBR });
   };
-
-  const handleFilterChange = (filterName: keyof typeof filters, checked: boolean) => {
-    setFilters(prev => ({ ...prev, [filterName]: checked }));
-  };
+  const handleFilterChange = (filterName: keyof typeof filters, checked: boolean) => { setFilters(prev => ({ ...prev, [filterName]: checked })); };
 
   return (
     <TooltipProvider>
@@ -147,13 +208,8 @@ const AdminDashboard: React.FC = () => {
               <Card key={index} className="overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                      <p className="text-3xl font-bold text-gray-800">{stat.value}</p>
-                    </div>
-                    <div className={`p-4 rounded-lg bg-gradient-to-r ${stat.color} shadow-lg`}>
-                      <stat.icon className="h-6 w-6 text-white" />
-                    </div>
+                    <div><p className="text-sm font-medium text-muted-foreground">{stat.title}</p><p className="text-3xl font-bold text-gray-800">{stat.value}</p></div>
+                    <div className={`p-4 rounded-lg bg-gradient-to-r ${stat.color} shadow-lg`}><stat.icon className="h-6 w-6 text-white" /></div>
                   </div>
                 </CardContent>
               </Card>
@@ -171,7 +227,7 @@ const AdminDashboard: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Buscar por nome, email, whatsapp..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                   <div className="flex items-center space-x-2">
                     <Checkbox id="filter-subscribed" checked={filters.subscribed} onCheckedChange={(checked) => handleFilterChange('subscribed', !!checked)} />
                     <Label htmlFor="filter-subscribed" className="text-sm font-medium">Assinantes</Label>
@@ -181,26 +237,29 @@ const AdminDashboard: React.FC = () => {
                     <Label htmlFor="filter-trial" className="text-sm font-medium">Em Teste</Label>
                   </div>
                    <div className="flex items-center space-x-2">
-                    <Checkbox id="filter-inactive" checked={filters.inactive} onCheckedChange={(checked) => handleFilterChange('inactive', !!checked)} />
-                    <Label htmlFor="filter-inactive" className="text-sm font-medium">Inativos</Label>
+                    <Checkbox id="filter-trial_expired" checked={filters.trial_expired} onCheckedChange={(checked) => handleFilterChange('trial_expired', !!checked)} />
+                    <Label htmlFor="filter-trial_expired" className="text-sm font-medium">Trial Expirado</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="filter-deactivated" checked={filters.deactivated} onCheckedChange={(checked) => handleFilterChange('deactivated', !!checked)} />
+                    <Label htmlFor="filter-deactivated" className="text-sm font-medium">Desativados</Label>
                   </div>
               </div>
             </div>
-
             <div className="border rounded-lg">
                 <Table>
                     <TableHeader>
                         <TableRow>
                           <TableHead className="w-[35%]">Usuário</TableHead>
                           <TableHead>WhatsApp</TableHead>
-                          <TableHead>Plano</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>Estatísticas</TableHead>
                           <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoadingUsers ? (
-                            [...Array(5)].map((_, i) => (
+                           [...Array(5)].map((_, i) => (
                                 <TableRow key={i}>
                                     <TableCell><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-40" /></div></div></TableCell>
                                     <TableCell><Skeleton className="h-8 w-32" /></TableCell>
@@ -215,46 +274,23 @@ const AdminDashboard: React.FC = () => {
                                     <TableCell>
                                         <div className="flex items-center gap-3">
                                             <Avatar><AvatarImage src={profile.avatar_url || undefined} /><AvatarFallback className="bg-muted">{getInitials(profile.name)}</AvatarFallback></Avatar>
-                                            <div>
-                                                <p className="font-medium text-gray-800">{profile.name}</p>
-                                                <p className="text-sm text-muted-foreground">{profile.email}</p>
-                                            </div>
+                                            <div><p className="font-medium text-gray-800">{profile.name}</p><p className="text-sm text-muted-foreground">{profile.email}</p></div>
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                       {profile.whatsapp ? (
                                           <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()} className="font-normal text-muted-foreground hover:text-green-600 h-auto p-1">
-                                              <a href={formatWhatsAppLink(profile.whatsapp)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                                                  <MessageSquare className="h-4 w-4" />
-                                                  {formatDisplayWhatsApp(profile.whatsapp)}
-                                              </a>
+                                              <a href={formatWhatsAppLink(profile.whatsapp)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2"><MessageSquare className="h-4 w-4" />{formatDisplayWhatsApp(profile.whatsapp)}</a>
                                           </Button>
-                                      ) : (
-                                          <span className="text-muted-foreground">-</span>
-                                      )}
+                                      ) : (<span className="text-muted-foreground">-</span>)}
                                     </TableCell>
-                                    <TableCell>
-                                        {profile.is_subscribed ? (
-                                            <div className="flex items-center gap-1.5 text-sm text-green-600 font-medium"><CheckCircle className="h-4 w-4" /> Assinante</div>
-                                        ) : (
-                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><Clock className="h-4 w-4" />{profile.trial_ends_at ? `Expira em ${format(parseISO(profile.trial_ends_at), 'dd/MM/yy')}` : 'N/A'}</div>
-                                        )}
-                                    </TableCell>
+                                    <TableCell>{getStatusBadge(profile)}</TableCell>
                                     <TableCell>
                                         <div className="flex flex-col gap-1.5 text-muted-foreground text-xs">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild><div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{formatLastLogin(profile.last_sign_in_at)} ({profile.login_count ?? 0})</div></TooltipTrigger>
-                                                <TooltipContent><p>Último login e contagem total de acessos</p></TooltipContent>
-                                            </Tooltip>
+                                            <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{formatLastLogin(profile.last_sign_in_at)} ({profile.login_count ?? 0})</div></TooltipTrigger><TooltipContent><p>Último login e contagem total de acessos</p></TooltipContent></Tooltip>
                                             <div className="flex items-center gap-4">
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild><div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{profile.client_count ?? 0} Clientes</div></TooltipTrigger>
-                                                    <TooltipContent><p>Clientes cadastrados</p></TooltipContent>
-                                                </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild><div className="flex items-center gap-1.5"><CalendarIcon className="h-3.5 w-3.5" />{profile.appointment_count ?? 0} Agend.</div></TooltipTrigger>
-                                                    <TooltipContent><p>Agendamentos criados</p></TooltipContent>
-                                                </Tooltip>
+                                                <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{profile.client_count ?? 0} Clientes</div></TooltipTrigger><TooltipContent><p>Clientes cadastrados</p></TooltipContent></Tooltip>
+                                                <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><CalendarIcon className="h-3.5 w-3.5" />{profile.appointment_count ?? 0} Agend.</div></TooltipTrigger><TooltipContent><p>Agendamentos criados</p></TooltipContent></Tooltip>
                                             </div>
                                         </div>
                                     </TableCell>
@@ -263,7 +299,9 @@ const AdminDashboard: React.FC = () => {
                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onSelect={(e) => { e.preventDefault(); alert('Forçar Login (lógica a ser implementada)'); }}>Forçar Login</DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); alert('Desativar (lógica a ser implementada)'); }} className="text-red-600 focus:text-red-600">Desativar</DropdownMenuItem>
+                                                {profile.is_active && (
+                                                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setUserToDeactivate(profile); }} className="text-red-600 focus:text-red-600">Desativar</DropdownMenuItem>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -276,6 +314,35 @@ const AdminDashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <ClientInfoDialog 
+        profileId={selectedProfileId}
+        isOpen={isClientInfoOpen}
+        onOpenChange={setIsClientInfoOpen}
+      />
+      
+      <AlertDialog open={!!userToDeactivate} onOpenChange={() => setUserToDeactivate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Desativação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja desativar o usuário <strong>{userToDeactivate?.name}</strong>? Ele não poderá mais acessar a plataforma.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={deactivateUserMutation.isPending}
+              onClick={() => userToDeactivate && deactivateUserMutation.mutate(userToDeactivate.id)}
+            >
+              {deactivateUserMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar e Desativar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </TooltipProvider>
   );
 };
