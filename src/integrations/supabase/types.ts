@@ -1,3 +1,5 @@
+// src/integrations/supabase/types.ts
+
 export type Json =
   | string
   | number
@@ -241,6 +243,10 @@ export type Database = {
           trial_ends_at: string | null
           updated_at: string | null
           whatsapp: string | null
+          subscribed_at: string | null
+          canceled_at: string | null
+          last_sign_in_at: string | null
+          login_count: number | null
         }
         Insert: {
           client_nomenclature?: string | null
@@ -257,6 +263,10 @@ export type Database = {
           trial_ends_at?: string | null
           updated_at?: string | null
           whatsapp?: string | null
+          subscribed_at?: string | null
+          canceled_at?: string | null
+          last_sign_in_at?: string | null
+          login_count?: number | null
         }
         Update: {
           client_nomenclature?: string | null
@@ -273,6 +283,10 @@ export type Database = {
           trial_ends_at?: string | null
           updated_at?: string | null
           whatsapp?: string | null
+          subscribed_at?: string | null
+          canceled_at?: string | null
+          last_sign_in_at?: string | null
+          login_count?: number | null
         }
         Relationships: []
       }
