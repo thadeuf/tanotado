@@ -29,6 +29,7 @@ import MessageSettings from './pages/MessageSettings';
 import Subscription from './pages/Subscription';
 import DocumentTemplates from './pages/DocumentTemplates';
 import EditDocumentTemplate from './pages/EditDocumentTemplate';
+import WhatsappInstances from './pages/admin/WhatsappInstances';
 
 
 const queryClient = new QueryClient();
@@ -177,6 +178,8 @@ const AppContent: React.FC = () => {
           {/* Rotas protegidas */}
           <Route path="/dashboard" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
           <Route path="/admin" element={ <ProtectedRoute> <AdminRoute> <AdminDashboard /> </AdminRoute> </ProtectedRoute> } />
+          <Route path="/admin/whatsapp-instances" element={ <ProtectedRoute> <AdminRoute> <WhatsappInstances /> </AdminRoute> </ProtectedRoute> } />
+
           <Route path="/clientes" element={ <ProtectedRoute> <Clients /> </ProtectedRoute> } />
           <Route path="/clientes/editar/:clientId" element={ <ProtectedRoute> <EditClient /> </ProtectedRoute> } />
           <Route path="/financeiro" element={ <ProtectedRoute> <Financial /> </ProtectedRoute> } />

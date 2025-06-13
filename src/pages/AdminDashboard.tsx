@@ -1,6 +1,7 @@
 // src/pages/AdminDashboard.tsx
 
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom'; // <<< ADICIONADO
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -12,7 +13,7 @@ import {
     CheckCircle, 
     Clock, 
     Calendar as CalendarIcon, 
-    MessageSquare, 
+    MessageSquare, // <<< ADICIONADO
     Search, 
     Loader2,
     AlertTriangle,
@@ -60,13 +61,11 @@ const AdminDashboard: React.FC = () => {
   const [isClientInfoOpen, setIsClientInfoOpen] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   
-  // --- INÍCIO DA ALTERAÇÃO ---
   const [userToDeactivate, setUserToDeactivate] = useState<ProfileWithCounts | null>(null);
   const [userToActivate, setUserToActivate] = useState<ProfileWithCounts | null>(null);
 
   const deactivateUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      // Supõe-se que a função 'deactivate_user_profile' exista no Supabase
       const { error } = await supabase.rpc('deactivate_user_profile', { p_user_id: userId });
       if (error) throw error;
     },
@@ -84,7 +83,6 @@ const AdminDashboard: React.FC = () => {
 
   const activateUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      // Supõe-se que a função 'activate_user_profile' exista no Supabase
       const { error } = await supabase.rpc('activate_user_profile', { p_user_id: userId });
       if (error) throw error;
     },
@@ -99,7 +97,6 @@ const AdminDashboard: React.FC = () => {
       setUserToActivate(null);
     }
   });
-  // --- FIM DA ALTERAÇÃO ---
 
   const { data: allUsers = [], isLoading: isLoadingUsers } = useQuery<ProfileWithCounts[], Error>({
     queryKey: ['all_users_admin_with_counts'],
@@ -214,9 +211,17 @@ const AdminDashboard: React.FC = () => {
   return (
     <TooltipProvider>
       <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold text-tanotado-navy">Dashboard Admin 👨‍💼</h1>
-          <p className="text-muted-foreground mt-2">Olá {user?.name?.split(' ')[0]}, gerencie sua plataforma aqui</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-tanotado-navy">Dashboard Admin 👨‍💼</h1>
+            <p className="text-muted-foreground mt-2">Olá {user?.name?.split(' ')[0]}, gerencie sua plataforma aqui</p>
+          </div>
+          <Button asChild>
+            <Link to="/admin/whatsapp-instances">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Instâncias WhatsApp
+            </Link>
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -314,48 +319,46 @@ const AdminDashboard: React.FC = () => {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-    <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
-                <MoreHorizontal className="h-4 w-4" />
-            </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-            {/* --- INÍCIO DA ALTERAÇÃO --- */}
-            <DropdownMenuItem 
-                onSelect={(e) => { 
-                    e.stopPropagation(); 
-                    alert('Forçar Login (lógica a ser implementada)'); 
-                }}
-            >
-                Forçar Login
-            </DropdownMenuItem>
-            
-            {profile.is_active ? (
-                <DropdownMenuItem 
-                    onSelect={(e) => { 
-                        e.stopPropagation(); 
-                        setUserToDeactivate(profile); 
-                    }} 
-                    className="text-red-600 focus:text-red-600"
-                >
-                    <UserX className="mr-2 h-4 w-4" />Desativar
-                </DropdownMenuItem>
-            ) : (
-                <DropdownMenuItem 
-                    onSelect={(e) => { 
-                        e.stopPropagation(); 
-                        setUserToActivate(profile); 
-                    }} 
-                    className="text-green-600 focus:text-green-600"
-                >
-                    <UserCheck className="mr-2 h-4 w-4" />Ativar
-                </DropdownMenuItem>
-            )}
-            {/* --- FIM DA ALTERAÇÃO --- */}
-        </DropdownMenuContent>
-    </DropdownMenu>
-</TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                <DropdownMenuItem 
+                                                    onSelect={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        alert('Forçar Login (lógica a ser implementada)'); 
+                                                    }}
+                                                >
+                                                    Forçar Login
+                                                </DropdownMenuItem>
+                                                
+                                                {profile.is_active ? (
+                                                    <DropdownMenuItem 
+                                                        onSelect={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            setUserToDeactivate(profile); 
+                                                        }} 
+                                                        className="text-red-600 focus:text-red-600"
+                                                    >
+                                                        <UserX className="mr-2 h-4 w-4" />Desativar
+                                                    </DropdownMenuItem>
+                                                ) : (
+                                                    <DropdownMenuItem 
+                                                        onSelect={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            setUserToActivate(profile); 
+                                                        }} 
+                                                        className="text-green-600 focus:text-green-600"
+                                                    >
+                                                        <UserCheck className="mr-2 h-4 w-4" />Ativar
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
                                 </TableRow>
                             ))
                         )}
@@ -372,7 +375,6 @@ const AdminDashboard: React.FC = () => {
         onOpenChange={setIsClientInfoOpen}
       />
       
-      {/* --- INÍCIO DA ALTERAÇÃO --- */}
       <AlertDialog open={!!userToDeactivate} onOpenChange={() => setUserToDeactivate(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -416,7 +418,6 @@ const AdminDashboard: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {/* --- FIM DA ALTERAÇÃO --- */}
 
     </TooltipProvider>
   );
