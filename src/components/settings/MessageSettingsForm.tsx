@@ -17,13 +17,21 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label'; // <<< CORREÇÃO AQUI
 
+// Schema atualizado com os novos campos
 const messageSettingsSchema = z.object({
   billing_monthly: z.string().optional(),
   billing_manual: z.string().optional(),
   session_reminder: z.string().optional(),
   session_suspension_reminder: z.string().optional(),
   enable_cancellation: z.boolean().default(false),
+  // Novos campos para lembretes automáticos
+  enable_automatic_reminders: z.boolean().default(true),
+  reminder_schedules: z.object({
+    four_hours: z.boolean().default(true),
+    twenty_four_hours: z.boolean().default(false),
+  }).optional(),
 });
 
 type MessageSettingsFormData = z.infer<typeof messageSettingsSchema>;
@@ -94,6 +102,11 @@ export const MessageSettingsForm: React.FC = () => {
       session_reminder: "",
       session_suspension_reminder: "",
       enable_cancellation: false,
+      enable_automatic_reminders: true,
+      reminder_schedules: {
+        four_hours: true,
+        twenty_four_hours: false,
+      },
     },
   });
 
@@ -106,6 +119,11 @@ export const MessageSettingsForm: React.FC = () => {
         session_reminder: templates.session_reminder || '',
         session_suspension_reminder: templates.session_suspension_reminder || '',
         enable_cancellation: templates.enable_cancellation || false,
+        enable_automatic_reminders: templates.enable_automatic_reminders ?? true,
+        reminder_schedules: {
+          four_hours: templates.reminder_schedules?.four_hours ?? true,
+          twenty_four_hours: templates.reminder_schedules?.twenty_four_hours ?? false,
+        },
       });
     }
   }, [settings, form]);
@@ -158,7 +176,6 @@ export const MessageSettingsForm: React.FC = () => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {/* Cabeçalho da página */}
         <div className="flex items-center justify-between">
             <div className="space-y-1">
                 <h1 className="text-3xl font-bold text-tanotado-navy">Configuração de Mensagens</h1>
@@ -172,7 +189,6 @@ export const MessageSettingsForm: React.FC = () => {
 
         <Separator />
 
-        {/* Container das seções, agora usando space-y para espaçamento */}
         <div className="space-y-12">
           {messageSections.map((section) => (
             <div key={section.id} className="space-y-4">
@@ -237,6 +253,62 @@ export const MessageSettingsForm: React.FC = () => {
               )}
             </div>
           ))}
+
+          <Separator />
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">Lembretes Automáticos de Sessão</h2>
+            <FormField
+              control={form.control}
+              name="enable_automatic_reminders"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Ativar Lembretes Automáticos</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Enviar lembretes para os clientes antes das sessões.
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            {form.watch('enable_automatic_reminders') && (
+              <div className="pl-4 border-l-2 ml-2 space-y-4 pt-4 animate-fade-in">
+                <FormField
+                  control={form.control}
+                  name="reminder_schedules.twenty_four_hours"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-4">
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} id="24h-reminder" />
+                      </FormControl>
+                      <Label htmlFor="24h-reminder" className="font-normal cursor-pointer">
+                        Enviar lembrete 24 horas antes da sessão
+                      </Label>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="reminder_schedules.four_hours"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-4">
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} id="4h-reminder" />
+                      </FormControl>
+                      <Label htmlFor="4h-reminder" className="font-normal cursor-pointer">
+                        Enviar lembrete 4 horas antes da sessão
+                      </Label>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+          </div>
+
         </div>
       </form>
     </Form>
