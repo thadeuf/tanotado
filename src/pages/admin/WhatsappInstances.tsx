@@ -31,10 +31,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+// INÍCIO DA ALTERAÇÃO: Adicionado o ícone 'Shuffle'
 import { Plus, Loader2, QrCode, Trash2, Phone, LogOut, RefreshCw, Shuffle, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+// FIM DA ALTERAÇÃO
+import { MigrateUsersDialog } from '@/components/admin/MigrateUsersDialog'; // <<< NOVO IMPORT
 
 type Instance = Database['public']['Tables']['instances']['Row'] & {
     telefone_conectado?: string | null;
@@ -62,6 +65,7 @@ const WhatsappInstances: React.FC = () => {
   const [loggingOutInstance, setLoggingOutInstance] = useState<string | null>(null);
   const [restartingInstance, setRestartingInstance] = useState<string | null>(null);
   const [changingProxyInstance, setChangingProxyInstance] = useState<string | null>(null);
+  const [isMigrateDialogOpen, setIsMigrateDialogOpen] = useState(false); // <<< NOVO ESTADO
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -315,110 +319,122 @@ const WhatsappInstances: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold text-tanotado-navy">Instâncias do WhatsApp</h1><p className="text-muted-foreground mt-2">Gerencie as conexões para envio de mensagens.</p></div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Nova Instância</Button></DialogTrigger>
+    <>
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <div><h1 className="text-3xl font-bold text-tanotado-navy">Instâncias do WhatsApp</h1><p className="text-muted-foreground mt-2">Gerencie as conexões para envio de mensagens.</p></div>
+          {/* INÍCIO DA ALTERAÇÃO */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setIsMigrateDialogOpen(true)}>
+              <Users className="mr-2 h-4 w-4" /> Migrar Usuários
+            </Button>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Nova Instância</Button></DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader><DialogTitle>Criar Nova Instância</DialogTitle><DialogDescription>Insira um nome único para a sua nova instância.</DialogDescription></DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="instanceName">Nome</Label>
+                    <Input id="instanceName" value={instanceName} onChange={(e) => setInstanceName(e.target.value)} placeholder="Ex: ClinicaPrincipal" disabled={createInstanceMutation.isPending} />
+                  </div>
+                  <div className="flex items-center space-x-2 pt-2">
+                      <Switch id="proxy-switch" checked={useProxy} onCheckedChange={setUseProxy} disabled={createInstanceMutation.isPending} />
+                      <Label htmlFor="proxy-switch">Ativar Proxy</Label>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); setUseProxy(false); }}>Cancelar</Button>
+                  <Button onClick={handleCreateInstance} disabled={createInstanceMutation.isPending}>{createInstanceMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Criar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          {/* FIM DA ALTERAÇÃO */}
+        </div>
+        <Card>
+          
+          <CardContent>
+            <Table>
+              <TableHeader>
+                  <TableRow>
+                      <TableHead>Nome da Instância</TableHead>
+                      <TableHead>Pessoas</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Telefone Conectado</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoadingInstances ? (
+                  [...Array(3)].map((_, i) => <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-9 w-full max-w-[200px] ml-auto" /></TableCell>
+                  </TableRow>)
+                ) :
+                instances.length > 0 ? (instances.map((instance) => (
+                  <TableRow key={instance.id}>
+                    <TableCell className="font-medium">{instance.nome_instancia}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span className="font-mono text-sm">{instance.associated_users_count ?? 0}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(instance.status)}</TableCell>
+                    <TableCell>{instance.telefone_conectado ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Phone className="h-4 w-4"/> +{instance.telefone_conectado}</div> : '-'}</TableCell>
+                    <TableCell className="text-right space-x-2">
+                      {instance.status === 'connected' ? 
+                          <Button variant="outline" size="sm" className="gap-2" onClick={() => logoutInstanceMutation.mutate(instance)} disabled={loggingOutInstance === instance.id}>{loggingOutInstance === instance.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4"/>} Desconectar</Button>
+                          :
+                          <Button variant="outline" size="sm" className="gap-2" onClick={() => connectInstanceMutation.mutate(instance.nome_instancia)} disabled={connectInstanceMutation.isPending && currentInstanceName === instance.nome_instancia}>{(connectInstanceMutation.isPending && currentInstanceName === instance.nome_instancia) ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4"/>} Conectar</Button>
+                      }
+                      <Button
+                        variant="ghost" size="icon" className="h-9 w-9"
+                        onClick={() => changeProxyMutation.mutate(instance.nome_instancia)}
+                        disabled={changingProxyInstance === instance.nome_instancia}
+                        title="Trocar Proxy Aleatoriamente"
+                      >
+                        {changingProxyInstance === instance.nome_instancia ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shuffle className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon" className="h-9 w-9"
+                        onClick={() => restartInstanceMutation.mutate(instance.nome_instancia)}
+                        disabled={restartingInstance === instance.nome_instancia}
+                        title="Reiniciar Instância"
+                      >
+                        {restartingInstance === instance.nome_instancia ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      </Button>
+
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setInstanceToDelete(instance)}><Trash2 className="h-4 w-4" /></Button>
+                    </TableCell>
+                  </TableRow>
+                ))) :
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">Nenhuma instância foi criada ainda.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Dialog open={isQrCodeDialogOpen} onOpenChange={setIsQrCodeDialogOpen}>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Criar Nova Instância</DialogTitle><DialogDescription>Insira um nome único para a sua nova instância.</DialogDescription></DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="instanceName">Nome</Label>
-                <Input id="instanceName" value={instanceName} onChange={(e) => setInstanceName(e.target.value)} placeholder="Ex: ClinicaPrincipal" disabled={createInstanceMutation.isPending} />
-              </div>
-              <div className="flex items-center space-x-2 pt-2">
-                  <Switch id="proxy-switch" checked={useProxy} onCheckedChange={setUseProxy} disabled={createInstanceMutation.isPending} />
-                  <Label htmlFor="proxy-switch">Ativar Proxy</Label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); setUseProxy(false); }}>Cancelar</Button>
-              <Button onClick={handleCreateInstance} disabled={createInstanceMutation.isPending}>{createInstanceMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Criar</Button>
-            </DialogFooter>
+            <DialogHeader><DialogTitle>Conectar: {currentInstanceName}</DialogTitle><DialogDescription>Abra o WhatsApp, vá para Aparelhos Conectados e escaneie o código.</DialogDescription></DialogHeader>
+            <div className="flex items-center justify-center p-4 min-h-[250px]">{qrCode ? <img src={qrCode} alt={`QR Code para ${currentInstanceName}`} className="rounded-lg border" /> : <div className="flex flex-col items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /><p className="mt-2 text-muted-foreground">Gerando QR Code...</p></div>}</div>
+            <DialogFooter><Button onClick={() => setIsQrCodeDialogOpen(false)}>Fechar</Button></DialogFooter>
           </DialogContent>
         </Dialog>
+        <AlertDialog open={!!instanceToDelete} onOpenChange={() => setInstanceToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader><AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir a instância <strong>"{instanceToDelete?.nome_instancia}"</strong>? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-destructive hover:bg-destructive/90" disabled={deleteInstanceMutation.isPending} onClick={() => { if (instanceToDelete) deleteInstanceMutation.mutate(instanceToDelete); }}>{deleteInstanceMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Excluir</AlertDialogAction></AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-      <Card>
-        
-        <CardContent>
-          <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Nome da Instância</TableHead>
-                    <TableHead>Pessoas</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Telefone Conectado</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoadingInstances ? (
-                [...Array(3)].map((_, i) => <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-9 w-full max-w-[200px] ml-auto" /></TableCell>
-                </TableRow>)
-              ) :
-               instances.length > 0 ? (instances.map((instance) => (
-                <TableRow key={instance.id}>
-                  <TableCell className="font-medium">{instance.nome_instancia}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        <span className="font-mono text-sm">{instance.associated_users_count ?? 0}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(instance.status)}</TableCell>
-                  <TableCell>{instance.telefone_conectado ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Phone className="h-4 w-4"/> +{instance.telefone_conectado}</div> : '-'}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    {instance.status === 'connected' ? 
-                        <Button variant="outline" size="sm" className="gap-2" onClick={() => logoutInstanceMutation.mutate(instance)} disabled={loggingOutInstance === instance.id}>{loggingOutInstance === instance.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4"/>} Desconectar</Button>
-                        :
-                        <Button variant="outline" size="sm" className="gap-2" onClick={() => connectInstanceMutation.mutate(instance.nome_instancia)} disabled={connectInstanceMutation.isPending && currentInstanceName === instance.nome_instancia}>{(connectInstanceMutation.isPending && currentInstanceName === instance.nome_instancia) ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4"/>} Conectar</Button>
-                    }
-                    <Button
-                      variant="ghost" size="icon" className="h-9 w-9"
-                      onClick={() => changeProxyMutation.mutate(instance.nome_instancia)}
-                      disabled={changingProxyInstance === instance.nome_instancia}
-                      title="Trocar Proxy Aleatoriamente"
-                    >
-                      {changingProxyInstance === instance.nome_instancia ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shuffle className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      variant="ghost" size="icon" className="h-9 w-9"
-                      onClick={() => restartInstanceMutation.mutate(instance.nome_instancia)}
-                      disabled={restartingInstance === instance.nome_instancia}
-                      title="Reiniciar Instância"
-                    >
-                      {restartingInstance === instance.nome_instancia ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    </Button>
 
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setInstanceToDelete(instance)}><Trash2 className="h-4 w-4" /></Button>
-                  </TableCell>
-                </TableRow>
-              ))) :
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">Nenhuma instância foi criada ainda.</TableCell></TableRow>}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      <Dialog open={isQrCodeDialogOpen} onOpenChange={setIsQrCodeDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Conectar: {currentInstanceName}</DialogTitle><DialogDescription>Abra o WhatsApp, vá para Aparelhos Conectados e escaneie o código.</DialogDescription></DialogHeader>
-          <div className="flex items-center justify-center p-4 min-h-[250px]">{qrCode ? <img src={qrCode} alt={`QR Code para ${currentInstanceName}`} className="rounded-lg border" /> : <div className="flex flex-col items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /><p className="mt-2 text-muted-foreground">Gerando QR Code...</p></div>}</div>
-          <DialogFooter><Button onClick={() => setIsQrCodeDialogOpen(false)}>Fechar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <AlertDialog open={!!instanceToDelete} onOpenChange={() => setInstanceToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir a instância <strong>"{instanceToDelete?.nome_instancia}"</strong>? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-destructive hover:bg-destructive/90" disabled={deleteInstanceMutation.isPending} onClick={() => { if (instanceToDelete) deleteInstanceMutation.mutate(instanceToDelete); }}>{deleteInstanceMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Excluir</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+      {/* <<< NOVO MODAL RENDERIZADO AQUI >>> */}
+      <MigrateUsersDialog isOpen={isMigrateDialogOpen} onOpenChange={setIsMigrateDialogOpen} />
+    </>
   );
 };
 
