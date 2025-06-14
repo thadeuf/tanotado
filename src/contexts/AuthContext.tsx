@@ -34,61 +34,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   const createNewProfile = async (authUser: any) => {
-    try {
-      console.log('Creating new profile for user:', authUser.id);
-      
-      // --- INÍCIO DA ALTERAÇÃO ---
-      // 1. Busca todas as instâncias disponíveis
-      const { data: instances, error: instanceError } = await supabase
-        .from('instances')
-        .select('id');
+    // --- INÍCIO DA ALTERAÇÃO ---
+    // A lógica de criação de perfil agora é tratada por um gatilho (Trigger)
+    // diretamente no banco de dados para garantir a consistência dos dados.
+    // Esta função no frontend agora pode apenas registrar o evento e
+    // garantir que os dados mais recentes sejam buscados após a criação automática.
+    console.log(`O perfil para o usuário ${authUser.id} será criado pelo gatilho do banco de dados. Recarregando dados...`);
+    
+    // Aguarda um breve momento para garantir que o gatilho no DB tenha tempo de executar
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (instanceError) {
-        console.error('Erro ao buscar instâncias para associação:', instanceError);
-      }
-      
-      // 2. Sorteia uma instância aleatoriamente
-      const randomInstance = (instances && instances.length > 0)
-        ? instances[Math.floor(Math.random() * instances.length)]
-        : null;
-      // --- FIM DA ALTERAÇÃO ---
-
-      const newProfile = {
-        id: authUser.id,
-        email: authUser.email,
-        name: authUser.user_metadata?.name || authUser.email.split('@')[0],
-        whatsapp: authUser.user_metadata?.whatsapp || '',
-        cpf: authUser.user_metadata?.cpf || '',
-        instance_id: randomInstance?.id || null, // <<< ATRIBUI O ID DA INSTÂNCIA SORTEADA
-        role: 'user' as const,
-        has_completed_onboarding: false,
-        client_nomenclature: 'cliente',
-        specialty: '',
-        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        is_subscribed: false,
-        is_active: true, 
-        subscription_status: 'trial',
-        avatar_url: authUser.user_metadata?.avatar_url || null,
-      };
-
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .insert(newProfile)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating profile:', error);
-        setIsLoading(false);
-        return;
-      }
-      
-      await loadUserProfile(supabase.auth.getSession()?.data?.session);
-      
-    } catch (error) {
-      console.error('Error creating new profile:', error);
-      setIsLoading(false);
-    }
+    // Recarrega o perfil do usuário para obter os dados recém-criados pelo gatilho.
+    await loadUserProfile(supabase.auth.getSession()?.data?.session);
+    // --- FIM DA ALTERAÇÃO ---
   };
 
   const loadUserProfile = async (session: Session | null) => {
@@ -106,6 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
         if (error && error.code === 'PGRST116') {
+            // Se o perfil ainda não existe (devido a um pequeno atraso do gatilho),
+            // a função createNewProfile será chamada para tentar recarregar.
             await createNewProfile(session.user);
         } else if (error) {
             throw error;
@@ -149,9 +109,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        // Pequeno atraso para garantir que o gatilho do DB tenha tempo de rodar antes da leitura
         setTimeout(() => {
           loadUserProfile(session);
-        }, 0);
+        }, 500);
       }
     );
 
@@ -214,13 +175,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const cleanCPF = userData.cpf.replace(/[^\d]/g, '');
 
+      // Chama a função RPC para verificar se o CPF existe
       const { data: cpfAlreadyExists, error: rpcError } = await supabase
         .rpc('cpf_exists', { cpf_to_check: cleanCPF });
 
+      // Se a chamada da função der erro, interrompe o processo
       if (rpcError) {
         throw rpcError;
       }
 
+      // Se a função retornar 'true', o CPF já existe
       if (cpfAlreadyExists) {
         toast({
           title: "Erro no Cadastro",
@@ -228,9 +192,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           variant: "destructive",
         });
         setIsLoading(false);
-        return;
+        return; // Sai da função sem registrar
       }
 
+      // Se o CPF for único, prossegue com o cadastro
       const { error: signUpError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
