@@ -37,12 +37,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Creating new profile for user:', authUser.id);
       
+      // --- INÍCIO DA ALTERAÇÃO ---
+      // 1. Busca todas as instâncias disponíveis
+      const { data: instances, error: instanceError } = await supabase
+        .from('instances')
+        .select('id');
+
+      if (instanceError) {
+        console.error('Erro ao buscar instâncias para associação:', instanceError);
+      }
+      
+      // 2. Sorteia uma instância aleatoriamente
+      const randomInstance = (instances && instances.length > 0)
+        ? instances[Math.floor(Math.random() * instances.length)]
+        : null;
+      // --- FIM DA ALTERAÇÃO ---
+
       const newProfile = {
         id: authUser.id,
         email: authUser.email,
         name: authUser.user_metadata?.name || authUser.email.split('@')[0],
         whatsapp: authUser.user_metadata?.whatsapp || '',
         cpf: authUser.user_metadata?.cpf || '',
+        instance_id: randomInstance?.id || null, // <<< ATRIBUI O ID DA INSTÂNCIA SORTEADA
         role: 'user' as const,
         has_completed_onboarding: false,
         client_nomenclature: 'cliente',
@@ -197,16 +214,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const cleanCPF = userData.cpf.replace(/[^\d]/g, '');
 
-      // Chama a função RPC para verificar se o CPF existe
       const { data: cpfAlreadyExists, error: rpcError } = await supabase
         .rpc('cpf_exists', { cpf_to_check: cleanCPF });
 
-      // Se a chamada da função der erro, interrompe o processo
       if (rpcError) {
         throw rpcError;
       }
 
-      // Se a função retornar 'true', o CPF já existe
       if (cpfAlreadyExists) {
         toast({
           title: "Erro no Cadastro",
@@ -214,10 +228,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           variant: "destructive",
         });
         setIsLoading(false);
-        return; // Sai da função sem registrar
+        return;
       }
 
-      // Se o CPF for único, prossegue com o cadastro
       const { error: signUpError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,

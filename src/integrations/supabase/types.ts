@@ -236,6 +236,7 @@ export type Database = {
           has_completed_onboarding: boolean | null
           id: string
           is_subscribed: boolean | null
+          is_active: boolean | null
           name: string
           role: Database["public"]["Enums"]["user_role"] | null
           specialty: string | null
@@ -247,6 +248,17 @@ export type Database = {
           canceled_at: string | null
           last_sign_in_at: string | null
           login_count: number | null
+          avatar_url: string | null
+          council_registration: string | null
+          about_you: string | null
+          cep: string | null
+          address: string | null
+          address_number: string | null
+          address_neighborhood: string | null
+          address_city: string | null
+          address_state: string | null
+          address_complement: string | null
+          instance_id: string | null // <<< ADICIONADO
         }
         Insert: {
           client_nomenclature?: string | null
@@ -256,6 +268,7 @@ export type Database = {
           has_completed_onboarding?: boolean | null
           id: string
           is_subscribed?: boolean | null
+          is_active?: boolean | null
           name: string
           role?: Database["public"]["Enums"]["user_role"] | null
           specialty?: string | null
@@ -267,6 +280,17 @@ export type Database = {
           canceled_at?: string | null
           last_sign_in_at?: string | null
           login_count?: number | null
+          avatar_url?: string | null
+          council_registration?: string | null
+          about_you?: string | null
+          cep?: string | null
+          address?: string | null
+          address_number?: string | null
+          address_neighborhood?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_complement?: string | null
+          instance_id?: string | null // <<< ADICIONADO
         }
         Update: {
           client_nomenclature?: string | null
@@ -276,6 +300,7 @@ export type Database = {
           has_completed_onboarding?: boolean | null
           id?: string
           is_subscribed?: boolean | null
+          is_active?: boolean | null
           name?: string
           role?: Database["public"]["Enums"]["user_role"] | null
           specialty?: string | null
@@ -287,8 +312,28 @@ export type Database = {
           canceled_at?: string | null
           last_sign_in_at?: string | null
           login_count?: number | null
+          avatar_url?: string | null
+          council_registration?: string | null
+          about_you?: string | null
+          cep?: string | null
+          address?: string | null
+          address_number?: string | null
+          address_neighborhood?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_complement?: string | null
+          instance_id?: string | null // <<< ADICIONADO
         }
-        Relationships: []
+        Relationships: [
+          // <<< RELACIONAMENTO ADICIONADO >>>
+          {
+            foreignKeyName: "profiles_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       user_settings: {
         Row: {
@@ -337,7 +382,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+        get_instances_with_user_count: { // <<< FUNÇÃO RPC ADICIONADA
+            Args: Record<PropertyKey, never>
+            Returns: {
+              id: string
+              created_at: string
+              user_id: string
+              nome_instancia: string
+              status: string
+              token: string
+              telefone_conectado: string
+              associated_users_count: number
+            }[]
+        }
     }
     Enums: {
       appointment_status:

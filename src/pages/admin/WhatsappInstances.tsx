@@ -31,13 +31,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Loader2, QrCode, Trash2, Phone, LogOut, RefreshCw, Shuffle } from 'lucide-react';
+import { Plus, Loader2, QrCode, Trash2, Phone, LogOut, RefreshCw, Shuffle, Users } from 'lucide-react'; // <<< ADICIONADO O ÍCONE USERS
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 
+// <<< TIPO ATUALIZADO >>>
 type Instance = Database['public']['Tables']['instances']['Row'] & {
     telefone_conectado?: string | null;
+    associated_users_count?: number; // <<< CAMPO DE CONTAGEM ADICIONADO
 };
 
 type Proxy = {
@@ -71,26 +73,31 @@ const WhatsappInstances: React.FC = () => {
         .eq('id', payload.id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['db_instances', user?.id] }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] }); },
   });
 
   // --- INÍCIO DA ALTERAÇÃO ---
-  // Query revertida para a versão original, sem joins, para corrigir o erro.
+  // Query modificada para usar a função RPC e depois mesclar com os dados da API Evolution
   const { data: instances = [], isLoading: isLoadingInstances } = useQuery<Instance[], Error>({
-    queryKey: ['db_instances', user?.id],
+    queryKey: ['instances_with_user_count', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
-      const { data: dbInstances, error: dbError } = await supabase.from('instances').select('*').eq('user_id', user.id);
-      if (dbError) { toast({ title: 'Erro ao buscar instâncias no DB.', description: dbError.message, variant: 'destructive' }); throw dbError; }
-      if (!dbInstances) return [];
-      
+
+      // 1. Busca instâncias com a contagem de usuários via RPC
+      const { data: instancesWithCount, error: rpcError } = await supabase.rpc('get_instances_with_user_count');
+      if (rpcError) {
+        toast({ title: 'Erro ao buscar instâncias.', description: rpcError.message, variant: 'destructive' });
+        throw rpcError;
+      }
+      if (!instancesWithCount) return [];
+
+      // 2. Bloco para mesclar com dados da API externa (lógica existente mantida)
       try {
         const evoResponse = await fetch('https://apievo.tanotado.com.br/instance/fetchInstances', { headers: { 'apikey': apiKey } });
         const liveInstancesData = await evoResponse.json();
-        const liveInstanceMap = new Map(liveInstancesData.map((inst: any) => [inst.name, inst]));
+        const liveInstanceMap = new Map(liveInstancesData.map((inst: any) => [inst.instanceName, inst]));
 
-        const updatedInstances = dbInstances.map(dbInstance => {
+        const updatedInstances = (instancesWithCount as Instance[]).map(dbInstance => {
             const liveInstance = liveInstanceMap.get(dbInstance.nome_instancia);
             const newStatus = liveInstance?.connectionStatus === 'open' ? 'connected' : 'disconnected';
             const newPhoneNumber = liveInstance?.ownerJid ? liveInstance.ownerJid.split('@')[0] : null;
@@ -103,8 +110,8 @@ const WhatsappInstances: React.FC = () => {
         });
         return updatedInstances;
       } catch (error) {
-        console.error("Falha ao buscar status da Evolution API, mostrando dados locais.", error);
-        return dbInstances;
+        console.error("Falha ao buscar status da Evolution API, mostrando dados do DB.", error);
+        return instancesWithCount as Instance[];
       }
     },
     enabled: !!user,
@@ -123,7 +130,7 @@ const WhatsappInstances: React.FC = () => {
             clearInterval(intervalId);
             setIsQrCodeDialogOpen(false);
             toast({ title: 'Conectado com sucesso!', className: 'bg-green-100 text-green-800' });
-            queryClient.invalidateQueries({ queryKey: ['db_instances', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] });
           }
         }
       } catch (error) { clearInterval(intervalId); }
@@ -131,6 +138,7 @@ const WhatsappInstances: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [isQrCodeDialogOpen, currentInstanceName, queryClient]);
 
+  // ... (O restante do componente, mutations e outras funções, permanecem os mesmos)
   const createInstanceMutation = useMutation({
     mutationFn: async ({ name, useProxy }: { name: string, useProxy: boolean }) => {
       if (!user) throw new Error("Usuário não autenticado.");
@@ -182,7 +190,7 @@ const WhatsappInstances: React.FC = () => {
         ? 'Proxy ativado com sucesso. Clique em "Conectar" para ler o QR Code.' 
         : 'Clique em "Conectar" para ler o QR Code.';
       toast({ title: 'Instância criada com sucesso!', description }); 
-      queryClient.invalidateQueries({ queryKey: ['db_instances', user?.id] }); 
+      queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] }); 
       setIsCreateDialogOpen(false); 
       setInstanceName(''); 
       setUseProxy(false);
@@ -205,7 +213,7 @@ const WhatsappInstances: React.FC = () => {
     },
     onSuccess: (data, instanceName) => {
         toast({ title: `Instância "${instanceName}" reiniciada!`, description: `Novo estado: ${data?.instance?.state}` });
-        queryClient.invalidateQueries({ queryKey: ['db_instances', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] });
     },
     onError: (error: any, instanceName) => toast({ title: `Erro ao reiniciar "${instanceName}"`, description: error.message, variant: 'destructive' }),
     onSettled: () => setRestartingInstance(null)
@@ -228,7 +236,7 @@ const WhatsappInstances: React.FC = () => {
       await fetch(`https://apievo.tanotado.com.br/instance/logout/${instance.nome_instancia}`, { method: 'DELETE', headers: { 'apikey': apiKey } });
       updateInstanceMutation.mutate({ id: instance.id, newStatus: 'disconnected', newPhoneNumber: null });
     },
-    onSuccess: () => { toast({ title: 'Instância desconectada com sucesso!' }); queryClient.invalidateQueries({ queryKey: ['db_instances', user?.id] }); },
+    onSuccess: () => { toast({ title: 'Instância desconectada com sucesso!' }); queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] }); },
     onError: (error: any) => toast({ title: 'Erro ao desconectar instância', description: error.message, variant: 'destructive' }),
     onSettled: () => setLoggingOutInstance(null)
   });
@@ -239,7 +247,7 @@ const WhatsappInstances: React.FC = () => {
       const { error: dbError } = await supabase.from('instances').delete().eq('id', instance.id);
       if (dbError) throw new Error(`Erro ao deletar do banco de dados: ${dbError.message}`);
     },
-    onSuccess: () => { toast({ title: 'Instância excluída com sucesso!' }); queryClient.invalidateQueries({ queryKey: ['db_instances', user?.id] }); },
+    onSuccess: () => { toast({ title: 'Instância excluída com sucesso!' }); queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] }); },
     onError: (error: any) => toast({ title: 'Erro ao excluir instância', description: error.message, variant: 'destructive' }),
     onSettled: () => setInstanceToDelete(null)
   });
@@ -305,6 +313,7 @@ const WhatsappInstances: React.FC = () => {
     }
   };
 
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -335,20 +344,22 @@ const WhatsappInstances: React.FC = () => {
         <CardContent>
           <Table>
             {/* --- INÍCIO DA ALTERAÇÃO --- */}
-            <TableHeader><TableRow>
-                <TableHead>Nome da Instância</TableHead>
-                <TableHead>Pessoas</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Telefone Conectado</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-            </TableRow></TableHeader>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Nome da Instância</TableHead>
+                    <TableHead>Pessoas</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Telefone Conectado</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+            </TableHeader>
             {/* --- FIM DA ALTERAÇÃO --- */}
             <TableBody>
               {isLoadingInstances ? (
                 // --- INÍCIO DA ALTERAÇÃO ---
                 [...Array(3)].map((_, i) => <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-9 w-full max-w-[200px] ml-auto" /></TableCell>
@@ -359,7 +370,12 @@ const WhatsappInstances: React.FC = () => {
                 <TableRow key={instance.id}>
                   <TableCell className="font-medium">{instance.nome_instancia}</TableCell>
                   {/* --- INÍCIO DA ALTERAÇÃO --- */}
-                  <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span className="font-mono text-sm">{instance.associated_users_count ?? 0}</span>
+                    </div>
+                  </TableCell>
                   {/* --- FIM DA ALTERAÇÃO --- */}
                   <TableCell>{getStatusBadge(instance.status)}</TableCell>
                   <TableCell>{instance.telefone_conectado ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Phone className="h-4 w-4"/> +{instance.telefone_conectado}</div> : '-'}</TableCell>
