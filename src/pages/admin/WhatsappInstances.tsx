@@ -1,6 +1,6 @@
 // src/pages/admin/WhatsappInstances.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,17 +31,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-// INÍCIO DA ALTERAÇÃO: Adicionado o ícone 'Shuffle'
 import { Plus, Loader2, QrCode, Trash2, Phone, LogOut, RefreshCw, Shuffle, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-// FIM DA ALTERAÇÃO
-import { MigrateUsersDialog } from '@/components/admin/MigrateUsersDialog'; // <<< NOVO IMPORT
+import { MigrateUsersDialog } from '@/components/admin/MigrateUsersDialog';
 
 type Instance = Database['public']['Tables']['instances']['Row'] & {
     telefone_conectado?: string | null;
-    associated_users_count?: number; // Este é o campo virtual que recebemos da função
+    associated_users_count?: number;
 };
 
 type Proxy = {
@@ -65,9 +63,25 @@ const WhatsappInstances: React.FC = () => {
   const [loggingOutInstance, setLoggingOutInstance] = useState<string | null>(null);
   const [restartingInstance, setRestartingInstance] = useState<string | null>(null);
   const [changingProxyInstance, setChangingProxyInstance] = useState<string | null>(null);
-  const [isMigrateDialogOpen, setIsMigrateDialogOpen] = useState(false); // <<< NOVO ESTADO
+  const [isMigrateDialogOpen, setIsMigrateDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+
+  const notifyDisconnection = useCallback(async (disconnectedInstanceName: string) => {
+    const webhookUrl = 'https://webhook.artideia.com.br/webhook/zapCaiu';
+    console.log(`%cWEBHOOK: Enviando notificação para a instância: ${disconnectedInstanceName}`, 'color: #f00');
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instanceName: disconnectedInstanceName }),
+      });
+      toast({ title: "Notificação Enviada", description: `Webhook de desconexão para ${disconnectedInstanceName} foi acionado.` });
+    } catch (error) {
+      console.error('Falha ao enviar o webhook de desconexão:', error);
+      toast({ title: "Erro de Webhook", description: "Não foi possível notificar o sistema sobre a desconexão.", variant: "destructive" });
+    }
+  }, []);
 
   const updateInstanceMutation = useMutation({
     mutationFn: async (payload: { id: string; newStatus: string; newPhoneNumber: string | null; }) => {
@@ -76,55 +90,29 @@ const WhatsappInstances: React.FC = () => {
         .eq('id', payload.id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] });
+    },
+    onError: (error: any) => {
+        toast({ title: "Erro ao atualizar instância no banco.", description: error.message, variant: "destructive" });
+    }
   });
 
-  // =================================================================================
-  // ESTA É A PARTE MAIS IMPORTANTE!
-  // Note que estamos usando supabase.rpc('get_instances_with_user_count')
-  // para chamar a função que calcula a contagem, em vez de ler a tabela diretamente.
-  // =================================================================================
   const { data: instances = [], isLoading: isLoadingInstances } = useQuery<Instance[], Error>({
     queryKey: ['instances_with_user_count', user?.id],
     queryFn: async () => {
       if (!user) return [];
-
-      const { data: instancesWithCount, error: rpcError } = await supabase.rpc('get_instances_with_user_count');
-      
-      if (rpcError) {
-        toast({ title: 'Erro ao buscar instâncias.', description: rpcError.message, variant: 'destructive' });
-        throw rpcError;
+      const { data, error } = await supabase.rpc('get_instances_with_user_count');
+      if (error) {
+        toast({ title: 'Erro ao buscar instâncias.', description: error.message, variant: 'destructive' });
+        throw error;
       }
-      if (!instancesWithCount) return [];
-
-      try {
-        const evoResponse = await fetch('https://apievo.tanotado.com.br/instance/fetchInstances', { headers: { 'apikey': apiKey } });
-        if (!evoResponse.ok) throw new Error('Falha ao buscar dados da API Evolution.');
-        const liveInstancesData = await evoResponse.json();
-        const liveInstanceMap = new Map(liveInstancesData.map((inst: any) => [inst.instanceName, inst]));
-
-        const updatedInstances = (instancesWithCount as Instance[]).map(dbInstance => {
-            const liveInstance = liveInstanceMap.get(dbInstance.nome_instancia);
-            const newStatus = liveInstance?.connectionStatus === 'open' ? 'connected' : 'disconnected';
-            const newPhoneNumber = liveInstance?.ownerJid ? liveInstance.ownerJid.split('@')[0] : null;
-
-            if (dbInstance.status !== newStatus || dbInstance.telefone_conectado !== newPhoneNumber) {
-                updateInstanceMutation.mutate({ id: dbInstance.id, newStatus, newPhoneNumber });
-            }
-            
-            return { ...dbInstance, status: newStatus, telefone_conectado: newPhoneNumber };
-        });
-        return updatedInstances;
-      } catch (error) {
-        console.error("Falha ao buscar status da Evolution API, mostrando dados do DB.", error);
-        return instancesWithCount as Instance[];
-      }
+      return (data as Instance[]) || [];
     },
     enabled: !!user,
-    refetchInterval: 15000,
   });
 
-  // ... (O restante do código do componente permanece o mesmo)
+  // EFFECT 1: Polling do QR Code (sem alterações)
   useEffect(() => {
     if (!isQrCodeDialogOpen || !currentInstanceName) return;
     const intervalId = setInterval(async () => {
@@ -135,70 +123,103 @@ const WhatsappInstances: React.FC = () => {
           if (data?.instance?.state === 'open') {
             clearInterval(intervalId);
             setIsQrCodeDialogOpen(false);
-            toast({ title: 'Conectado com sucesso!', className: 'bg-green-100 text-green-800' });
-            queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] });
+            toast({ title: 'Conectado com sucesso!', description: 'Buscando número de telefone...', className: 'bg-green-100 text-green-800' });
+            const instanceToUpdate = instances.find(inst => inst.nome_instancia === currentInstanceName);
+            if (!instanceToUpdate) {
+                queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] });
+                return;
+            }
+            try {
+                const fullDetailsResponse = await fetch(`https://apievo.tanotado.com.br/instance/fetchInstances`, { headers: { 'apikey': apiKey } });
+                const allInstancesData = await fullDetailsResponse.json();
+                const connectedInstanceData = allInstancesData.find((inst: any) => inst.name === currentInstanceName);
+                const newPhoneNumber = connectedInstanceData?.ownerJid ? connectedInstanceData.ownerJid.split('@')[0] : null;
+                updateInstanceMutation.mutate({ id: instanceToUpdate.id, newStatus: 'connected', newPhoneNumber: newPhoneNumber, });
+            } catch (e) {
+                console.error("Não foi possível buscar o número do telefone após conectar, atualizando apenas o status.", e);
+                updateInstanceMutation.mutate({ id: instanceToUpdate.id, newStatus: 'connected', newPhoneNumber: null, });
+            }
           }
         }
       } catch (error) { clearInterval(intervalId); }
     }, 3000);
     return () => clearInterval(intervalId);
-  }, [isQrCodeDialogOpen, currentInstanceName, queryClient]);
+  }, [isQrCodeDialogOpen, currentInstanceName, queryClient, user?.id, instances, updateInstanceMutation]);
+  
+  // EFFECT 2: Sincronização em segundo plano com LOGS para depuração
+  useEffect(() => {
+    const syncInstances = async () => {
+      if (!user) return;
+      
+      console.log(`%c[SYNC] Inciando verificação... (${new Date().toLocaleTimeString()})`, 'color: #888');
 
+      try {
+        const { data: dbInstances, error: dbError } = await supabase.rpc('get_instances_with_user_count');
+        if (dbError || !dbInstances) { console.error("[SYNC] Falha ao buscar dados do DB.", dbError); return; }
+        
+        console.log("[SYNC] Dados do DB:", dbInstances);
+
+        const evoResponse = await fetch('https://apievo.tanotado.com.br/instance/fetchInstances', { headers: { 'apikey': apiKey } });
+        if (!evoResponse.ok) return;
+        const liveInstancesData = await evoResponse.json();
+
+        console.log("[SYNC] Dados da API Evolution:", liveInstancesData);
+
+        const liveInstanceMap = new Map(liveInstancesData.map((inst: any) => [inst.name, inst]));
+
+        for (const dbInstance of dbInstances as Instance[]) {
+          const liveInstance = liveInstanceMap.get(dbInstance.nome_instancia);
+          const liveStatus = liveInstance?.connectionStatus === 'open' ? 'connected' : 'disconnected';
+          
+          console.log(`%c[SYNC] Verificando '${dbInstance.nome_instancia}': Status no DB: '${dbInstance.status}', Status na API: '${liveStatus}'`, 'color: #00f');
+          
+          if (dbInstance.status !== liveStatus) {
+            console.log(`%c[SYNC] >> DIFERENÇA ENCONTRADA para '${dbInstance.nome_instancia}'!`, 'font-weight: bold; color: #f00');
+
+            if (dbInstance.status === 'connected' && liveStatus === 'disconnected') {
+              notifyDisconnection(dbInstance.nome_instancia);
+            }
+            
+            const livePhoneNumber = liveInstance?.ownerJid ? liveInstance.ownerJid.split('@')[0] : null;
+            updateInstanceMutation.mutate({ id: dbInstance.id, newStatus: liveStatus, newPhoneNumber: livePhoneNumber });
+          }
+        }
+      } catch (error) {
+        console.error("Falha na sincronização de instâncias em segundo plano:", error);
+      }
+    };
+
+    syncInstances();
+    const syncInterval = setInterval(syncInstances, 60000);
+    return () => clearInterval(syncInterval);
+  }, [user, updateInstanceMutation, notifyDisconnection]);
+
+  // Restante do código (sem alterações)
   const createInstanceMutation = useMutation({
     mutationFn: async ({ name, useProxy }: { name: string, useProxy: boolean }) => {
       if (!user) throw new Error("Usuário não autenticado.");
-
       const evoResponse = await fetch('https://apievo.tanotado.com.br/instance/create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': apiKey }, body: JSON.stringify({ instanceName: name, qrcode: true, integration: "WHATSAPP-BAILEYS" }) });
       if (!evoResponse.ok) throw new Error((await evoResponse.json()).message || 'Falha ao criar na Evolution API.');
       const evoData = await evoResponse.json();
       if (!evoData?.hash) throw new Error("Hash (token) não recebido da API.");
-
-      const { error: dbError } = await supabase.from('instances').insert({ user_id: user.id, nome_instancia: name, status: 'connecting', token: evoData.hash });
+      const { error: dbError } = await supabase.from('instances').insert({ user_id: user.id, nome_instancia: name, status: 'disconnected', token: evoData.hash });
       if (dbError) throw new Error(`Erro ao salvar no banco de dados: ${dbError.message}`);
-
       if (useProxy) {
         const randomProxyId = Math.floor(Math.random() * 100) + 1;
-        const { data: randomProxy, error: proxyError } = await supabase
-            .from('proxy')
-            .select('*')
-            .eq('id', randomProxyId)
-            .single<Proxy>();
-
+        const { data: randomProxy, error: proxyError } = await supabase.from('proxy').select('*').eq('id', randomProxyId).single<Proxy>();
         if (proxyError) throw new Error(`Instância criada, mas falha ao buscar proxy: ${proxyError.message}`);
         if (!randomProxy) throw new Error("Instância criada, mas não foi possível encontrar um proxy aleatório.");
-        
-        const proxyPayload = {
-            enabled: true,
-            host: randomProxy.proxy_address,
-            port: randomProxy.port,
-            protocol: "http",
-            username: randomProxy.username,
-            password: randomProxy.password,
-        };
-
-        const proxySetResponse = await fetch(`https://apievo.tanotado.com.br/proxy/set/${name}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
-            body: JSON.stringify(proxyPayload)
-        });
-
-        if (!proxySetResponse.ok) {
-            const proxySetErrorData = await proxySetResponse.json().catch(() => ({}));
-            throw new Error(`Instância criada, mas falha ao configurar o proxy: ${proxySetErrorData.message || 'Erro desconhecido'}`);
-        }
+        const proxyPayload = { enabled: true, host: randomProxy.proxy_address, port: randomProxy.port, protocol: "http", username: randomProxy.username, password: randomProxy.password };
+        const proxySetResponse = await fetch(`https://apievo.tanotado.com.br/proxy/set/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': apiKey }, body: JSON.stringify(proxyPayload) });
+        if (!proxySetResponse.ok) { const proxySetErrorData = await proxySetResponse.json().catch(() => ({})); throw new Error(`Instância criada, mas falha ao configurar o proxy: ${proxySetErrorData.message || 'Erro desconhecido'}`); }
       }
-
       return { useProxy };
     },
     onSuccess: (result) => { 
-      const description = result.useProxy 
-        ? 'Proxy ativado com sucesso. Clique em "Conectar" para ler o QR Code.' 
-        : 'Clique em "Conectar" para ler o QR Code.';
+      const description = result.useProxy ? 'Proxy ativado com sucesso. Clique em "Conectar" para ler o QR Code.' : 'Clique em "Conectar" para ler o QR Code.';
       toast({ title: 'Instância criada com sucesso!', description }); 
       queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] }); 
-      setIsCreateDialogOpen(false); 
-      setInstanceName(''); 
-      setUseProxy(false);
+      setIsCreateDialogOpen(false); setInstanceName(''); setUseProxy(false);
     },
     onError: (error: any) => toast({ title: 'Erro ao criar instância', description: error.message, variant: 'destructive' })
   });
@@ -206,14 +227,8 @@ const WhatsappInstances: React.FC = () => {
   const restartInstanceMutation = useMutation({
     mutationFn: async (instanceName: string) => {
         setRestartingInstance(instanceName);
-        const response = await fetch(`https://apievo.tanotado.com.br/instance/restart/${instanceName}`, {
-            method: 'POST',
-            headers: { 'apikey': 'b09fd007cb06707d5c18ec80ca2a0fde' },
-        });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Falha ao reiniciar a instância.');
-        }
+        const response = await fetch(`https://apievo.tanotado.com.br/instance/restart/${instanceName}`, { method: 'POST', headers: { 'apikey': apiKey } });
+        if (!response.ok) { const errorData = await response.json().catch(() => ({})); throw new Error(errorData.message || 'Falha ao reiniciar a instância.'); }
         return response.json();
     },
     onSuccess: (data, instanceName) => {
@@ -239,9 +254,10 @@ const WhatsappInstances: React.FC = () => {
     mutationFn: async (instance: Instance) => {
       setLoggingOutInstance(instance.id);
       await fetch(`https://apievo.tanotado.com.br/instance/logout/${instance.nome_instancia}`, { method: 'DELETE', headers: { 'apikey': apiKey } });
+      await notifyDisconnection(instance.nome_instancia);
       updateInstanceMutation.mutate({ id: instance.id, newStatus: 'disconnected', newPhoneNumber: null });
     },
-    onSuccess: () => { toast({ title: 'Instância desconectada com sucesso!' }); queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] }); },
+    onSuccess: () => { toast({ title: 'Instância desconectada com sucesso!' }); },
     onError: (error: any) => toast({ title: 'Erro ao desconectar instância', description: error.message, variant: 'destructive' }),
     onSettled: () => setLoggingOutInstance(null)
   });
@@ -261,53 +277,22 @@ const WhatsappInstances: React.FC = () => {
     mutationFn: async (instanceName: string) => {
         setChangingProxyInstance(instanceName);
         const randomProxyId = Math.floor(Math.random() * 100) + 1;
-        const { data: randomProxy, error: proxyError } = await supabase
-            .from('proxy')
-            .select('*')
-            .eq('id', randomProxyId)
-            .single<Proxy>();
-
+        const { data: randomProxy, error: proxyError } = await supabase.from('proxy').select('*').eq('id', randomProxyId).single<Proxy>();
         if (proxyError) throw new Error(`Falha ao buscar proxy aleatório: ${proxyError.message}`);
         if (!randomProxy) throw new Error("Não foi possível encontrar um proxy aleatório.");
-
-        const proxyPayload = {
-            enabled: true,
-            host: randomProxy.proxy_address,
-            port: randomProxy.port,
-            protocol: "http",
-            username: randomProxy.username,
-            password: randomProxy.password,
-        };
-
-        const proxySetResponse = await fetch(`https://apievo.tanotado.com.br/proxy/set/${instanceName}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
-            body: JSON.stringify(proxyPayload)
-        });
-
-        if (!proxySetResponse.ok) {
-            const proxySetErrorData = await proxySetResponse.json().catch(() => ({}));
-            throw new Error(`Falha ao configurar o novo proxy: ${proxySetErrorData.message || 'Erro desconhecido'}`);
-        }
+        const proxyPayload = { enabled: true, host: randomProxy.proxy_address, port: randomProxy.port, protocol: "http", username: randomProxy.username, password: randomProxy.password };
+        const proxySetResponse = await fetch(`https://apievo.tanotado.com.br/proxy/set/${instanceName}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': apiKey }, body: JSON.stringify(proxyPayload) });
+        if (!proxySetResponse.ok) { const proxySetErrorData = await proxySetResponse.json().catch(() => ({})); throw new Error(`Falha ao configurar o novo proxy: ${proxySetErrorData.message || 'Erro desconhecido'}`); }
         return instanceName;
     },
-    onSuccess: (instanceName) => {
-        toast({ title: 'Proxy alterado com sucesso!', description: `A instância "${instanceName}" agora está usando um novo proxy.` });
-    },
-    onError: (error: any) => {
-        toast({ title: 'Erro ao trocar o proxy', description: error.message, variant: 'destructive' });
-    },
-    onSettled: () => {
-        setChangingProxyInstance(null);
-    }
+    onSuccess: (instanceName) => { toast({ title: 'Proxy alterado com sucesso!', description: `A instância "${instanceName}" agora está usando um novo proxy.` }); },
+    onError: (error: any) => { toast({ title: 'Erro ao trocar o proxy', description: error.message, variant: 'destructive' }); },
+    onSettled: () => { setChangingProxyInstance(null); }
   });
 
   const handleCreateInstance = () => { 
-    if (instanceName.trim()) {
-        createInstanceMutation.mutate({ name: instanceName.trim(), useProxy }); 
-    } else {
-        toast({ title: 'Erro', description: 'O nome da instância é obrigatório.', variant: 'destructive' }); 
-    }
+    if (instanceName.trim()) { createInstanceMutation.mutate({ name: instanceName.trim(), useProxy }); } 
+    else { toast({ title: 'Erro', description: 'O nome da instância é obrigatório.', variant: 'destructive' }); }
   };
 
   const getStatusBadge = (status: string | null) => {
@@ -323,24 +308,15 @@ const WhatsappInstances: React.FC = () => {
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div><h1 className="text-3xl font-bold text-tanotado-navy">Instâncias do WhatsApp</h1><p className="text-muted-foreground mt-2">Gerencie as conexões para envio de mensagens.</p></div>
-          {/* INÍCIO DA ALTERAÇÃO */}
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setIsMigrateDialogOpen(true)}>
-              <Users className="mr-2 h-4 w-4" /> Migrar Usuários
-            </Button>
+            <Button variant="outline" onClick={() => setIsMigrateDialogOpen(true)}><Users className="mr-2 h-4 w-4" /> Migrar Usuários</Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Nova Instância</Button></DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>Criar Nova Instância</DialogTitle><DialogDescription>Insira um nome único para a sua nova instância.</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-4">
-                  <div>
-                    <Label htmlFor="instanceName">Nome</Label>
-                    <Input id="instanceName" value={instanceName} onChange={(e) => setInstanceName(e.target.value)} placeholder="Ex: ClinicaPrincipal" disabled={createInstanceMutation.isPending} />
-                  </div>
-                  <div className="flex items-center space-x-2 pt-2">
-                      <Switch id="proxy-switch" checked={useProxy} onCheckedChange={setUseProxy} disabled={createInstanceMutation.isPending} />
-                      <Label htmlFor="proxy-switch">Ativar Proxy</Label>
-                  </div>
+                  <div><Label htmlFor="instanceName">Nome</Label><Input id="instanceName" value={instanceName} onChange={(e) => setInstanceName(e.target.value)} placeholder="Ex: ClinicaPrincipal" disabled={createInstanceMutation.isPending} /></div>
+                  <div className="flex items-center space-x-2 pt-2"><Switch id="proxy-switch" checked={useProxy} onCheckedChange={setUseProxy} disabled={createInstanceMutation.isPending} /><Label htmlFor="proxy-switch">Ativar Proxy</Label></div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); setUseProxy(false); }}>Cancelar</Button>
@@ -349,40 +325,17 @@ const WhatsappInstances: React.FC = () => {
               </DialogContent>
             </Dialog>
           </div>
-          {/* FIM DA ALTERAÇÃO */}
         </div>
         <Card>
-          
           <CardContent>
             <Table>
-              <TableHeader>
-                  <TableRow>
-                      <TableHead>Nome da Instância</TableHead>
-                      <TableHead>Pessoas</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Telefone Conectado</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-              </TableHeader>
+              <TableHeader><TableRow><TableHead>Nome da Instância</TableHead><TableHead>Pessoas</TableHead><TableHead>Status</TableHead><TableHead>Telefone Conectado</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
               <TableBody>
-                {isLoadingInstances ? (
-                  [...Array(3)].map((_, i) => <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-9 w-full max-w-[200px] ml-auto" /></TableCell>
-                  </TableRow>)
-                ) :
-                instances.length > 0 ? (instances.map((instance) => (
+                {isLoadingInstances ? ([...Array(3)].map((_, i) => <TableRow key={i}><TableCell><Skeleton className="h-4 w-32" /></TableCell><TableCell><Skeleton className="h-4 w-12" /></TableCell><TableCell><Skeleton className="h-6 w-24" /></TableCell><TableCell><Skeleton className="h-4 w-32" /></TableCell><TableCell className="text-right"><Skeleton className="h-9 w-full max-w-[200px] ml-auto" /></TableCell></TableRow>))
+                : instances.length > 0 ? (instances.map((instance) => (
                   <TableRow key={instance.id}>
                     <TableCell className="font-medium">{instance.nome_instancia}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                          <Users className="h-4 w-4" />
-                          <span className="font-mono text-sm">{instance.associated_users_count ?? 0}</span>
-                      </div>
-                    </TableCell>
+                    <TableCell><div className="flex items-center gap-2 text-muted-foreground"><Users className="h-4 w-4" /><span className="font-mono text-sm">{instance.associated_users_count ?? 0}</span></div></TableCell>
                     <TableCell>{getStatusBadge(instance.status)}</TableCell>
                     <TableCell>{instance.telefone_conectado ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Phone className="h-4 w-4"/> +{instance.telefone_conectado}</div> : '-'}</TableCell>
                     <TableCell className="text-right space-x-2">
@@ -391,28 +344,12 @@ const WhatsappInstances: React.FC = () => {
                           :
                           <Button variant="outline" size="sm" className="gap-2" onClick={() => connectInstanceMutation.mutate(instance.nome_instancia)} disabled={connectInstanceMutation.isPending && currentInstanceName === instance.nome_instancia}>{(connectInstanceMutation.isPending && currentInstanceName === instance.nome_instancia) ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4"/>} Conectar</Button>
                       }
-                      <Button
-                        variant="ghost" size="icon" className="h-9 w-9"
-                        onClick={() => changeProxyMutation.mutate(instance.nome_instancia)}
-                        disabled={changingProxyInstance === instance.nome_instancia}
-                        title="Trocar Proxy Aleatoriamente"
-                      >
-                        {changingProxyInstance === instance.nome_instancia ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shuffle className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        variant="ghost" size="icon" className="h-9 w-9"
-                        onClick={() => restartInstanceMutation.mutate(instance.nome_instancia)}
-                        disabled={restartingInstance === instance.nome_instancia}
-                        title="Reiniciar Instância"
-                      >
-                        {restartingInstance === instance.nome_instancia ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      </Button>
-
+                      <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => changeProxyMutation.mutate(instance.nome_instancia)} disabled={changingProxyInstance === instance.nome_instancia} title="Trocar Proxy Aleatoriamente">{changingProxyInstance === instance.nome_instancia ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shuffle className="h-4 w-4" />}</Button>
+                      <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => restartInstanceMutation.mutate(instance.nome_instancia)} disabled={restartingInstance === instance.nome_instancia} title="Reiniciar Instância">{restartingInstance === instance.nome_instancia ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}</Button>
                       <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setInstanceToDelete(instance)}><Trash2 className="h-4 w-4" /></Button>
                     </TableCell>
                   </TableRow>
-                ))) :
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">Nenhuma instância foi criada ainda.</TableCell></TableRow>}
+                ))) : <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">Nenhuma instância foi criada ainda.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </CardContent>
@@ -431,8 +368,6 @@ const WhatsappInstances: React.FC = () => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-
-      {/* <<< NOVO MODAL RENDERIZADO AQUI >>> */}
       <MigrateUsersDialog isOpen={isMigrateDialogOpen} onOpenChange={setIsMigrateDialogOpen} />
     </>
   );
