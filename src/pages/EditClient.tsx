@@ -12,8 +12,10 @@ import { ProntuarioContainer } from '@/components/prontuarios/ProntuarioContaine
 import { GenerateDocumentDialog } from '@/components/documents/GenerateDocumentDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { SessionNotesList } from '@/components/notes/SessionNotesList';
-// Import do novo componente
 import { ClientFinancialRecords } from '@/components/financial/ClientFinancialRecords';
+// INÍCIO DA IMPORTAÇÃO
+import { SavedDocumentsList } from '@/components/documents/SavedDocumentsList';
+// FIM DA IMPORTAÇÃO
 
 const EditClient: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -122,13 +124,18 @@ const EditClient: React.FC = () => {
               <SessionNotesList client={clientData} />
           )}
 
-          {/* ADIÇÃO DA NOVA VIEW FINANCEIRA */}
           {activeView === 'financeiro' && clientData && (
               <ClientFinancialRecords client={clientData} />
           )}
           
+          {/* INÍCIO DA ADIÇÃO */}
+          {activeView === 'documentos' && clientData && (
+              <SavedDocumentsList client={clientData} />
+          )}
+          {/* FIM DA ADIÇÃO */}
+          
           {/* Ajuste no fallback */}
-          {activeView !== 'dados' && activeView !== 'prontuario' && activeView !== 'anotacoes' && activeView !== 'financeiro' && (
+          {activeView !== 'dados' && activeView !== 'prontuario' && activeView !== 'anotacoes' && activeView !== 'financeiro' && activeView !== 'documentos' && (
               <Card>
                   <CardHeader>
                       <CardTitle className="capitalize">{activeView}</CardTitle>

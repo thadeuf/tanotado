@@ -31,7 +31,7 @@ const transactionSchema = z.object({
   type: z.enum(['income', 'expense'], { required_error: 'Selecione o tipo.' }),
   description: z.string().min(2, { message: 'A descrição é obrigatória.' }),
   amount: z.coerce.number().positive({ message: 'O valor deve ser maior que zero.' }),
-  client_id: z.string({ required_error: "Selecione um cliente ou centro de custo." }),
+  client_id: z.string({ required_error: "Selecione a relação para associar." }),
   due_date: z.date({ required_error: 'A data de vencimento é obrigatória.' }),
   is_recurring: z.boolean().default(false),
   recurrence_frequency: z.string().optional(),
@@ -164,7 +164,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, ini
         )}
         <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Descrição</FormLabel><FormControl><Input placeholder="Ex: Consulta, Aluguel do consultório..." {...field} /></FormControl><FormMessage /></FormItem> )} />
         <FormField control={form.control} name="client_id" render={({ field }) => (
-          <FormItem className="flex flex-col"><FormLabel>Cliente / Centro de Custo</FormLabel>
+          <FormItem className="flex flex-col"><FormLabel>Relacionado a:</FormLabel>
             <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}><PopoverTrigger asChild>
               <FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={clientsLoading}>
                 {clientsLoading ? "Carregando..." : clients.find(c => c.id === field.value)?.name || "Selecione..."}

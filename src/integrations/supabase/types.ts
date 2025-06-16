@@ -116,6 +116,60 @@ export type Database = {
         }
         Relationships: []
       }
+      // INÍCIO DA ADIÇÃO DA NOVA TABELA
+      client_documents: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          client_id: string
+          template_id: string | null
+          title: string
+          content: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          client_id: string
+          template_id?: string | null
+          title: string
+          content?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          client_id?: string
+          template_id?: string | null
+          title?: string
+          content?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "document_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      // FIM DA ADIÇÃO
       medical_records: {
         Row: {
           appointment_id: string | null
@@ -334,7 +388,6 @@ export type Database = {
           }
         ]
       }
-      // ADIÇÃO DA NOVA TABELA
       session_notes: {
         Row: {
           id: string
