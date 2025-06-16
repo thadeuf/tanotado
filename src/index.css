@@ -125,3 +125,26 @@ body {
 .splash-screen {
   background: linear-gradient(135deg, #E91E63 0%, #FF9800 25%, #4CAF50 50%, #03A9F4 75%, #9C27B0 100%);
 }
+
+/* Adicione no final do arquivo */
+
+.phone-input-container .PhoneInputInput {
+  height: 100%;
+  border: none;
+  padding-left: 0.75rem;
+  --tw-ring-offset-shadow: none;
+  --tw-ring-shadow: none;
+  box-shadow: none;
+}
+
+.phone-input-container .PhoneInputInput:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.phone-input-container .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  padding-left: 0.75rem;
+  padding-right: 0.5rem;
+}

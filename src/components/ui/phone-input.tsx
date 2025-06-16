@@ -1,47 +1,32 @@
-import React, { useEffect } from 'react';
-import { useIMask } from 'react-imask';
-import { Input } from '@/components/ui/input';
+import React from 'react';
+import 'react-phone-number-input/style.css';
+import PhoneInput, { type PhoneInputProps } from 'react-phone-number-input';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
-const CustomPhoneInput = React.forwardRef<HTMLInputElement, any>(
-  ({ className, onChange, name, value, ...props }, forwardedRef) => {
-    
-    const {
-      ref,
-      setValue,
-    } = useIMask(
-      {
-        mask: '(00) 00000-0000',
-      },
-      {
-        onAccept: (acceptedValue: string) => {
-          if (onChange) {
-            const event = {
-              target: {
-                name: name || 'whatsapp',
-                value: acceptedValue,
-              },
-            };
-            onChange(event);
-          }
-        },
-      }
-    );
+type CustomPhoneInputProps = Omit<PhoneInputProps, 'onChange'> & {
+  onChange: (value?: string) => void;
+  className?: string;
+};
 
-    useEffect(() => {
-      setValue(value || '');
-    }, [value, setValue]);
-
-    React.useImperativeHandle(forwardedRef, () => ref.current as HTMLInputElement);
-
+const CustomPhoneInput = React.forwardRef<HTMLInputElement, CustomPhoneInputProps>(
+  ({ className, onChange, ...props }, ref) => {
     return (
-      <Input
+      <PhoneInput
+        international
+        withCountryCallingCode
+        defaultCountry="BR"
+        // --- INÍCIO DA ALTERAÇÃO ---
+        className={cn(
+          'flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+          'phone-input-container', // Mantemos esta classe para estilos específicos
+          className
+        )}
+        // --- FIM DA ALTERAÇÃO ---
+        inputComponent={Input}
+        onChange={onChange}
         {...props}
         ref={ref}
-        name={name}
-        className={cn(className)}
-        defaultValue={value}
-        placeholder="(21) 99999-9999"
       />
     );
   }
