@@ -258,7 +258,7 @@ export type Database = {
           address_city: string | null
           address_state: string | null
           address_complement: string | null
-          instance_id: string | null // <<< ADICIONADO
+          instance_id: string | null
         }
         Insert: {
           client_nomenclature?: string | null
@@ -290,7 +290,7 @@ export type Database = {
           address_city?: string | null
           address_state?: string | null
           address_complement?: string | null
-          instance_id?: string | null // <<< ADICIONADO
+          instance_id?: string | null
         }
         Update: {
           client_nomenclature?: string | null
@@ -322,15 +322,57 @@ export type Database = {
           address_city?: string | null
           address_state?: string | null
           address_complement?: string | null
-          instance_id?: string | null // <<< ADICIONADO
+          instance_id?: string | null
         }
         Relationships: [
-          // <<< RELACIONAMENTO ADICIONADO >>>
           {
             foreignKeyName: "profiles_instance_id_fkey"
             columns: ["instance_id"]
             isOneToOne: false
             referencedRelation: "instances"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      // ADIÇÃO DA NOVA TABELA
+      session_notes: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          client_id: string
+          appointment_id: string
+          content: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          client_id: string
+          appointment_id: string
+          content?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          client_id?: string
+          appointment_id?: string
+          content?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_notes_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           }
         ]
@@ -382,7 +424,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-        get_instances_with_user_count: { // <<< FUNÇÃO RPC ADICIONADA
+        get_instances_with_user_count: {
             Args: Record<PropertyKey, never>
             Returns: {
               id: string

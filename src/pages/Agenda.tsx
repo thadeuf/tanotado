@@ -1,3 +1,5 @@
+// src/pages/Agenda.tsx
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,7 @@ import {
   Repeat,
   Briefcase,
   Settings as SettingsIcon,
+  NotebookPen // Ícone importado
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -54,6 +57,8 @@ import './Agenda.css';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 import { useUserSettings } from '@/hooks/useUserSettings';
+// Import do novo componente de modal
+import { SessionNotesDialog } from '@/components/notes/SessionNotesDialog';
 
 const CustomEvent = ({ event }: { event: any }) => (
   <div className="rbc-event-content text-white text-xs p-1 h-full truncate">
@@ -71,6 +76,9 @@ const Agenda: React.FC = () => {
   
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  // Estado para controlar o modal de anotações
+  const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
 
   const { data: appointments = [], isLoading } = useAppointments();
   const { data: clients = [] } = useClients();
@@ -118,6 +126,10 @@ const Agenda: React.FC = () => {
       setAppointmentToDelete(null);
     },
   });
+
+  const handleNotesClick = (appointment: Appointment) => {
+    setSelectedAppointmentForNotes(appointment);
+  };
 
   const handleDeleteClick = (appointment: Appointment) => {
     setAppointmentToDelete(appointment);
@@ -207,164 +219,172 @@ const Agenda: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-tanotado-navy">Agenda</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie seus agendamentos e consultas
-          </p>
+    <>
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-tanotado-navy">Agenda</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie seus agendamentos e consultas
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  {viewMode === 'week' ? 'Semana' : 'Mês'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => setViewMode(value as 'week' | 'month')}>
+                  <DropdownMenuRadioItem value="week">Visão Semanal</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="month">Visão Mensal</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsSettingsModalOpen(true)}>
+              <SettingsIcon className="h-4 w-4" />
+            </Button>
+            <Button onClick={() => handleSelectSlot({ start: selectedDate })} className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200 gap-2" size="sm">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Novo Agendamento</span>
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {viewMode === 'week' ? 'Semana' : 'Mês'}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => setViewMode(value as 'week' | 'month')}>
-                <DropdownMenuRadioItem value="week">Visão Semanal</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="month">Visão Mensal</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsSettingsModalOpen(true)}>
-            <SettingsIcon className="h-4 w-4" />
-          </Button>
-          <Button onClick={() => handleSelectSlot({ start: selectedDate })} className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200 gap-2" size="sm">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Novo Agendamento</span>
-          </Button>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 items-start">
-        <aside>
-          <DateSelector selectedDate={selectedDate} onDateSelect={setSelectedDate} />
-        </aside>
+        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 items-start">
+          <aside>
+            <DateSelector selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+          </aside>
 
-        <main className="space-y-6">
-          {viewMode === 'month' ? (
-            <Card className="h-[calc(100vh-12rem)]">
-              <CardContent className="p-1 sm:p-2 h-full">
-                <BigCalendar
-                  localizer={localizer}
-                  events={events}
-                  startAccessor="start"
-                  endAccessor="end"
-                  defaultView={Views.MONTH}
-                  view={Views.MONTH}
-                  onNavigate={date => setSelectedDate(date)}
-                  date={selectedDate}
-                  style={{ height: '100%' }}
-                  culture="pt-BR"
-                  messages={{ next: "Próximo", previous: "Anterior", today: "Hoje", month: "Mês", week: "Semana", day: "Dia", noEventsInRange: "Não há agendamentos.", showMore: total => `+${total} mais` }}
-                  eventPropGetter={eventStyleGetter}
-                  onSelectSlot={handleSelectSlot}
-                  onSelectEvent={(event) => { const app = appointments.find(a => a.id === event.id); if (app) handleEditClick(app); }}
-                  selectable
-                  components={{ event: CustomEvent, toolbar: () => null }}
-                />
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">
-                      {format(getWeekDays()[0], 'dd/MM')} - {format(getWeekDays()[6], 'dd/MM/yyyy', { locale: ptBR })}
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(addDays(selectedDate, -7))}> <ChevronLeft className="h-4 w-4" /> </Button>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(new Date())}> Hoje </Button>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedDate(addDays(selectedDate, 7))}> <ChevronRight className="h-4 w-4" /> </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-7 gap-2">
-                    {getWeekDays().map((day) => (
-                      <div key={day.toString()} className={`p-3 text-center cursor-pointer rounded-lg transition-colors ${isSameDay(day, selectedDate) ? 'bg-tanotado-purple text-white' : isToday(day) ? 'bg-tanotado-blue/10 text-tanotado-blue border border-tanotado-blue/20' : 'hover:bg-muted'}`} onClick={() => setSelectedDate(day)}>
-                        <div className={`text-xs mb-1 ${isSameDay(day, selectedDate) ? 'text-white/80' : 'text-muted-foreground'}`}>{format(day, 'EEE', { locale: ptBR })}</div>
-                        <div className="font-medium">{format(day, 'd')}</div>
-                        {getDayAppointments(day).length > 0 && <div className="mt-1"><div className={`w-2 h-2 rounded-full mx-auto ${isSameDay(day, selectedDate) ? 'bg-white' : 'bg-tanotado-pink'}`} /></div>}
-                      </div>
-                    ))}
-                  </div>
+          <main className="space-y-6">
+            {viewMode === 'month' ? (
+              <Card className="h-[calc(100vh-12rem)]">
+                <CardContent className="p-1 sm:p-2 h-full">
+                  <BigCalendar
+                    localizer={localizer}
+                    events={events}
+                    startAccessor="start"
+                    endAccessor="end"
+                    defaultView={Views.MONTH}
+                    view={Views.MONTH}
+                    onNavigate={date => setSelectedDate(date)}
+                    date={selectedDate}
+                    style={{ height: '100%' }}
+                    culture="pt-BR"
+                    messages={{ next: "Próximo", previous: "Anterior", today: "Hoje", month: "Mês", week: "Semana", day: "Dia", noEventsInRange: "Não há agendamentos.", showMore: total => `+${total} mais` }}
+                    eventPropGetter={eventStyleGetter}
+                    onSelectSlot={handleSelectSlot}
+                    onSelectEvent={(event) => { const app = appointments.find(a => a.id === event.id); if (app) handleEditClick(app); }}
+                    selectable
+                    components={{ event: CustomEvent, toolbar: () => null }}
+                  />
                 </CardContent>
               </Card>
+            ) : (
+              <>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">
+                        {format(getWeekDays()[0], 'dd/MM')} - {format(getWeekDays()[6], 'dd/MM/yyyy', { locale: ptBR })}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setSelectedDate(addDays(selectedDate, -7))}> <ChevronLeft className="h-4 w-4" /> </Button>
+                        <Button variant="outline" size="sm" onClick={() => setSelectedDate(new Date())}> Hoje </Button>
+                        <Button variant="outline" size="sm" onClick={() => setSelectedDate(addDays(selectedDate, 7))}> <ChevronRight className="h-4 w-4" /> </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-7 gap-2">
+                      {getWeekDays().map((day) => (
+                        <div key={day.toString()} className={`p-3 text-center cursor-pointer rounded-lg transition-colors ${isSameDay(day, selectedDate) ? 'bg-tanotado-purple text-white' : isToday(day) ? 'bg-tanotado-blue/10 text-tanotado-blue border border-tanotado-blue/20' : 'hover:bg-muted'}`} onClick={() => setSelectedDate(day)}>
+                          <div className={`text-xs mb-1 ${isSameDay(day, selectedDate) ? 'text-white/80' : 'text-muted-foreground'}`}>{format(day, 'EEE', { locale: ptBR })}</div>
+                          <div className="font-medium">{format(day, 'd')}</div>
+                          {getDayAppointments(day).length > 0 && <div className="mt-1"><div className={`w-2 h-2 rounded-full mx-auto ${isSameDay(day, selectedDate) ? 'bg-white' : 'bg-tanotado-pink'}`} /></div>}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    {isToday(selectedDate) ? 'Hoje' : format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {dailyAppointments.length > 0 ? (
-                      dailyAppointments.map(appointment => {
-                        const client = clients.find(c => c.id === appointment.client_id);
-                        return (
-                          <div key={appointment.id} className="relative p-4 border rounded-lg flex items-start justify-between hover:bg-muted/30 transition-colors overflow-hidden">
-                            <div className="absolute left-0 top-0 h-full w-2" style={{ backgroundColor: appointment.color || '#e2e8f0' }}/>
-                            <div className="flex items-start gap-4 ml-4">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={client?.avatar_url || undefined} /> 
-                                <AvatarFallback className="bg-tanotado-pink text-white font-medium">{getInitials(appointment.title)}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="flex items-center flex-wrap gap-2 mb-1">
-                                  <span className="font-semibold text-sm">{format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}</span>
-                                  <Badge variant="secondary" className={getStatusInfo(appointment.status).className}>{getStatusInfo(appointment.status).text}</Badge>
-                                  {appointment.recurrence_group_id && (
-                                    <Badge variant="outline" className="border-tanotado-purple/50 text-tanotado-purple flex items-center gap-1">
-                                      <Repeat className="h-3 w-3" /> Recorrente
-                                    </Badge>
-                                  )}
-                                  {!appointment.client_id && (
-                                    <Badge variant="outline" className="border-gray-500/50 text-gray-600 flex items-center gap-1">
-                                      <Briefcase className="h-3 w-3" /> Compromisso
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="font-medium text-tanotado-navy">{appointment.title || 'Cliente não informado'}</div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                                  {appointment.is_online ? (<><Video className="h-4 w-4 text-tanotado-blue" /><span>Online</span></>) : (<><MapPin className="h-4 w-4 text-tanotado-green" /><span>Presencial</span></>)}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Clock className="h-5 w-5" />
+                      {isToday(selectedDate) ? 'Hoje' : format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {dailyAppointments.length > 0 ? (
+                        dailyAppointments.map(appointment => {
+                          const client = clients.find(c => c.id === appointment.client_id);
+                          return (
+                            <div key={appointment.id} className="relative p-4 border rounded-lg flex items-start justify-between hover:bg-muted/30 transition-colors overflow-hidden">
+                              <div className="absolute left-0 top-0 h-full w-2" style={{ backgroundColor: appointment.color || '#e2e8f0' }}/>
+                              <div className="flex items-start gap-4 ml-4">
+                                <Avatar className="h-10 w-10">
+                                  <AvatarImage src={client?.avatar_url || undefined} /> 
+                                  <AvatarFallback className="bg-tanotado-pink text-white font-medium">{getInitials(appointment.title)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="flex items-center flex-wrap gap-2 mb-1">
+                                    <span className="font-semibold text-sm">{format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}</span>
+                                    <Badge variant="secondary" className={getStatusInfo(appointment.status).className}>{getStatusInfo(appointment.status).text}</Badge>
+                                    {appointment.recurrence_group_id && (
+                                      <Badge variant="outline" className="border-tanotado-purple/50 text-tanotado-purple flex items-center gap-1">
+                                        <Repeat className="h-3 w-3" /> Recorrente
+                                      </Badge>
+                                    )}
+                                    {!appointment.client_id && (
+                                      <Badge variant="outline" className="border-gray-500/50 text-gray-600 flex items-center gap-1">
+                                        <Briefcase className="h-3 w-3" /> Compromisso
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="font-medium text-tanotado-navy">{appointment.title || 'Cliente não informado'}</div>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                                    {appointment.is_online ? (<><Video className="h-4 w-4 text-tanotado-blue" /><span>Online</span></>) : (<><MapPin className="h-4 w-4 text-tanotado-green" /><span>Presencial</span></>)}
+                                  </div>
                                 </div>
                               </div>
+                              <div className="flex items-center gap-2">
+                                {/* Botão de Anotações Adicionado */}
+                                {appointment.client_id && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleNotesClick(appointment)}>
+                                      <NotebookPen className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(appointment)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => handleDeleteClick(appointment)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(appointment)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => handleDeleteClick(appointment)}>
-                                  <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )
-                      })
-                    ) : (
-                      <div className="text-center py-10 text-muted-foreground">
-                        <CalendarIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                        <p>Não há agendamentos para este dia.</p>
-                        <Button size="sm" className="mt-4" onClick={() => handleSelectSlot({ start: selectedDate })}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Agendar Horário
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </main>
+                          )
+                        })
+                      ) : (
+                        <div className="text-center py-10 text-muted-foreground">
+                          <CalendarIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>Não há agendamentos para este dia.</p>
+                          <Button size="sm" className="mt-4" onClick={() => handleSelectSlot({ start: selectedDate })}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Agendar Horário
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </main>
+        </div>
       </div>
       
       {(showForm || editingAppointment) && (
@@ -428,7 +448,13 @@ const Agenda: React.FC = () => {
           <AgendaSettingsForm onSuccess={() => setIsSettingsModalOpen(false)} />
         </DialogContent>
       </Dialog>
-    </div>
+      
+      <SessionNotesDialog
+        appointment={selectedAppointmentForNotes}
+        isOpen={!!selectedAppointmentForNotes}
+        onOpenChange={(isOpen) => !isOpen && setSelectedAppointmentForNotes(null)}
+      />
+    </>
   );
 };
 

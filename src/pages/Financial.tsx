@@ -1,3 +1,5 @@
+// src/pages/Financial.tsx
+
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -86,7 +88,6 @@ const Financial: React.FC = () => {
   const formatCurrency = (v: number | null) => v?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00';
   const formatDate = (d: string | null) => d ? format(parseISO(d), 'dd/MM/yyyy') : '—';
   
-  // <<< CORREÇÃO AQUI: Função para traduzir o status >>>
   const translateStatus = (status: 'pending' | 'paid' | 'overdue' | 'cancelled' | null) => {
     const statusMap = {
       pending: 'Pendente',
@@ -98,9 +99,9 @@ const Financial: React.FC = () => {
   };
   
   const stats = [
-    { title: `Receitas em ${format(currentDate, viewMode === 'month' ? 'MMMM' : 'yyyy', { locale: ptBR })}`, value: formatCurrency(income), icon: TrendingUp, color: 'from-tanotado-green to-tanotado-blue' },
-    { title: `Despesas em ${format(currentDate, viewMode === 'month' ? 'MMMM' : 'yyyy', { locale: ptBR })}`, value: formatCurrency(expenses), icon: TrendingDown, color: 'from-tanotado-pink to-tanotado-purple' },
-    { title: `Saldo em ${format(currentDate, viewMode === 'month' ? 'MMMM' : 'yyyy', { locale: ptBR })}`, value: formatCurrency(balance), icon: DollarSign, color: 'from-tanotado-blue to-tanotado-purple' },
+    { title: `Receitas em ${format(currentDate, viewMode === 'month' ? "MMMM 'de' yyyy" : 'yyyy', { locale: ptBR })}`, value: formatCurrency(income), icon: TrendingUp, color: 'from-tanotado-green to-tanotado-blue' },
+    { title: `Despesas em ${format(currentDate, viewMode === 'month' ? "MMMM 'de' yyyy" : 'yyyy', { locale: ptBR })}`, value: formatCurrency(expenses), icon: TrendingDown, color: 'from-tanotado-pink to-tanotado-purple' },
+    { title: `Saldo em ${format(currentDate, viewMode === 'month' ? "MMMM 'de' yyyy" : 'yyyy', { locale: ptBR })}`, value: formatCurrency(balance), icon: DollarSign, color: 'from-tanotado-blue to-tanotado-purple' },
   ];
 
   const deleteMutation = useMutation({
@@ -136,7 +137,7 @@ const Financial: React.FC = () => {
         <div className="flex items-center justify-between">
           <Button variant="outline" size="icon" onClick={() => handleDateChange('prev')}><ChevronLeft className="h-4 w-4" /></Button>
           <div className="text-center font-semibold text-lg text-tanotado-navy uppercase tracking-wider">
-            {format(currentDate, viewMode === 'month' ? 'MMMM / yyyy' : 'yyyy', { locale: ptBR })}
+            {format(currentDate, viewMode === 'month' ? "MMMM 'de' yyyy" : 'yyyy', { locale: ptBR })}
           </div>
           <Button variant="outline" size="icon" onClick={() => handleDateChange('next')}><ChevronRight className="h-4 w-4" /></Button>
         </div>
@@ -174,11 +175,20 @@ const Financial: React.FC = () => {
                 <TableRow key={payment.id} className="hover:bg-muted/50">
                   <TableCell className="text-center">{isExpense ? <ArrowDown className="h-5 w-5 text-red-500 mx-auto" /> : <ArrowUp className="h-5 w-5 text-green-500 mx-auto" />}</TableCell>
                   <TableCell>
-                    <div className="font-medium text-gray-800">{payment.notes}</div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2"><Avatar className="h-5 w-5"><AvatarImage src={payment.clients?.avatar_url || ''} /><AvatarFallback className="text-xs">{payment.clients?.name?.substring(0,2)}</AvatarFallback></Avatar>{payment.clients?.name}</div>
+                    {/* <<< INÍCIO DA CORREÇÃO >>> */}
+                    <div className="font-medium text-gray-800 flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                            <AvatarImage src={payment.clients?.avatar_url || ''} />
+                            <AvatarFallback className="text-xs">{payment.clients?.name?.substring(0,2)}</AvatarFallback>
+                        </Avatar>
+                        <span>{payment.clients?.name}</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground pl-7">
+                        {payment.notes}
+                    </div>
+                    {/* <<< FIM DA CORREÇÃO >>> */}
                   </TableCell>
                   <TableCell className={`text-right font-bold ${isExpense ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(payment.amount)}</TableCell>
-                  {/* <<< CORREÇÃO AQUI: Usando a função de tradução >>> */}
                   <TableCell className="text-center">
                     <Badge variant="outline" className={`text-xs ${isOverdue ? 'border-red-300 bg-red-100 text-red-700' : 'border-gray-300'}`}>
                       {isOverdue ? 'Vencido' : translateStatus(payment.status)}

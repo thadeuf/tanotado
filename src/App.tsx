@@ -1,7 +1,7 @@
 // src/App.tsx
 
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react'; // <<< useEffect ADICIONADO
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'; // <<< useLocation ADICIONADO
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -32,6 +32,20 @@ import WhatsappInstances from './pages/admin/WhatsappInstances';
 
 const queryClient = new QueryClient();
 
+// <<< INÍCIO DA CORREÇÃO >>>
+// Componente auxiliar para forçar a rolagem para o topo em cada navegação
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null; // Este componente não renderiza nada
+};
+// <<< FIM DA CORREÇÃO >>>
+
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
@@ -59,13 +73,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   return (
     <SidebarProvider>
-      {/* O container principal garante a altura mínima e o layout flex */}
       <div className="flex min-h-screen w-full bg-gray-50/50">
         <AppSidebar />
         
-        {/* Este container ocupa o espaço restante e organiza o cabeçalho e o conteúdo */}
         <div className="flex flex-1 flex-col">
-          {/* O cabeçalho agora é "sticky" para ficar fixo no topo da página durante a rolagem */}
           <header className="sticky top-0 z-30 h-16 border-b bg-white flex items-center justify-between px-6">
             <div className="flex items-center space-x-4">
               <SidebarTrigger className="lg:hidden" />
@@ -93,7 +104,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
             </div>
           </header>
           
-          {/* A tag <main> agora só precisa de padding. A rolagem será gerenciada pelo próprio navegador */}
           <main className="p-6">
             {children}
           </main>
@@ -165,6 +175,10 @@ const AppContent: React.FC = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
+        {/* <<< INÍCIO DA CORREÇÃO >>> */}
+        {/* Adicionamos o componente aqui. Ele vai "ouvir" as mudanças de rota */}
+        <ScrollToTop />
+        {/* <<< FIM DA CORREÇÃO >>> */}
         <Routes>
           {/* Rotas públicas */}
           <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />

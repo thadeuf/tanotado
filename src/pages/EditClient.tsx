@@ -11,6 +11,9 @@ import { toast } from '@/hooks/use-toast';
 import { ProntuarioContainer } from '@/components/prontuarios/ProntuarioContainer';
 import { GenerateDocumentDialog } from '@/components/documents/GenerateDocumentDialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { SessionNotesList } from '@/components/notes/SessionNotesList';
+// Import do novo componente
+import { ClientFinancialRecords } from '@/components/financial/ClientFinancialRecords';
 
 const EditClient: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -23,7 +26,10 @@ const EditClient: React.FC = () => {
   const [isGenerateDocOpen, setIsGenerateDocOpen] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-  // <<< INÍCIO DA ALTERAÇÃO >>>
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeView]);
+
   const fetchClient = async () => {
     if (!clientId) {
       setError("ID do cliente não fornecido.");
@@ -32,7 +38,6 @@ const EditClient: React.FC = () => {
     }
     
     try {
-      // Alterado de .from('clients').select() para .rpc()
       const { data, error: fetchError } = await supabase
         .rpc('get_client_details_with_stats', { p_client_id: clientId })
         .single();
@@ -49,7 +54,6 @@ const EditClient: React.FC = () => {
       setIsLoading(false);
     }
   };
-  // <<< FIM DA ALTERAÇÃO >>>
 
   useEffect(() => {
     fetchClient();
@@ -114,7 +118,17 @@ const EditClient: React.FC = () => {
               <ProntuarioContainer client={clientData} />
           )}
 
-          {activeView !== 'dados' && activeView !== 'prontuario' && (
+          {activeView === 'anotacoes' && clientData && (
+              <SessionNotesList client={clientData} />
+          )}
+
+          {/* ADIÇÃO DA NOVA VIEW FINANCEIRA */}
+          {activeView === 'financeiro' && clientData && (
+              <ClientFinancialRecords client={clientData} />
+          )}
+          
+          {/* Ajuste no fallback */}
+          {activeView !== 'dados' && activeView !== 'prontuario' && activeView !== 'anotacoes' && activeView !== 'financeiro' && (
               <Card>
                   <CardHeader>
                       <CardTitle className="capitalize">{activeView}</CardTitle>

@@ -54,7 +54,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Calendar, Clock, User, Loader2, Check, ChevronsUpDown, Video, Repeat, UserCheck, Briefcase, AlertCircle, DollarSign } from 'lucide-react';
-import { format, addWeeks, addMonths, getDay, isSameDay, addMinutes } from 'date-fns';
+// <<< INÍCIO DA ALTERAÇÃO 1 >>>
+// parseISO é importado para garantir a data correta
+import { format, addWeeks, addMonths, getDay, isSameDay, addMinutes, parseISO } from 'date-fns';
+// <<< FIM DA ALTERAÇÃO 1 >>>
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -352,7 +355,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           amount: app.price,
           status: 'pending' as const,
           due_date: app.start_time,
-          notes: `Referente à sessão: ${app.title}`
+          // <<< INÍCIO DA ALTERAÇÃO 2 >>>
+          // O texto da nota foi alterado para o novo formato
+          notes: `Sessão do dia ${format(parseISO(app.start_time), 'dd/MM/yyyy')}`
+          // <<< FIM DA ALTERAÇÃO 2 >>>
         }));
 
         if (paymentsToInsert.length > 0) {
@@ -608,7 +614,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         type="time" 
                         {...field}
                         onChange={(e) => {
-                          field.onChange(e); // Propaga a mudança para o react-hook-form
+                          field.onChange(e); 
                           const startTimeValue = e.target.value;
                           if (startTimeValue && /^\d{2}:\d{2}$/.test(startTimeValue) && settings?.appointment_duration) {
                             const [hours, minutes] = startTimeValue.split(':').map(Number);
