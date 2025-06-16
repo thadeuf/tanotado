@@ -18,7 +18,7 @@ import {
   Repeat,
   Briefcase,
   Settings as SettingsIcon,
-  NotebookPen // Ícone importado
+  NotebookPen
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -57,7 +57,6 @@ import './Agenda.css';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 import { useUserSettings } from '@/hooks/useUserSettings';
-// Import do novo componente de modal
 import { SessionNotesDialog } from '@/components/notes/SessionNotesDialog';
 
 const CustomEvent = ({ event }: { event: any }) => (
@@ -76,8 +75,6 @@ const Agenda: React.FC = () => {
   
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-
-  // Estado para controlar o modal de anotações
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
 
   const { data: appointments = [], isLoading } = useAppointments();
@@ -161,15 +158,18 @@ const Agenda: React.FC = () => {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   };
 
+  // INÍCIO DA CORREÇÃO
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'scheduled': return { text: 'Agendado', className: 'bg-tanotado-blue/10 text-tanotado-blue border-tanotado-blue/20' };
       case 'confirmed': return { text: 'Confirmado', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
       case 'completed': return { text: 'Concluído', className: 'bg-tanotado-green/10 text-tanotado-green border-tanotado-green/20' };
       case 'cancelled': return { text: 'Cancelado', className: 'bg-red-100 text-red-700 border-red-200' };
+      case 'no_show': return { text: 'Faltou', className: 'bg-orange-100 text-orange-700 border-orange-200' };
       default: return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-200' };
     }
   };
+  // FIM DA CORREÇÃO
 
   const events = useMemo(() => appointments.map(app => ({
     id: app.id,
@@ -352,7 +352,6 @@ const Agenda: React.FC = () => {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                {/* Botão de Anotações Adicionado */}
                                 {appointment.client_id && (
                                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleNotesClick(appointment)}>
                                       <NotebookPen className="h-4 w-4" />

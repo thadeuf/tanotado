@@ -53,11 +53,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Calendar, Clock, User, Loader2, Check, ChevronsUpDown, Video, Repeat, UserCheck, Briefcase, AlertCircle, DollarSign } from 'lucide-react';
-// <<< INÍCIO DA ALTERAÇÃO 1 >>>
-// parseISO é importado para garantir a data correta
+// INÍCIO DA ALTERAÇÃO 1: Importando novos ícones e o Badge
+import { Calendar, Clock, User, Loader2, Check, ChevronsUpDown, Video, Repeat, UserCheck, Briefcase, AlertCircle, DollarSign, UserX } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+// FIM DA ALTERAÇÃO 1
 import { format, addWeeks, addMonths, getDay, isSameDay, addMinutes, parseISO } from 'date-fns';
-// <<< FIM DA ALTERAÇÃO 1 >>>
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -355,10 +355,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           amount: app.price,
           status: 'pending' as const,
           due_date: app.start_time,
-          // <<< INÍCIO DA ALTERAÇÃO 2 >>>
-          // O texto da nota foi alterado para o novo formato
           notes: `Sessão do dia ${format(parseISO(app.start_time), 'dd/MM/yyyy')}`
-          // <<< FIM DA ALTERAÇÃO 2 >>>
         }));
 
         if (paymentsToInsert.length > 0) {
@@ -449,6 +446,30 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   });
 
+  // INÍCIO DA ALTERAÇÃO 2: Nova mutation para atualizar o status
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ status }: { status: 'completed' | 'no_show' }) => {
+      if (!initialData) throw new Error("Agendamento não encontrado para atualizar status.");
+      
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: status })
+        .eq('id', initialData.id);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, { status }) => {
+      const statusText = status === 'completed' ? 'Concluído' : 'Faltou';
+      toast({ title: `Status atualizado para "${statusText}"!` });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      onClose(); // Fecha o modal após a ação
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" });
+    },
+  });
+  // FIM DA ALTERAÇÃO 2
+
   const onSubmit = async (data: AppointmentFormData) => {
     if (isDayDisabled(appointmentDate)) {
       toast({
@@ -532,70 +553,111 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 </Popover>
             </div>
             
-            <FormField
-              control={form.control} name="sessionType" render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <div className="grid grid-cols-3 gap-2">
-                      {SESSION_TYPES.map((type) => {
-                        const IconComponent = type.icon;
-                        return (
-                          <Button key={type.value} type="button" variant={field.value === type.value ? "default" : "outline"}
-                            className={cn("h-auto p-3 flex flex-col items-center gap-2 text-center", field.value === type.value && "bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white")}
-                            onClick={() => field.onChange(type.value)} disabled={isEditing}>
-                            <IconComponent className="w-4 h-4" />
-                            <span className="text-xs font-medium leading-tight">{type.label}</span>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {watchedSessionType === 'compromisso_pessoal' ? (
-                <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Título do Compromisso</FormLabel><FormControl><Input placeholder="Ex: Reunião de equipe, Consulta médica" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            ) : (
-                <FormField control={form.control} name="clientId" render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                    <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />Cliente</FormLabel>
-                    <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
-                        <PopoverTrigger asChild>
-                        <FormControl>
-                            <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={clientsLoading || isEditing}>
-                            {clientsLoading ? (<><Loader2 className="h-4 w-4 animate-spin" />Carregando...</>) : selectedClient ? (<div className="flex items-center gap-2 truncate"><User className="h-4 w-4 shrink-0" /><span className="truncate">{selectedClient.name}</span></div>) : "Selecione um cliente"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0" align="start">
-                        <Command shouldFilter={false}>
-                            <CommandInput placeholder="Buscar cliente..." value={clientSearch} onValueChange={setClientSearch} />
-                            <CommandList>
-                            {filteredClients.length === 0 ? (<CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>) : (<CommandGroup>{filteredClients.map((client) => (<CommandItem key={client.id} value={client.id} onSelect={() => { field.onChange(client.id); setClientComboOpen(false); }}><Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />{client.name}</CommandItem>))}</CommandGroup>)}
-                            </CommandList>
-                        </Command>
-                        </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                    </FormItem>
-                )} />
+            {/* INÍCIO DA ALTERAÇÃO 3: Adição dos botões de status */}
+            {isEditing && initial && (
+              <div className="grid grid-cols-2 gap-2 pt-2 animate-fade-in">
+                <Button
+                  type="button"
+                  variant={initial.status === 'completed' ? 'default' : 'outline'}
+                  className={cn("h-auto py-2", initial.status === 'completed' ? 'bg-green-600 hover:bg-green-700' : 'border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700')}
+                  onClick={() => updateStatusMutation.mutate({ status: 'completed' })}
+                  disabled={updateStatusMutation.isPending}
+                >
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  {initial.status === 'completed' ? 'Compareceu' : 'Marcar Comparecimento'}
+                </Button>
+                <Button
+                  type="button"
+                  variant={initial.status === 'no_show' ? 'destructive' : 'outline'}
+                  className={cn("h-auto py-2", initial.status !== 'no_show' && 'border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600')}
+                  onClick={() => updateStatusMutation.mutate({ status: 'no_show' })}
+                  disabled={updateStatusMutation.isPending}
+                >
+                  <UserX className="mr-2 h-4 w-4" />
+                  {initial.status === 'no_show' ? 'Faltou' : 'Marcar Falta'}
+                </Button>
+              </div>
             )}
+            {/* FIM DA ALTERAÇÃO 3 */}
+            
+            {/* INÍCIO DA ALTERAÇÃO 4: Lógica para ocultar campos na edição */}
+            {isEditing && initial ? (
+              <div className="p-3 border rounded-lg bg-muted/30">
+                  <FormLabel>{initial.client_id ? 'Cliente' : 'Compromisso'}</FormLabel>
+                  <div className="font-semibold text-foreground pt-1 flex items-center gap-2">
+                    {initial.client_id ? <User className="h-4 w-4 text-muted-foreground"/> : <Briefcase className="h-4 w-4 text-muted-foreground"/>}
+                    {initial.title}
+                  </div>
+              </div>
+            ) : (
+              <>
+                <FormField
+                  control={form.control} name="sessionType" render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <div className="grid grid-cols-3 gap-2">
+                          {SESSION_TYPES.map((type) => {
+                            const IconComponent = type.icon;
+                            return (
+                              <Button key={type.value} type="button" variant={field.value === type.value ? "default" : "outline"}
+                                className={cn("h-auto p-3 flex flex-col items-center gap-2 text-center", field.value === type.value && "bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white")}
+                                onClick={() => field.onChange(type.value)}>
+                                <IconComponent className="w-4 h-4" />
+                                <span className="text-xs font-medium leading-tight">{type.label}</span>
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            
+                {watchedSessionType === 'compromisso_pessoal' ? (
+                    <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Título do Compromisso</FormLabel><FormControl><Input placeholder="Ex: Reunião de equipe, Consulta médica" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                ) : (
+                    <FormField control={form.control} name="clientId" render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />Cliente</FormLabel>
+                        <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={clientsLoading}>
+                                {clientsLoading ? (<><Loader2 className="h-4 w-4 animate-spin" />Carregando...</>) : selectedClient ? (<div className="flex items-center gap-2 truncate"><User className="h-4 w-4 shrink-0" /><span className="truncate">{selectedClient.name}</span></div>) : "Selecione um cliente"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0" align="start">
+                            <Command shouldFilter={false}>
+                                <CommandInput placeholder="Buscar cliente..." value={clientSearch} onValueChange={setClientSearch} />
+                                <CommandList>
+                                {filteredClients.length === 0 ? (<CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>) : (<CommandGroup>{filteredClients.map((client) => (<CommandItem key={client.id} value={client.id} onSelect={() => { field.onChange(client.id); setClientComboOpen(false); }}><Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />{client.name}</CommandItem>))}</CommandGroup>)}
+                                </CommandList>
+                            </Command>
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                )}
+              </>
+            )}
+            {/* FIM DA ALTERAÇÃO 4 */}
             
             {watchedSessionType === 'sessoes_recorrentes' && !isEditing && (
                 <div className="p-3 border rounded-lg space-y-4 bg-muted/30">
                     <FormField control={form.control} name="recurrence_frequency" render={({ field }) => (
                         <FormItem><FormLabel>Frequência</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={isEditing}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                             <SelectContent><SelectItem value="weekly">Semanal</SelectItem><SelectItem value="biweekly">Quinzenal</SelectItem><SelectItem value="monthly">Mensal</SelectItem></SelectContent>
                         </Select><FormMessage />
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="recurrence_count" render={({ field }) => (
                         <FormItem><FormLabel>Repetir por</FormLabel>
-                        <div className="flex items-center gap-2"><FormControl><Input type="number" min="1" className="w-20" {...field} disabled={isEditing} /></FormControl><span className="text-sm text-muted-foreground">sessões</span></div>
+                        <div className="flex items-center gap-2"><FormControl><Input type="number" min="1" className="w-20" {...field} /></FormControl><span className="text-sm text-muted-foreground">sessões</span></div>
                         <FormMessage />
                         </FormItem>
                     )} />

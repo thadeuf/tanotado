@@ -87,6 +87,9 @@ export type Database = {
           phone: string | null
           updated_at: string | null
           user_id: string
+          // --- INÍCIO DA ADIÇÃO ---
+          send_session_reminder: boolean
+          // --- FIM DA ADIÇÃO ---
         }
         Insert: {
           address?: string | null
@@ -100,6 +103,9 @@ export type Database = {
           phone?: string | null
           updated_at?: string | null
           user_id: string
+          // --- INÍCIO DA ADIÇÃO ---
+          send_session_reminder?: boolean
+          // --- FIM DA ADIÇÃO ---
         }
         Update: {
           address?: string | null
@@ -113,10 +119,12 @@ export type Database = {
           phone?: string | null
           updated_at?: string | null
           user_id?: string
+          // --- INÍCIO DA ADIÇÃO ---
+          send_session_reminder?: boolean
+          // --- FIM DA ADIÇÃO ---
         }
         Relationships: []
       }
-      // INÍCIO DA ADIÇÃO DA NOVA TABELA
       client_documents: {
         Row: {
           id: string
@@ -169,7 +177,6 @@ export type Database = {
           }
         ]
       }
-      // FIM DA ADIÇÃO
       medical_records: {
         Row: {
           appointment_id: string | null
@@ -619,7 +626,7 @@ export const Constants = {
       appointment_status: [
         "scheduled",
         "confirmed",
-        "completed",
+"completed",
         "cancelled",
         "no_show",
       ],

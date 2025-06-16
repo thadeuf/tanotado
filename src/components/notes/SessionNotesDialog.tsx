@@ -88,6 +88,7 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ appointm
     onSuccess: () => {
       toast({ title: "Anotação salva com sucesso!" });
       queryClient.invalidateQueries({ queryKey: ['session_note', appointment?.id] });
+      queryClient.invalidateQueries({ queryKey: ['session_notes_list', appointment?.client_id] });
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -99,7 +100,9 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ appointm
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[80vh] flex flex-col">
+      {/* INÍCIO DA ALTERAÇÃO */}
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+      {/* FIM DA ALTERAÇÃO */}
         <DialogHeader>
           <DialogTitle>Anotações da Sessão</DialogTitle>
           <DialogDescription className="flex items-center gap-4 pt-1">
