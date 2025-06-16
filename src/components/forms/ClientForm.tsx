@@ -1,3 +1,5 @@
+// src/components/forms/ClientForm.tsx
+
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,10 +16,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, User, MapPin, DollarSign, Heart, Shield, Briefcase, Upload } from 'lucide-react';
+// <<< INÍCIO DA ALTERAÇÃO >>>
+// Adicionado o ícone Camera para a nova seção
+import { CalendarIcon, User, MapPin, DollarSign, Heart, Shield, Briefcase, Upload, Camera } from 'lucide-react';
+// <<< FIM DA ALTERAÇÃO >>>
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { CustomPhoneInput } from '@/components/ui/phone-input';
@@ -55,7 +59,7 @@ const formSchema = z.object({
   emergency_contact_name: z.string().optional(),
   emergency_contact_whatsapp: z.string().optional(),
   gender: z.string().optional(),
-  birth_date: z.date().optional().nullable(), // Permitir nulo
+  birth_date: z.date().optional().nullable(),
   nationality: z.string().optional(),
   education: z.string().optional(),
   occupation: z.string().optional(),
@@ -71,79 +75,47 @@ type ClientFormData = z.infer<typeof formSchema>;
 interface ClientFormProps {
   onSuccess: () => void;
   initialData?: Partial<ClientFormData> | null;
+  onAvatarChange: (preview: string | null) => void;
 }
 
-export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }) => {
+export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, onAvatarChange }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(formSchema),
-    // INÍCIO DA MUDANÇA: Garantir que todos os campos tenham um valor padrão controlado
     defaultValues: {
-      name: '',
-      whatsapp: '',
-      professional_responsible: '',
-      group: '',
-      video_call_link: '',
-      email: '',
-      cpf: '',
-      rg: '',
-      cep: '',
-      address: '',
-      address_number: '',
-      address_neighborhood: '',
-      address_city: '',
-      address_state: '',
-      address_complement: '',
-      session_value: undefined, // Valores numéricos podem começar como undefined
-      billing_day: undefined,
-      send_billing_reminder: false,
-      financial_responsible_name: '',
-      financial_responsible_whatsapp: '',
-      financial_responsible_email: '',
-      financial_responsible_cpf: '',
-      financial_responsible_rg: '',
-      emergency_contact_name: '',
-      emergency_contact_whatsapp: '',
-      gender: '',
-      birth_date: null, // Nulo é um valor controlado para o DatePicker
-      nationality: '',
-      education: '',
-      occupation: '',
-      forwarding: '',
-      marital_status: '',
-      notes: '',
-      send_session_reminder: true,
-      is_active: true,
-      avatar_url: null,
+      name: '', whatsapp: '', professional_responsible: '', group: '',
+      video_call_link: '', email: '', cpf: '', rg: '', cep: '',
+      address: '', address_number: '', address_neighborhood: '',
+      address_city: '', address_state: '', address_complement: '',
+      session_value: undefined, billing_day: undefined,
+      send_billing_reminder: false, financial_responsible_name: '',
+      financial_responsible_whatsapp: '', financial_responsible_email: '',
+      financial_responsible_cpf: '', financial_responsible_rg: '',
+      emergency_contact_name: '', emergency_contact_whatsapp: '',
+      gender: '', birth_date: null, nationality: '', education: '',
+      occupation: '', forwarding: '', marital_status: '', notes: '',
+      send_session_reminder: true, is_active: true, avatar_url: null,
     },
-    // FIM DA MUDANÇA
   });
 
   useEffect(() => {
     if (initialData) {
-      // INÍCIO DA MUDANÇA: Sanitizar os dados antes de passá-los para o formulário
       const sanitizedData = { ...initialData };
 
-      // Itera sobre as chaves do schema para garantir que nenhum valor `null` seja passado para inputs de texto
       Object.keys(formSchema.shape).forEach(key => {
         if (sanitizedData[key as keyof typeof sanitizedData] === null) {
-          sanitizedData[key as keyof typeof sanitizedData] = ''; // Transforma null em string vazia
+          sanitizedData[key as keyof typeof sanitizedData] = '';
         }
       });
       
-      // Trata a data de nascimento separadamente para garantir que seja um objeto Date ou nulo
       sanitizedData.birth_date = initialData.birth_date ? new Date(initialData.birth_date) : null;
       
-      // Trata campos numéricos separadamente
       sanitizedData.session_value = initialData.session_value || undefined;
       sanitizedData.billing_day = initialData.billing_day || undefined;
       
-      form.reset(sanitizedData as any); // Reseta o formulário com os dados sanitizados
-      setPreview(initialData.avatar_url || null);
-      // FIM DA MUDANÇA
+      form.reset(sanitizedData as any);
     }
   }, [initialData, form]);
   
@@ -152,7 +124,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreview(reader.result as string);
+        onAvatarChange(reader.result as string);
       };
       reader.readAsDataURL(file);
       form.setValue('avatar_file', file);
@@ -271,15 +243,38 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <ScrollArea className="h-[65vh] pr-4">
-          <div className="space-y-6">
-            <div className="flex flex-col items-center gap-4 p-4 border rounded-lg">
-              <Avatar className="h-24 w-24 border-2 border-dashed">
-                <AvatarImage src={preview || undefined} className="object-cover" />
-                <AvatarFallback className="bg-muted"><User className="h-12 w-12 text-gray-400" /></AvatarFallback>
-              </Avatar>
-              <FormField name="avatar_file" render={() => ( <FormItem><FormControl><Button asChild variant="outline" size="sm"><Label className="cursor-pointer flex items-center gap-2"><Upload className="h-4 w-4" />{preview ? "Trocar foto" : "Enviar foto"}<Input type="file" className="hidden" accept="image/png, image/jpeg, image/webp" onChange={handleFileChange} /></Label></Button></FormControl><FormMessage /></FormItem>)} />
+        <div className="space-y-6">
+            
+            {/* <<< INÍCIO DA ALTERAÇÃO >>> */}
+            {/* Seção da Foto de Perfil agora segue o mesmo padrão das outras */}
+            <div className="space-y-4 p-4 border rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                    <Camera className="h-5 w-5" />
+                    Foto de Perfil
+                </h3>
+                <FormField 
+                    name="avatar_file" 
+                    render={() => ( 
+                        <FormItem>
+                            <FormControl>
+                                <Button asChild variant="outline" size="sm" className="w-full">
+                                    <Label className="cursor-pointer flex items-center justify-center gap-2">
+                                        <Upload className="h-4 w-4" />
+                                        Enviar / Trocar foto
+                                        <Input 
+                                            type="file" 
+                                            className="hidden" 
+                                            accept="image/png, image/jpeg, image/webp" 
+                                            onChange={handleFileChange} 
+                                        />
+                                    </Label>
+                                </Button>
+                            </FormControl>
+                        </FormItem>
+                    )} 
+                />
             </div>
+            {/* <<< FIM DA ALTERAÇÃO >>> */}
 
             <FormField control={form.control} name="professional_responsible" render={({ field }) => ( <FormItem><FormLabel>Profissional Responsável</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um profissional..." /></SelectTrigger></FormControl><SelectContent><SelectItem value={user?.id || ''}>{user?.name}</SelectItem></SelectContent></Select></FormItem>)} />
             
@@ -296,23 +291,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
             </div>
 
             <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><MapPin className="h-5 w-5" />Endereço</h3>
-              <FormField
-                control={form.control}
-                name="cep"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CEP</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="00000-000" 
-                        {...field}
-                        onBlur={handleCepBlur}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
+              <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} onBlur={handleCepBlur} /></FormControl></FormItem>)} />
               <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Rua, Avenida, etc." {...field} /></FormControl></FormItem>)} />
               <div className="grid md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="address_number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -370,8 +349,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData }
                 <FormField control={form.control} name="is_active" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Cadastro Ativo</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
             </div>
 
-          </div>
-        </ScrollArea>
+        </div>
         <div className="pt-6 flex justify-end space-x-2">
             <Button type="button" variant="ghost" onClick={onSuccess}>Cancelar</Button>
             <Button type="submit" disabled={isLoading} className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple">

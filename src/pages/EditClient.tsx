@@ -19,42 +19,49 @@ const EditClient: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState('dados');
   
-  // Novos estados e hooks
   const { user } = useAuth();
   const [isGenerateDocOpen, setIsGenerateDocOpen] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  // <<< INÍCIO DA ALTERAÇÃO >>>
+  const fetchClient = async () => {
+    if (!clientId) {
+      setError("ID do cliente não fornecido.");
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      // Alterado de .from('clients').select() para .rpc()
+      const { data, error: fetchError } = await supabase
+        .rpc('get_client_details_with_stats', { p_client_id: clientId })
+        .single();
+
+      if (fetchError) throw fetchError;
+      
+      setClientData(data);
+      setAvatarPreview(data?.avatar_url || null);
+    } catch (e: any) {
+      console.error("Erro ao buscar detalhes do cliente:", e);
+      setError("Não foi possível carregar os dados do cliente.");
+      toast({ title: "Erro ao carregar", description: e.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  // <<< FIM DA ALTERAÇÃO >>>
 
   useEffect(() => {
-    const fetchClient = async () => {
-      if (!clientId) {
-        setError("ID do cliente não fornecido.");
-        setIsLoading(false);
-        return;
-      }
-      
-      try {
-        const { data, error: fetchError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', clientId)
-          .single();
-
-        if (fetchError) throw fetchError;
-        
-        setClientData(data);
-      } catch (e: any) {
-        console.error("Erro ao buscar cliente:", e);
-        setError("Não foi possível carregar os dados do cliente.");
-        toast({ title: "Erro ao carregar", description: e.message, variant: "destructive" });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchClient();
   }, [clientId]);
 
   const handleFormSuccess = () => {
     toast({ title: "Sucesso!", description: "Dados do cliente salvos." });
+    fetchClient(); 
+  };
+  
+  const handleAvatarChange = (newPreview: string | null) => {
+    setAvatarPreview(newPreview);
   };
 
   if (isLoading) {
@@ -80,7 +87,7 @@ const EditClient: React.FC = () => {
       <div className="grid md:grid-cols-[320px_1fr] gap-8 items-start">
         <aside className="sticky top-6">
           <ClientProfileSidebar 
-              client={clientData} 
+              client={{...clientData, avatar_url: avatarPreview }}
               activeView={activeView}
               onViewChange={setActiveView}
               onGenerateDocument={() => setIsGenerateDocOpen(true)}
@@ -94,7 +101,11 @@ const EditClient: React.FC = () => {
                       <CardTitle>Editar Dados Principais</CardTitle>
                   </CardHeader>
                   <CardContent>
-                      <ClientForm onSuccess={handleFormSuccess} initialData={clientData} />
+                      <ClientForm 
+                        onSuccess={handleFormSuccess} 
+                        initialData={clientData} 
+                        onAvatarChange={handleAvatarChange} 
+                      />
                   </CardContent>
               </Card>
           )}
@@ -116,7 +127,6 @@ const EditClient: React.FC = () => {
         </main>
       </div>
       
-      {/* O diálogo é renderizado aqui, mas só fica visível quando `isOpen` é true */}
       <GenerateDocumentDialog
         client={clientData}
         isOpen={isGenerateDocOpen}

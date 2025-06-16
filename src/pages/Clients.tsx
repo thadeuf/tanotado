@@ -1,3 +1,5 @@
+// src/pages/Clients.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +12,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ClientForm } from '@/components/forms/ClientForm';
+// <<< INÍCIO DA ALTERAÇÃO >>>
+// Importe o ScrollArea
+import { ScrollArea } from '@/components/ui/scroll-area';
+// <<< FIM DA ALTERAÇÃO >>>
+
 
 type Client = {
   id: string;
@@ -19,6 +26,8 @@ type Client = {
   status: 'active' | 'inactive';
   avatar_url: string | null;
   user_id: string;
+  // Adicione a prop onAvatarChange que será passada para o ClientForm
+  onAvatarChange?: (preview: string | null) => void;
 };
 
 const Clients: React.FC = () => {
@@ -153,12 +162,17 @@ const Clients: React.FC = () => {
                     <Plus className="h-4 w-4" />Novo
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-3xl">
+                {/* <<< INÍCIO DA ALTERAÇÃO >>> */}
+                {/* Ajuste do tamanho e altura do modal, e adição do ScrollArea */}
+                <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col">
                   <DialogHeader>
                     <DialogTitle>Cadastrar Novo {clientNomenclature}</DialogTitle>
                   </DialogHeader>
-                  <ClientForm onSuccess={handleCreateSuccess} />
+                  <ScrollArea className="flex-grow pr-6 -mr-6">
+                    <ClientForm onSuccess={handleCreateSuccess} onAvatarChange={() => {}} />
+                  </ScrollArea>
                 </DialogContent>
+                {/* <<< FIM DA ALTERAÇÃO >>> */}
               </Dialog>
             </div>
           </div>
@@ -167,7 +181,6 @@ const Clients: React.FC = () => {
 
       <Card>
         <CardContent className="p-0">
-          {/* MUDANÇA: Cabeçalho da tabela ajustado */}
           <div className="grid grid-cols-8 gap-4 p-4 border-b bg-muted/30 font-medium text-sm text-muted-foreground">
             <div className="col-span-4">Nome</div>
             <div className="col-span-2 text-center">CPF</div>
@@ -178,7 +191,6 @@ const Clients: React.FC = () => {
           ) : filteredClients.length > 0 ? (
             <div className="divide-y">
               {filteredClients.map((client) => (
-                // MUDANÇA: A div da linha agora é um componente Link
                 <Link
                   key={client.id}
                   to={`/clientes/editar/${client.id}`}

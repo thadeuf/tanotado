@@ -12,7 +12,8 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { cn } from '@/lib/utils';
 
-// Tipos da Ficha do Cliente
+// <<< INÍCIO DA ALTERAÇÃO >>>
+// Tipagem atualizada para incluir os novos campos de estatísticas
 type ClientData = {
   id: string;
   name: string;
@@ -24,7 +25,7 @@ type ClientData = {
   gender?: string | null;
   marital_status?: string | null;
   address?: string | null;
-  neighborhood?: string | null;
+  address_neighborhood?: string | null;
   city?: string | null;
   state?: string | null;
   session_value?: number | null;
@@ -33,8 +34,8 @@ type ClientData = {
   missed_sessions?: number;
   total_due?: number;
 };
+// <<< FIM DA ALTERAÇÃO >>>
 
-// Props do componente com a função para gerar o documento
 interface ClientProfileSidebarProps {
   client: ClientData | null;
   activeView: string;
@@ -50,12 +51,11 @@ const getInitials = (name: string) => {
 export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ client, activeView, onViewChange, onGenerateDocument }) => {
   if (!client) return null;
 
-  // MUDANÇA AQUI: Adicionamos "Criar Documento" à lista do menu
   const menuItems = [
     { id: 'dados', label: 'Dados principais', icon: User },
     { id: 'prontuario', label: 'Prontuário', icon: FileText },
     { id: 'anotacoes', label: 'Anotações da Sessão', icon: MessageSquare },
-    { id: 'generate-doc', label: 'Criar Documento', icon: FileSignature }, // Item de Ação
+    { id: 'generate-doc', label: 'Criar Documento', icon: FileSignature },
     { id: 'documentos', label: 'Documentos Salvos', icon: Paperclip },
     { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
     { id: 'cobrancas', label: 'Cobranças', icon: Bell },
@@ -102,7 +102,6 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
 
   return (
     <div className="flex flex-col gap-6 h-full">
-      {/* Bloco de Informações do Cliente */}
       <div className="flex flex-col items-center text-center">
         <Avatar className="w-20 h-20 mb-4 border-2 border-primary">
           <AvatarImage src={client.avatar_url || undefined} />
@@ -119,7 +118,8 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         )}
       </div>
 
-      {/* Bloco de Estatísticas */}
+      {/* <<< INÍCIO DA ALTERAÇÃO >>> */}
+      {/* Bloco de Estatísticas agora usa os dados dinâmicos */}
       <Card>
         <CardContent className="p-4 flex justify-around">
           <div className="text-center">
@@ -140,39 +140,37 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         </CardContent>
       </Card>
 
-      {/* Bloco Financeiro */}
+      {/* Bloco Financeiro agora usa o dado dinâmico */}
       <div className="bg-primary/10 p-3 rounded-lg flex justify-between items-center">
         <span className="text-sm font-medium text-primary">Total vencidos:</span>
         <span className="text-lg font-bold text-primary">R$ {(client.total_due || 0).toFixed(2)}</span>
       </div>
+      {/* <<< FIM DA ALTERAÇÃO >>> */}
 
-      {/* Menu de Ações Interativo */}
       <div className="flex flex-col gap-1">
         {menuItems.map((item) => (
           <Button
             key={item.id}
             variant={activeView === item.id ? "secondary" : "ghost"}
             className="justify-start gap-3 px-3"
-            // MUDANÇA AQUI: Lógica para decidir qual função chamar
             onClick={() => {
               if (item.id === 'generate-doc') {
-                onGenerateDocument(); // Chama a função para abrir o modal
+                onGenerateDocument();
               } else {
-                onViewChange(item.id); // Comportamento padrão de trocar a view
+                onViewChange(item.id);
               }
             }}
           >
             <item.icon className={cn(
                 "h-4 w-4", 
                 activeView === item.id ? "text-primary" : "text-muted-foreground",
-                item.id === 'generate-doc' && 'text-tanotado-blue' // cor especial para a ação
+                item.id === 'generate-doc' && 'text-tanotado-blue'
             )} />
             <span>{item.label}</span>
           </Button>
         ))}
       </div>
 
-      {/* Botão de Exportar */}
       <div className="mt-auto">
         <Button variant="outline" className="w-full gap-2" onClick={handleExport}>
           <Download className="h-4 w-4" />

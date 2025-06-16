@@ -1,7 +1,7 @@
 // src/App.tsx
 
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,7 +12,6 @@ import SplashScreen from './components/SplashScreen';
 import OnboardingFlow from './components/OnboardingFlow';
 import { AppSidebar } from './components/AppSidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus } from 'lucide-react';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -31,10 +30,8 @@ import DocumentTemplates from './pages/DocumentTemplates';
 import EditDocumentTemplate from './pages/EditDocumentTemplate';
 import WhatsappInstances from './pages/admin/WhatsappInstances';
 
-
 const queryClient = new QueryClient();
 
-// AQUI ESTÁ A MUDANÇA: Lógica de redirecionamento no ProtectedRoute
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
@@ -50,14 +47,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />;
   }
 
-  // --- INÍCIO DA LÓGICA DE ASSINATURA ---
   const isTrialExpired = user && new Date(user.trialEndsAt) < new Date() && !user.isSubscribed;
 
   if (isTrialExpired) {
-    // Se o trial expirou e não é assinante, redireciona para a página de assinatura
     return <Navigate to="/assinatura" replace />;
   }
-  // --- FIM DA LÓGICA DE ASSINATURA ---
 
   if (!user.hasCompletedOnboarding) {
     return <OnboardingFlow />;
@@ -65,10 +59,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gray-50/50">
+      {/* O container principal garante a altura mínima e o layout flex */}
+      <div className="flex min-h-screen w-full bg-gray-50/50">
         <AppSidebar />
-        <main className="flex-1 overflow-hidden">
-          <header className="h-16 border-b bg-white flex items-center justify-between px-6">
+        
+        {/* Este container ocupa o espaço restante e organiza o cabeçalho e o conteúdo */}
+        <div className="flex flex-1 flex-col">
+          {/* O cabeçalho agora é "sticky" para ficar fixo no topo da página durante a rolagem */}
+          <header className="sticky top-0 z-30 h-16 border-b bg-white flex items-center justify-between px-6">
             <div className="flex items-center space-x-4">
               <SidebarTrigger className="lg:hidden" />
             </div>
@@ -94,10 +92,12 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
               </div>
             </div>
           </header>
-          <div className="p-6 overflow-auto h-[calc(100vh-4rem)]">
+          
+          {/* A tag <main> agora só precisa de padding. A rolagem será gerenciada pelo próprio navegador */}
+          <main className="p-6">
             {children}
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );
@@ -131,8 +131,6 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// AQUI ESTÁ A MUDANÇA: Componente para a página de assinatura, que é acessível
-// mesmo com o trial expirado, mas apenas se o usuário estiver logado.
 const SubscriptionRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
@@ -172,7 +170,7 @@ const AppContent: React.FC = () => {
           <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />
           <Route path="/register" element={ <PublicRoute> <Register /> </PublicRoute> } />
 
-          {/* AQUI ESTÁ A MUDANÇA: Rota para a página de assinatura */}
+          {/* Rota para a página de assinatura */}
           <Route path="/assinatura" element={ <SubscriptionRoute> <Subscription /> </SubscriptionRoute> } />
 
           {/* Rotas protegidas */}
