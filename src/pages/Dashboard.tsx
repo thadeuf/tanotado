@@ -12,7 +12,6 @@ import { useClients } from '../hooks/useClients';
 import { format, isToday, isTomorrow, startOfWeek, endOfWeek, isWithinInterval, parseISO, getMonth, getDate, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
-// AQUI ESTÁ A MUDANÇA: Importando o Link para navegação
 import { Link } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
@@ -107,10 +106,24 @@ const Dashboard: React.FC = () => {
     return `https://wa.me/${cleaned}`;
   }
 
+  // <<< INÍCIO DA CORREÇÃO >>>
+  // Função para obter o texto e a classe do status, similar à da Agenda.
+  const getStatusInfo = (status: string) => {
+    switch (status) {
+      case 'scheduled': return { text: 'Agendado', className: 'bg-tanotado-blue/10 text-tanotado-blue border-tanotado-blue/20' };
+      case 'confirmed': return { text: 'Confirmado', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+      case 'completed': return { text: 'Concluído', className: 'bg-tanotado-green/10 text-tanotado-green border-tanotado-green/20' };
+      case 'cancelled': return { text: 'Cancelado', className: 'bg-red-100 text-red-700 border-red-200' };
+      case 'no_show': return { text: 'Faltou', className: 'bg-orange-100 text-orange-700 border-orange-200' };
+      default: return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-200' };
+    }
+  };
+
   const renderAppointment = (appointment: Appointment, index: number) => {
     const client = appointment.client_id ? clientMap.get(appointment.client_id) : null;
     const timeLabel = `${format(parseISO(appointment.start_time), 'HH:mm')} - ${format(parseISO(appointment.end_time), 'HH:mm')}`;
     const displayName = client?.name || appointment.title;
+    const statusInfo = getStatusInfo(appointment.status);
 
     return (
       <div key={appointment.id || index} className="relative p-4 border rounded-lg hover:bg-muted/50 transition-colors overflow-hidden">
@@ -134,19 +147,17 @@ const Dashboard: React.FC = () => {
                 <Clock className="h-4 w-4" />
                 <span>{timeLabel}</span>
               </div>
-              const statusInfo = getStatusInfo(appointment.status); // Você precisaria ter uma função getStatusInfo similar à da Agenda
-              return (
-                  <Badge variant="outline" className={`flex items-center gap-1 text-xs mt-2 w-fit ${statusInfo.className}`}>
-                      <MessageSquare className="h-3 w-3" />
-                      <span>{statusInfo.text}</span>
-                  </Badge>
-              );
+              <Badge variant="outline" className={`flex items-center gap-1 text-xs mt-2 w-fit ${statusInfo.className}`}>
+                  <MessageSquare className="h-3 w-3" />
+                  <span>{statusInfo.text}</span>
+              </Badge>
             </div>
           </div>
         </div>
       </div>
     );
   };
+  // <<< FIM DA CORREÇÃO >>>
   
   const renderEmptyState = (text: string) => (
     <div className="text-center py-10 text-muted-foreground">
@@ -183,7 +194,6 @@ const Dashboard: React.FC = () => {
         </p>
       </div>
 
-      {/* INÍCIO DA ALTERAÇÃO */}
       {user && !user.isSubscribed && user.trialEndsAt && (
         <Card className="border-tanotado-yellow/50 bg-gradient-to-r from-tanotado-yellow/10 to-tanotado-orange/10">
           <CardContent className="p-4">
@@ -206,7 +216,6 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
       )}
-      {/* FIM DA ALTERAÇÃO */}
 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
