@@ -152,6 +152,7 @@ const Agenda: React.FC = () => {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'scheduled': return { text: 'Agendado', className: 'bg-tanotado-blue/10 text-tanotado-blue border-tanotado-blue/20' };
+      case 'confirmed': return { text: 'Confirmado', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
       case 'completed': return { text: 'Concluído', className: 'bg-tanotado-green/10 text-tanotado-green border-tanotado-green/20' };
       case 'cancelled': return { text: 'Cancelado', className: 'bg-red-100 text-red-700 border-red-200' };
       default: return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-200' };

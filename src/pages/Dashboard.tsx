@@ -134,10 +134,13 @@ const Dashboard: React.FC = () => {
                 <Clock className="h-4 w-4" />
                 <span>{timeLabel}</span>
               </div>
-              <Badge variant="outline" className="flex items-center gap-1 border-yellow-400 bg-yellow-50 text-yellow-700 text-xs mt-2 w-fit">
-                <MessageSquare className="h-3 w-3" />
-                <span>Aguardando confirmação</span>
-              </Badge>
+              const statusInfo = getStatusInfo(appointment.status); // Você precisaria ter uma função getStatusInfo similar à da Agenda
+              return (
+                  <Badge variant="outline" className={`flex items-center gap-1 text-xs mt-2 w-fit ${statusInfo.className}`}>
+                      <MessageSquare className="h-3 w-3" />
+                      <span>{statusInfo.text}</span>
+                  </Badge>
+              );
             </div>
           </div>
         </div>
