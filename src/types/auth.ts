@@ -23,6 +23,8 @@ export interface User {
   address_city?: string | null;
   address_state?: string | null;
   address_complement?: string | null;
+  // --- NOVO CAMPO ADICIONADO ---
+  public_booking_url_slug?: string | null;
 }
 
 export interface AuthContextType {
@@ -33,6 +35,8 @@ export interface AuthContextType {
   register: (userData: RegisterData) => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
   refetchUser: () => Promise<void>; // Adicionada função para recarregar dados do usuário
+  forceAppUpdate: () => Promise<void>;
+  resetPassword: (password: string) => Promise<void>;
 }
 
 export interface RegisterData {

@@ -6,12 +6,12 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export type Database = { // <-- CORREÇÃO AQUI: Garante que há apenas um 'export' antes de 'type Database'
   public: {
     Tables: {
       appointments: {
         Row: {
-          client_id: string | null // <-- ALTERAÇÃO 1: Permitir nulo para bloqueios
+          client_id: string | null
           created_at: string | null
           description: string | null
           end_time: string
@@ -25,10 +25,10 @@ export type Database = {
           title: string
           updated_at: string | null
           user_id: string
-          appointment_type: "appointment" | "block" // <-- ALTERAÇÃO 2: Novo campo adicionado
+          appointment_type: "appointment" | "block"
         }
         Insert: {
-          client_id: string | null // <-- ALTERAÇÃO 1: Permitir nulo para bloqueios
+          client_id?: string | null
           created_at?: string | null
           description?: string | null
           end_time: string
@@ -44,10 +44,10 @@ export type Database = {
           title: string
           updated_at?: string | null
           user_id: string
-          appointment_type?: "appointment" | "block" // <-- ALTERAÇÃO 2: Novo campo adicionado
+          appointment_type?: "appointment" | "block"
         }
         Update: {
-          client_id?: string | null // <-- ALTERAÇÃO 1: Permitir nulo para bloqueios
+          client_id?: string | null
           created_at?: string | null
           description?: string | null
           end_time?: string
@@ -63,7 +63,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id?: string
-          appointment_type?: "appointment" | "block" // <-- ALTERAÇÃO 2: Novo campo adicionado
+          appointment_type?: "appointment" | "block"
         }
         Relationships: [
           {
@@ -89,6 +89,8 @@ export type Database = {
           updated_at: string | null
           user_id: string
           send_session_reminder: boolean
+          is_active: boolean
+          approval_status: Database["public"]["Enums"]["client_approval_status"] | null;
         }
         Insert: {
           address?: string | null
@@ -103,6 +105,8 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           send_session_reminder?: boolean
+          is_active?: boolean
+          approval_status?: Database["public"]["Enums"]["client_approval_status"] | null;
         }
         Update: {
           address?: string | null
@@ -117,6 +121,8 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           send_session_reminder?: boolean
+          is_active?: boolean
+          approval_status?: Database["public"]["Enums"]["client_approval_status"] | null;
         }
         Relationships: []
       }
@@ -315,6 +321,8 @@ export type Database = {
           address_state: string | null
           address_complement: string | null
           instance_id: string | null
+          public_booking_url_slug: string | null;
+          public_booking_enabled: boolean | null;
         }
         Insert: {
           client_nomenclature?: string | null
@@ -347,6 +355,8 @@ export type Database = {
           address_state?: string | null
           address_complement?: string | null
           instance_id?: string | null
+          public_booking_url_slug?: string | null;
+          public_booking_enabled?: boolean | null;
         }
         Update: {
           client_nomenclature?: string | null
@@ -379,6 +389,8 @@ export type Database = {
           address_state?: string | null
           address_complement?: string | null
           instance_id?: string | null
+          public_booking_url_slug?: string | null;
+          public_booking_enabled?: boolean | null;
         }
         Relationships: [
           {
@@ -492,6 +504,46 @@ export type Database = {
           associated_users_count: number
         }[]
       }
+      get_all_profiles_with_counts: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          id: string;
+          name: string;
+          email: string;
+          whatsapp: string;
+          is_subscribed: boolean;
+          is_active: boolean;
+          trial_ends_at: string;
+          subscribed_at: string;
+          canceled_at: string;
+          last_sign_in_at: string;
+          login_count: number;
+          client_count: number;
+          appointment_count: number;
+        }[];
+      };
+      cpf_exists: {
+        Args: { cpf_to_check: string };
+        Returns: boolean;
+      };
+      find_or_create_pending_client: {
+        Args: {
+          p_cpf: string;
+          p_birth_date: string;
+          p_professional_id: string;
+          p_name?: string;
+          p_whatsapp?: string;
+          p_email?: string;
+          p_initial_consultation_reason?: string;
+        };
+        Returns: {
+          client_id: string;
+          client_name: string;
+          client_whatsapp: string;
+          client_email: string;
+          client_exists_and_active: boolean;
+        }[];
+      };
     }
     Enums: {
       appointment_status:
@@ -502,7 +554,8 @@ export type Database = {
         | "no_show"
       payment_status: "pending" | "paid" | "overdue" | "cancelled"
       recurrence_type: "none" | "daily" | "weekly" | "monthly"
-      user_role: "admin" | "user"
+      user_role: "admin" | "user";
+      client_approval_status: "pending" | "approved" | "rejected";
     }
     CompositeTypes: {
       [_ in never]: never
@@ -524,7 +577,7 @@ export type Tables<
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
   ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Database["public"]["Tables"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -621,13 +674,14 @@ export const Constants = {
       appointment_status: [
         "scheduled",
         "confirmed",
-"completed",
+        "completed",
         "cancelled",
         "no_show",
       ],
       payment_status: ["pending", "paid", "overdue", "cancelled"],
       recurrence_type: ["none", "daily", "weekly", "monthly"],
       user_role: ["admin", "user"],
+      client_approval_status: ["pending", "approved", "rejected"],
     },
   },
-} as const
+} as const;

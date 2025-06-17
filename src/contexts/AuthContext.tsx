@@ -39,13 +39,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // diretamente no banco de dados para garantir a consistência dos dados.
     // Esta função no frontend agora pode apenas registrar o evento e
     // garantir que os dados mais recentes sejam buscados após a criação automática.
-    console.log(`O perfil para o usuário ${authUser.id} será criado pelo gatilho do banco de dados. Recarregando dados...`);
+    console.log(`O perfil para o usuário ${authUser.id} será criado pelo gatilho do banco de dados. Recarregando dados...`); //
     
     // Aguarda um breve momento para garantir que o gatilho no DB tenha tempo de executar
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1000)); //
 
     // Recarrega o perfil do usuário para obter os dados recém-criados pelo gatilho.
-    await loadUserProfile(supabase.auth.getSession()?.data?.session);
+    await loadUserProfile(supabase.auth.getSession()?.data?.session); //
     // --- FIM DA ALTERAÇÃO ---
   };
 
@@ -95,14 +95,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               address_state: profile.address_state,
               address_complement: profile.address_complement,
               is_active: profile.is_active,
+              // --- CARREGAR NOVOS CAMPOS ---
+              public_booking_enabled: profile.public_booking_enabled ?? false,
+              public_booking_url_slug: profile.public_booking_url_slug,
+              // --- FIM CARREGAR NOVOS CAMPOS ---
             };
             setUser(userData);
             setIsLoading(false);
         }
     } catch (error) {
-      console.error('Error loading user profile:', error);
-      setUser(null);
-      setIsLoading(false);
+      console.error('Error loading user profile:', error); //
+      setUser(null); //
+      setIsLoading(false); //
     }
   };
 
@@ -133,9 +137,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Usuário não encontrado após login.");
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password }); //
+      if (authError) throw authError; //
+      if (!authData.user) throw new Error("Usuário não encontrado após login."); //
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -159,25 +163,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return; 
       }
       
-      await loadUserProfile(authData.session);
-      toast({ title: "Login realizado com sucesso!", description: "Bem-vindo de volta!" });
+      await loadUserProfile(authData.session); //
+      toast({ title: "Login realizado com sucesso!", description: "Bem-vindo de volta!" }); //
 
     } catch (error: any) {
-      console.error('Login error:', error);
-      toast({ title: "Erro no login", description: error.message || "Verifique suas credenciais e tente novamente", variant: "destructive" });
-      setIsLoading(false);
-      throw error;
+      console.error('Login error:', error); //
+      toast({ title: "Erro no login", description: error.message || "Verifique suas credenciais e tente novamente", variant: "destructive" }); //
+      setIsLoading(false); //
+      throw error; //
     }
   };
 
   const register = async (userData: RegisterData) => {
     setIsLoading(true);
     try {
-      const cleanCPF = userData.cpf.replace(/[^\d]/g, '');
+      const cleanCPF = userData.cpf.replace(/[^\d]/g, ''); //
 
       // Chama a função RPC para verificar se o CPF existe
       const { data: cpfAlreadyExists, error: rpcError } = await supabase
-        .rpc('cpf_exists', { cpf_to_check: cleanCPF });
+        .rpc('cpf_exists', { cpf_to_check: cleanCPF }); //
 
       // Se a chamada da função der erro, interrompe o processo
       if (rpcError) {
@@ -211,55 +215,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (signUpError) throw signUpError;
 
-      toast({ title: "Cadastro realizado com sucesso!", description: "Vá para Login e Acesse sua conta." });
+      toast({ title: "Cadastro realizado com sucesso!", description: "Vá para Login e Acesse sua conta." }); //
     } catch (error: any) {
-      console.error('Register error:', error);
-      toast({ title: "Erro no cadastro", description: error.message || "Tente novamente.", variant: "destructive" });
-      throw error;
+      console.error('Register error:', error); //
+      toast({ title: "Erro no cadastro", description: error.message || "Tente novamente.", variant: "destructive" }); //
+      throw error; //
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); //
     }
   };
 
   const updateUser = async (updates: Partial<User>) => {
-    if (!user) return;
+    if (!user) return; //
     try {
       const profileUpdates: any = {
         name: updates.name,
         has_completed_onboarding: updates.hasCompletedOnboarding,
         client_nomenclature: updates.clientNomenclature,
         specialty: updates.specialty,
+        // --- ENVIA NOVOS CAMPOS ---
+        public_booking_enabled: updates.public_booking_enabled,
+        public_booking_url_slug: updates.public_booking_url_slug,
+        // --- FIM ENVIA NOVOS CAMPOS ---
       };
-      const { error } = await supabase.from('profiles').update(profileUpdates).eq('id', user.id);
-      if (error) throw error;
-      setUser({ ...user, ...updates });
+      const { error } = await supabase.from('profiles').update(profileUpdates).eq('id', user.id); //
+      if (error) throw error; //
+      setUser({ ...user, ...updates }); //
     } catch (error) {
-      console.error('Error updating user:', error);
-      toast({ title: "Erro ao atualizar perfil", variant: "destructive" });
+      console.error('Error updating user:', error); //
+      toast({ title: "Erro ao atualizar perfil", variant: "destructive" }); //
     }
   };
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
-      setUser(null);
-      toast({ title: "Logout realizado", description: "Até a próxima!" });
+      await supabase.auth.signOut(); //
+      setUser(null); //
+      toast({ title: "Logout realizado", description: "Até a próxima!" }); //
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Logout error:', error); //
     }
   };
 
   const signOutFromAllDevices = async () => {
     try {
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      if (error) throw error;
-      setUser(null);
+      const { error } = await supabase.auth.signOut({ scope: 'global' }); //
+      if (error) throw error; //
+      setUser(null); //
       toast({
         title: "Sessão encerrada em todos os dispositivos",
         description: "Você foi desconectado de todas as suas sessões ativas.",
       });
     } catch (error: any) {
-      console.error('Global sign out error:', error);
+      console.error('Global sign out error:', error); //
       toast({
         title: "Erro ao desconectar",
         description: "Não foi possível encerrar as outras sessões. Tente novamente.",
@@ -292,7 +300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }, 1000);
 
     } catch (error) {
-      console.error("Erro ao forçar a atualização:", error);
+      console.error("Erro ao forçar a atualização:", error); //
       toast({
         title: "Erro na atualização",
         description: "Não foi possível limpar o cache. Tente atualizar a página manualmente (Ctrl+Shift+R).",
@@ -302,7 +310,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({ password }); //
     if (error) {
       toast({
         title: "Erro ao redefinir a senha",

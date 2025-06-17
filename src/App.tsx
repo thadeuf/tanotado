@@ -30,6 +30,9 @@ import DocumentTemplates from './pages/DocumentTemplates';
 import EditDocumentTemplate from './pages/EditDocumentTemplate';
 import WhatsappInstances from './pages/admin/WhatsappInstances';
 import MessageReports from './pages/admin/MessageReports';
+// --- NOVO IMPORT ---
+import PatientBooking from './pages/PatientBooking'; // Será criado no próximo passo
+// --- FIM NOVO IMPORT ---
 
 const queryClient = new QueryClient();
 
@@ -178,6 +181,10 @@ const AppContent: React.FC = () => {
           {/* Rotas públicas */}
           <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />
           <Route path="/register" element={ <PublicRoute> <Register /> </PublicRoute> } />
+
+          {/* --- NOVA ROTA PÚBLICA PARA AGENDAMENTO --- */}
+          <Route path="/agendar/:slug" element={ <PatientBooking /> } />
+          {/* --- FIM NOVA ROTA PÚBLICA --- */}
 
           {/* Rota para a página de assinatura */}
           <Route path="/assinatura" element={ <SubscriptionRoute> <Subscription /> </SubscriptionRoute> } />

@@ -11,23 +11,23 @@ import { format, parse, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
+// --- CORREÇÃO AQUI ---
 import { Input } from '@/components/ui/input';
+// --- FIM CORREÇÃO ---
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-// <<< INÍCIO DA ALTERAÇÃO >>>
-// Adicionado o ícone Camera para a nova seção
 import { CalendarIcon, User, MapPin, DollarSign, Heart, Shield, Briefcase, Upload, Camera } from 'lucide-react';
-// <<< FIM DA ALTERAÇÃO >>>
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { CustomPhoneInput } from '@/components/ui/phone-input';
 import { CpfInput } from '@/components/ui/CpfInput';
 import { DateInput } from '@/components/ui/DateInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Constants } from '@/integrations/supabase/types'; 
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -68,6 +68,7 @@ const formSchema = z.object({
   notes: z.string().optional(),
   send_session_reminder: z.boolean().default(true),
   is_active: z.boolean().default(true),
+  approval_status: z.nativeEnum(Constants.public.Enums.client_approval_status).optional(),
 });
 
 type ClientFormData = z.infer<typeof formSchema>;
@@ -81,7 +82,7 @@ interface ClientFormProps {
 export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, onAvatarChange }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-
+  
   const form = useForm<ClientFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -96,7 +97,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
       emergency_contact_name: '', emergency_contact_whatsapp: '',
       gender: '', birth_date: null, nationality: '', education: '',
       occupation: '', forwarding: '', marital_status: '', notes: '',
-      send_session_reminder: true, is_active: true, avatar_url: null,
+      send_session_reminder: true, 
+      is_active: true, 
+      approval_status: 'approved', 
+      avatar_url: null,
     },
   });
 
@@ -114,6 +118,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
       
       sanitizedData.session_value = initialData.session_value || undefined;
       sanitizedData.billing_day = initialData.billing_day || undefined;
+
+      if (initialData.approval_status) { 
+          sanitizedData.approval_status = initialData.approval_status; 
+      }
       
       form.reset(sanitizedData as any);
     }
@@ -167,6 +175,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
         user_id: user.id,
         professional_responsible: values.professional_responsible || user.id,
         birth_date: values.birth_date ? values.birth_date.toISOString().split('T')[0] : null,
+        approval_status: 'approved' as Constants.public.Enums.client_approval_status,
+        is_active: true,
       };
       
       delete clientData.avatar_file;
@@ -245,11 +255,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-6">
             
-            {/* <<< INÍCIO DA ALTERAÇÃO >>> */}
-            {/* Seção da Foto de Perfil agora segue o mesmo padrão das outras */}
             <div className="space-y-4 p-4 border rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                    <Camera className="h-5 w-5" />
+                    <Camera className="h-5 w-5" /> 
                     Foto de Perfil
                 </h3>
                 <FormField 
@@ -259,7 +267,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
                             <FormControl>
                                 <Button asChild variant="outline" size="sm" className="w-full">
                                     <Label className="cursor-pointer flex items-center justify-center gap-2">
-                                        <Upload className="h-4 w-4" />
+                                        <Upload className="h-4 w-4" /> 
                                         Enviar / Trocar foto
                                         <Input 
                                             type="file" 
@@ -274,14 +282,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
                     )} 
                 />
             </div>
-            {/* <<< FIM DA ALTERAÇÃO >>> */}
 
-            <FormField control={form.control} name="professional_responsible" render={({ field }) => ( <FormItem><FormLabel>Profissional Responsável</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um profissional..." /></SelectTrigger></FormControl><SelectContent><SelectItem value={user?.id || ''}>{user?.name}</SelectItem></SelectContent></Select></FormItem>)} />
+            <FormField control={form.control} name="professional_responsible" render={({ field }) => (<FormItem><FormLabel>Profissional Responsável</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um profissional..." /></SelectTrigger></FormControl><SelectContent><SelectItem value={user?.id || ''}>{user?.name}</SelectItem></SelectContent></Select></FormItem>)} />
             
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><User className="h-5 w-5" />Informações</h3>
+            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><User className="h-5 w-5" />Informações</h3> 
               <FormField control={form.control} name="group" render={({ field }) => (<FormItem><FormLabel>Grupo</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="adolescentes">Adolescentes</SelectItem><SelectItem value="adultos">Adultos</SelectItem><SelectItem value="casal">Casal</SelectItem><SelectItem value="criancas">Crianças</SelectItem><SelectItem value="familias">Famílias</SelectItem><SelectItem value="idosos">Idosos</SelectItem></SelectContent></Select></FormItem>)} />
               <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome *</FormLabel><FormControl><Input placeholder="Nome completo do cliente" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="whatsapp" render={({ field }) => ( <FormItem><FormLabel>WhatsApp *</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="video_call_link" render={({ field }) => (<FormItem><FormLabel>Link de video chamada</FormLabel><FormControl><Input placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="email@exemplo.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -290,10 +297,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
               </div>
             </div>
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><MapPin className="h-5 w-5" />Endereço</h3>
+            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><MapPin className="h-5 w-5" />Endereço</h3> 
               <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} onBlur={handleCepBlur} /></FormControl></FormItem>)} />
               <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Rua, Avenida, etc." {...field} /></FormControl></FormItem>)} />
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="address_number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                 <FormField control={form.control} name="address_neighborhood" render={({ field }) => (<FormItem><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                 <FormField control={form.control} name="address_city" render={({ field }) => (<FormItem><FormLabel>Cidade</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -302,17 +309,17 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
               <FormField control={form.control} name="address_complement" render={({ field }) => (<FormItem><FormLabel>Complemento</FormLabel><FormControl><Input placeholder="Apto, bloco, casa..." {...field} /></FormControl></FormItem>)} />
             </div>
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><DollarSign className="h-5 w-5" />Financeiro</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><DollarSign className="h-5 w-5" />Financeiro</h3> 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="session_value" render={({ field }) => (<FormItem><FormLabel>Valor por sessão</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
                 <FormField control={form.control} name="billing_day" render={({ field }) => (<FormItem><FormLabel>Dia de Cobrança</FormLabel><FormControl><Input type="number" min="1" max="31" {...field} /></FormControl></FormItem>)} />
               </div>
               <FormField control={form.control} name="send_billing_reminder" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><FormLabel>Enviar lembrete mensal de cobrança</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
             </div>
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Shield className="h-5 w-5" />Responsável Financeiro</h3>
+            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Shield className="h-5 w-5" />Responsável Financeiro</h3> 
               <FormField control={form.control} name="financial_responsible_name" render={({ field }) => (<FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="financial_responsible_whatsapp" render={({ field }) => (<FormItem><FormLabel>WhatsApp</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl></FormItem>)} />
                 <FormField control={form.control} name="financial_responsible_email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl></FormItem>)} />
                 <Controller control={form.control} name="financial_responsible_cpf" render={({ field }) => (<FormItem><FormLabel>CPF</FormLabel><FormControl><CpfInput {...field} /></FormControl></FormItem>)} />
@@ -320,15 +327,15 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
               </div>
             </div>
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Heart className="h-5 w-5" />Contato de emergência</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Heart className="h-5 w-5" />Contato de emergência</h3> 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="emergency_contact_name" render={({ field }) => (<FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                 <FormField control={form.control} name="emergency_contact_whatsapp" render={({ field }) => (<FormItem><FormLabel>WhatsApp</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl></FormItem>)} />
               </div>
             </div>
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Briefcase className="h-5 w-5" />Dados Adicionais do {user?.clientNomenclature}</h3>
-              <div className="grid md:grid-cols-2 gap-4 items-start">
+            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Briefcase className="h-5 w-5" />Dados Adicionais do {user?.clientNomenclature}</h3> 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 <FormField control={form.control} name="gender" render={({ field }) => (<FormItem><FormLabel>Gênero</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="feminino">Feminino</SelectItem><SelectItem value="masculino">Masculino</SelectItem><SelectItem value="outro">Outro</SelectItem><SelectItem value="nao-informar">Prefiro não informar</SelectItem></SelectContent></Select></FormItem>)} />
                 <Controller control={form.control} name="birth_date" render={({ field }) => (<FormItem className="flex flex-col gap-1"><FormLabel>Data de Nascimento</FormLabel><FormControl><DateInput value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="nationality" render={({ field }) => (<FormItem><FormLabel>Naturalidade</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -346,6 +353,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
 
             <div className='space-y-3 pt-4'>
                 <FormField control={form.control} name="send_session_reminder" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Ativar lembrete de sessão</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                {/* O campo is_active agora é controlado pelo approval_status para clientes criados via autoagendamento
+                    Mas ainda é útil para o profissional desativar/ativar manualmente independentemente do fluxo de aprovação. */}
                 <FormField control={form.control} name="is_active" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Cadastro Ativo</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
             </div>
 

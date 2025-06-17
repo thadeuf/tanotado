@@ -14,7 +14,6 @@ import {
   Loader2,
   Video,
   Repeat,
-  // ALTERAÇÃO 1: Trocando Briefcase por Lock (Cadeado) para representar o bloqueio
   Lock,
   Settings as SettingsIcon,
   NotebookPen
@@ -58,7 +57,6 @@ import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { SessionNotesDialog } from '@/components/notes/SessionNotesDialog';
 
-// ALTERAÇÃO 2: CustomEvent para o BigCalendar, para exibir o ícone de bloqueio
 const CustomEvent = ({ event }: { event: any }) => (
   <div className="rbc-event-content text-white text-xs p-1 h-full truncate flex items-center">
     {event.resource?.appointment_type === 'block' && <Lock className="h-3 w-3 mr-1 shrink-0" />}
@@ -79,8 +77,13 @@ const Agenda: React.FC = () => {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
 
-  const { data: appointments = [], isLoading } = useAppointments();
-  const { data: clients = [] } = useClients();
+  // --- CORREÇÃO AQUI (1/2) ---
+  // Passamos o estado `selectedDate` para o hook useAppointments.
+  // Agora, sempre que a data selecionada mudar, os dados dos agendamentos serão buscados novamente.
+  const { data: appointments = [], isLoading } = useAppointments(selectedDate);
+  // --- FIM DA CORREÇÃO ---
+  
+  const { data: clients = [] } = useClients(); // Mantido para outras funcionalidades se necessário
   const { data: settings } = useUserSettings();
   const queryClient = useQueryClient();
 
@@ -127,7 +130,6 @@ const Agenda: React.FC = () => {
   });
 
   const handleNotesClick = (appointment: Appointment) => {
-    // Não deve abrir notas para bloqueios
     if (appointment.appointment_type === 'block') return;
     setSelectedAppointmentForNotes(appointment);
   };
@@ -137,7 +139,6 @@ const Agenda: React.FC = () => {
   };
 
   const handleEditClick = (appointment: Appointment) => {
-    // ALTERAÇÃO 3: Impede a edição de um bloqueio. O usuário deve deletar e criar outro.
     if (appointment.appointment_type === 'block') {
         toast({
             title: "Ação não permitida para bloqueios",
@@ -182,10 +183,9 @@ const Agenda: React.FC = () => {
     }
   };
 
-  // ALTERAÇÃO 4: Passa o appointment_type para o evento do BigCalendar
   const events = useMemo(() => appointments.map(app => ({
     id: app.id,
-    title: app.title,
+    title: app.clients?.name || app.title, // Usa o nome do cliente se existir
     start: new Date(app.start_time),
     end: new Date(app.end_time),
     resource: { 
@@ -194,17 +194,16 @@ const Agenda: React.FC = () => {
     },
   })), [appointments]);
 
-  // ALTERAÇÃO 5: Estiliza o evento do BigCalendar de forma diferente se for um bloqueio
   const eventStyleGetter = useCallback((event: any) => {
     const isBlock = event.resource.appointment_type === 'block';
     return {
       style: {
-        backgroundColor: isBlock ? '#64748b' : (event.resource.color || '#3b82f6'), // Cinza para bloqueios
+        backgroundColor: isBlock ? '#64748b' : (event.resource.color || '#3b82f6'),
         borderRadius: '4px',
         color: 'white',
         border: 'none',
         display: 'block',
-        cursor: isBlock ? 'not-allowed' : 'pointer', // Cursor
+        cursor: isBlock ? 'not-allowed' : 'pointer',
       },
     }
   }, []);
@@ -296,7 +295,6 @@ const Agenda: React.FC = () => {
                     messages={{ next: "Próximo", previous: "Anterior", today: "Hoje", month: "Mês", week: "Semana", day: "Dia", noEventsInRange: "Não há eventos nesta faixa.", showMore: total => `+${total} mais` }}
                     eventPropGetter={eventStyleGetter}
                     onSelectSlot={handleSelectSlot}
-                    // ALTERAÇÃO 6: Impede a edição de bloqueios na visualização mensal
                     onSelectEvent={(event) => { const app = appointments.find(a => a.id === event.id); if (app) handleEditClick(app); }}
                     selectable
                     components={{ event: CustomEvent, toolbar: () => null }}
@@ -342,8 +340,12 @@ const Agenda: React.FC = () => {
                     <div className="space-y-4">
                       {dailyAppointments.length > 0 ? (
                         dailyAppointments.map(appointment => {
-                          const client = clients.find(c => c.id === appointment.client_id);
-                          // ALTERAÇÃO 7: Define uma flag para simplificar a lógica condicional
+                          // --- CORREÇÃO AQUI (2/2) ---
+                          // Removido: const client = clients.find(c => c.id === appointment.client_id);
+                          // Usando o cliente que já vem junto com o agendamento do hook useAppointments
+                          const client = appointment.clients;
+                          // --- FIM DA CORREÇÃO ---
+                          
                           const isBlock = appointment.appointment_type === 'block';
                           
                           return (
@@ -351,20 +353,18 @@ const Agenda: React.FC = () => {
                               <div className="absolute left-0 top-0 h-full w-2" style={{ backgroundColor: isBlock ? '#9ca3af' : (appointment.color || '#e2e8f0') }}/>
                               <div className="flex items-start gap-4 ml-4">
                                 <Avatar className="h-10 w-10">
-                                  {/* ALTERAÇÃO 8: Mostra o ícone de cadeado para bloqueios */}
                                   {isBlock ? (
                                     <AvatarFallback className="bg-gray-400 text-white"><Lock /></AvatarFallback>
                                   ) : (
                                     <>
-                                      <AvatarImage src={client?.avatar_url || undefined} /> 
-                                      <AvatarFallback className="bg-tanotado-pink text-white font-medium">{getInitials(appointment.title)}</AvatarFallback>
+                                      <AvatarImage src={undefined} /> 
+                                      <AvatarFallback className="bg-tanotado-pink text-white font-medium">{getInitials(client?.name || appointment.title)}</AvatarFallback>
                                     </>
                                   )}
                                 </Avatar>
                                 <div>
                                   <div className="flex items-center flex-wrap gap-2 mb-1">
                                     <span className="font-semibold text-sm">{format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}</span>
-                                    {/* ALTERAÇÃO 9: Mostra um badge de 'Bloqueio' */}
                                     {isBlock ? (
                                       <Badge variant="outline" className="border-gray-500/50 text-gray-600 flex items-center gap-1">
                                         <Lock className="h-3 w-3" /> Bloqueio
@@ -380,8 +380,7 @@ const Agenda: React.FC = () => {
                                       </>
                                     )}
                                   </div>
-                                  <div className="font-medium text-tanotado-navy">{appointment.title || 'Cliente não informado'}</div>
-                                  {/* Esconde a informação de 'Online/Presencial' para bloqueios */}
+                                  <div className="font-medium text-tanotado-navy">{client?.name || appointment.title}</div>
                                   {!isBlock && (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                                       {appointment.is_online ? (<><Video className="h-4 w-4 text-tanotado-blue" /><span>Online</span></>) : (<><MapPin className="h-4 w-4 text-tanotado-green" /><span>Presencial</span></>)}
@@ -390,7 +389,6 @@ const Agenda: React.FC = () => {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                {/* ALTERAÇÃO 10: Oculta botões de Notas e Edição para bloqueios */}
                                 {!isBlock && (
                                   <>
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleNotesClick(appointment)}>
