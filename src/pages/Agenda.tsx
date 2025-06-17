@@ -1,5 +1,3 @@
-// src/pages/Agenda.tsx
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +14,8 @@ import {
   Loader2,
   Video,
   Repeat,
-  Briefcase,
+  // ALTERAÇÃO 1: Trocando Briefcase por Lock (Cadeado) para representar o bloqueio
+  Lock,
   Settings as SettingsIcon,
   NotebookPen
 } from 'lucide-react';
@@ -59,9 +58,12 @@ import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { SessionNotesDialog } from '@/components/notes/SessionNotesDialog';
 
+// ALTERAÇÃO 2: CustomEvent para o BigCalendar, para exibir o ícone de bloqueio
 const CustomEvent = ({ event }: { event: any }) => (
-  <div className="rbc-event-content text-white text-xs p-1 h-full truncate">
-    <strong>{format(event.start, 'HH:mm')}</strong> {event.title}
+  <div className="rbc-event-content text-white text-xs p-1 h-full truncate flex items-center">
+    {event.resource?.appointment_type === 'block' && <Lock className="h-3 w-3 mr-1 shrink-0" />}
+    <strong>{format(event.start, 'HH:mm')}</strong>
+    <span className="truncate ml-1">{event.title}</span>
   </div>
 );
 
@@ -113,18 +115,20 @@ const Agenda: React.FC = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast({ title: "Agendamento(s) excluído(s)!", description: "A sua agenda foi atualizada." });
+      toast({ title: "Evento(s) excluído(s)!", description: "A sua agenda foi atualizada." });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       setAppointmentToDelete(null); 
     },
     onError: (error) => {
-      toast({ title: "Erro ao excluir", description: "Não foi possível remover o agendamento.", variant: "destructive" });
+      toast({ title: "Erro ao excluir", description: "Não foi possível remover o evento.", variant: "destructive" });
       console.error("Erro ao deletar agendamento:", error);
       setAppointmentToDelete(null);
     },
   });
 
   const handleNotesClick = (appointment: Appointment) => {
+    // Não deve abrir notas para bloqueios
+    if (appointment.appointment_type === 'block') return;
     setSelectedAppointmentForNotes(appointment);
   };
 
@@ -133,6 +137,15 @@ const Agenda: React.FC = () => {
   };
 
   const handleEditClick = (appointment: Appointment) => {
+    // ALTERAÇÃO 3: Impede a edição de um bloqueio. O usuário deve deletar e criar outro.
+    if (appointment.appointment_type === 'block') {
+        toast({
+            title: "Ação não permitida para bloqueios",
+            description: "Para alterar um bloqueio, por favor, remova-o e crie um novo.",
+            variant: "default"
+        });
+        return;
+    }
     setEditingAppointment(appointment);
     setShowForm(true);
   };
@@ -158,7 +171,6 @@ const Agenda: React.FC = () => {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   };
 
-  // INÍCIO DA CORREÇÃO
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'scheduled': return { text: 'Agendado', className: 'bg-tanotado-blue/10 text-tanotado-blue border-tanotado-blue/20' };
@@ -169,25 +181,33 @@ const Agenda: React.FC = () => {
       default: return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-200' };
     }
   };
-  // FIM DA CORREÇÃO
 
+  // ALTERAÇÃO 4: Passa o appointment_type para o evento do BigCalendar
   const events = useMemo(() => appointments.map(app => ({
     id: app.id,
     title: app.title,
     start: new Date(app.start_time),
     end: new Date(app.end_time),
-    resource: { color: app.color },
+    resource: { 
+      color: app.color,
+      appointment_type: app.appointment_type 
+    },
   })), [appointments]);
 
-  const eventStyleGetter = useCallback((event: any) => ({
-    style: {
-      backgroundColor: event.resource.color || '#3b82f6',
-      borderRadius: '4px',
-      color: 'white',
-      border: 'none',
-      display: 'block',
-    },
-  }), []);
+  // ALTERAÇÃO 5: Estiliza o evento do BigCalendar de forma diferente se for um bloqueio
+  const eventStyleGetter = useCallback((event: any) => {
+    const isBlock = event.resource.appointment_type === 'block';
+    return {
+      style: {
+        backgroundColor: isBlock ? '#64748b' : (event.resource.color || '#3b82f6'), // Cinza para bloqueios
+        borderRadius: '4px',
+        color: 'white',
+        border: 'none',
+        display: 'block',
+        cursor: isBlock ? 'not-allowed' : 'pointer', // Cursor
+      },
+    }
+  }, []);
 
   const handleSelectSlot = useCallback(({ start }: { start: Date }) => {
     if (isDayDisabled(start)) {
@@ -225,7 +245,7 @@ const Agenda: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-tanotado-navy">Agenda</h1>
             <p className="text-muted-foreground mt-1">
-              Gerencie seus agendamentos e consultas
+              Gerencie seus agendamentos e bloqueios
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -248,7 +268,7 @@ const Agenda: React.FC = () => {
             </Button>
             <Button onClick={() => handleSelectSlot({ start: selectedDate })} className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all duration-200 gap-2" size="sm">
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Novo Agendamento</span>
+              <span className="hidden sm:inline">Novo Evento</span>
             </Button>
           </div>
         </div>
@@ -273,9 +293,10 @@ const Agenda: React.FC = () => {
                     date={selectedDate}
                     style={{ height: '100%' }}
                     culture="pt-BR"
-                    messages={{ next: "Próximo", previous: "Anterior", today: "Hoje", month: "Mês", week: "Semana", day: "Dia", noEventsInRange: "Não há agendamentos.", showMore: total => `+${total} mais` }}
+                    messages={{ next: "Próximo", previous: "Anterior", today: "Hoje", month: "Mês", week: "Semana", day: "Dia", noEventsInRange: "Não há eventos nesta faixa.", showMore: total => `+${total} mais` }}
                     eventPropGetter={eventStyleGetter}
                     onSelectSlot={handleSelectSlot}
+                    // ALTERAÇÃO 6: Impede a edição de bloqueios na visualização mensal
                     onSelectEvent={(event) => { const app = appointments.find(a => a.id === event.id); if (app) handleEditClick(app); }}
                     selectable
                     components={{ event: CustomEvent, toolbar: () => null }}
@@ -322,44 +343,64 @@ const Agenda: React.FC = () => {
                       {dailyAppointments.length > 0 ? (
                         dailyAppointments.map(appointment => {
                           const client = clients.find(c => c.id === appointment.client_id);
+                          // ALTERAÇÃO 7: Define uma flag para simplificar a lógica condicional
+                          const isBlock = appointment.appointment_type === 'block';
+                          
                           return (
                             <div key={appointment.id} className="relative p-4 border rounded-lg flex items-start justify-between hover:bg-muted/30 transition-colors overflow-hidden">
-                              <div className="absolute left-0 top-0 h-full w-2" style={{ backgroundColor: appointment.color || '#e2e8f0' }}/>
+                              <div className="absolute left-0 top-0 h-full w-2" style={{ backgroundColor: isBlock ? '#9ca3af' : (appointment.color || '#e2e8f0') }}/>
                               <div className="flex items-start gap-4 ml-4">
                                 <Avatar className="h-10 w-10">
-                                  <AvatarImage src={client?.avatar_url || undefined} /> 
-                                  <AvatarFallback className="bg-tanotado-pink text-white font-medium">{getInitials(appointment.title)}</AvatarFallback>
+                                  {/* ALTERAÇÃO 8: Mostra o ícone de cadeado para bloqueios */}
+                                  {isBlock ? (
+                                    <AvatarFallback className="bg-gray-400 text-white"><Lock /></AvatarFallback>
+                                  ) : (
+                                    <>
+                                      <AvatarImage src={client?.avatar_url || undefined} /> 
+                                      <AvatarFallback className="bg-tanotado-pink text-white font-medium">{getInitials(appointment.title)}</AvatarFallback>
+                                    </>
+                                  )}
                                 </Avatar>
                                 <div>
                                   <div className="flex items-center flex-wrap gap-2 mb-1">
                                     <span className="font-semibold text-sm">{format(new Date(appointment.start_time), 'HH:mm')} - {format(new Date(appointment.end_time), 'HH:mm')}</span>
-                                    <Badge variant="secondary" className={getStatusInfo(appointment.status).className}>{getStatusInfo(appointment.status).text}</Badge>
-                                    {appointment.recurrence_group_id && (
-                                      <Badge variant="outline" className="border-tanotado-purple/50 text-tanotado-purple flex items-center gap-1">
-                                        <Repeat className="h-3 w-3" /> Recorrente
-                                      </Badge>
-                                    )}
-                                    {!appointment.client_id && (
+                                    {/* ALTERAÇÃO 9: Mostra um badge de 'Bloqueio' */}
+                                    {isBlock ? (
                                       <Badge variant="outline" className="border-gray-500/50 text-gray-600 flex items-center gap-1">
-                                        <Briefcase className="h-3 w-3" /> Compromisso
+                                        <Lock className="h-3 w-3" /> Bloqueio
                                       </Badge>
+                                    ) : (
+                                      <>
+                                        <Badge variant="secondary" className={getStatusInfo(appointment.status).className}>{getStatusInfo(appointment.status).text}</Badge>
+                                        {appointment.recurrence_group_id && (
+                                          <Badge variant="outline" className="border-tanotado-purple/50 text-tanotado-purple flex items-center gap-1">
+                                            <Repeat className="h-3 w-3" /> Recorrente
+                                          </Badge>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                   <div className="font-medium text-tanotado-navy">{appointment.title || 'Cliente não informado'}</div>
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                                    {appointment.is_online ? (<><Video className="h-4 w-4 text-tanotado-blue" /><span>Online</span></>) : (<><MapPin className="h-4 w-4 text-tanotado-green" /><span>Presencial</span></>)}
-                                  </div>
+                                  {/* Esconde a informação de 'Online/Presencial' para bloqueios */}
+                                  {!isBlock && (
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                                      {appointment.is_online ? (<><Video className="h-4 w-4 text-tanotado-blue" /><span>Online</span></>) : (<><MapPin className="h-4 w-4 text-tanotado-green" /><span>Presencial</span></>)}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                {appointment.client_id && (
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleNotesClick(appointment)}>
-                                      <NotebookPen className="h-4 w-4" />
-                                  </Button>
+                                {/* ALTERAÇÃO 10: Oculta botões de Notas e Edição para bloqueios */}
+                                {!isBlock && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleNotesClick(appointment)}>
+                                        <NotebookPen className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(appointment)}>
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </>
                                 )}
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(appointment)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => handleDeleteClick(appointment)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -370,10 +411,10 @@ const Agenda: React.FC = () => {
                       ) : (
                         <div className="text-center py-10 text-muted-foreground">
                           <CalendarIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                          <p>Não há agendamentos para este dia.</p>
+                          <p>Não há eventos para este dia.</p>
                           <Button size="sm" className="mt-4" onClick={() => handleSelectSlot({ start: selectedDate })}>
                             <Plus className="h-4 w-4 mr-2" />
-                            Agendar Horário
+                            Novo Evento
                           </Button>
                         </div>
                       )}
@@ -401,9 +442,9 @@ const Agenda: React.FC = () => {
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
               {appointmentToDelete?.recurrence_group_id ? (
-                `Este é um agendamento recorrente. Deseja excluir apenas este agendamento de ${format(new Date(appointmentToDelete.start_time), 'dd/MM/yyyy')} ou toda a série?`
+                `Este é um evento recorrente. Deseja excluir apenas este evento de ${format(new Date(appointmentToDelete.start_time), 'dd/MM/yyyy')} ou toda a série?`
               ) : (
-                `Você tem certeza que deseja excluir o agendamento de ${appointmentToDelete?.title} em ${appointmentToDelete ? format(new Date(appointmentToDelete.start_time), "dd/MM/yyyy 'às' HH:mm") : ''}?`
+                `Você tem certeza que deseja excluir o evento "${appointmentToDelete?.title}" de ${appointmentToDelete ? format(new Date(appointmentToDelete.start_time), "dd/MM/yyyy 'às' HH:mm") : ''}?`
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>

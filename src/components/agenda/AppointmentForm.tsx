@@ -1,5 +1,3 @@
-// src/components/agenda/AppointmentForm.tsx
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -53,10 +51,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-// INÍCIO DA ALTERAÇÃO 1: Importando novos ícones e o Badge
-import { Calendar, Clock, User, Loader2, Check, ChevronsUpDown, Video, Repeat, UserCheck, Briefcase, AlertCircle, DollarSign, UserX } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-// FIM DA ALTERAÇÃO 1
+import { Calendar, Clock, User, Loader2, Check, ChevronsUpDown, Video, Repeat, UserCheck, Briefcase, Lock, AlertCircle, DollarSign, UserX } from 'lucide-react';import { Badge } from '@/components/ui/badge';
 import { format, addWeeks, addMonths, getDay, isSameDay, addMinutes, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClients } from '@/hooks/useClients';
@@ -70,11 +65,11 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { v4 as uuidv4 } from 'uuid';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
-
 const SESSION_TYPES = [
   { value: 'sessao_unica', label: 'Sessão Única', icon: UserCheck },
-  { value: 'sessoes_recorrentes', label: 'Sessões recorrentes', icon: Repeat },
-  { value: 'compromisso_pessoal', label: 'Compromisso pessoal', icon: Briefcase },
+  { value: 'sessoes_recorrentes', label: 'Sessões Recorrentes', icon: Repeat },
+  { value: 'compromisso_pessoal', label: 'Compromisso Pessoal', icon: Briefcase },
+  { value: 'bloqueio', label: 'Bloquear Horário', icon: Lock },
 ] as const;
 
 const APPOINTMENT_COLORS = [
@@ -91,8 +86,9 @@ const APPOINTMENT_COLORS = [
 const appointmentSchema = z.object({
   clientId: z.string().optional(),
   title: z.string().optional(),
-  sessionType: z.enum(['sessao_unica', 'sessoes_recorrentes', 'compromisso_pessoal'], {
-    required_error: 'Selecione o tipo de sessão',
+  // 1. Adicionamos 'bloqueio' à lista de tipos permitidos
+  sessionType: z.enum(['sessao_unica', 'sessoes_recorrentes', 'compromisso_pessoal', 'bloqueio'], {
+    required_error: 'Selecione o tipo de evento',
   }),
   start_time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Hora inválida. Use o formato HH:mm."),
   end_time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Hora inválida. Use o formato HH:mm."),
@@ -105,15 +101,19 @@ const appointmentSchema = z.object({
   recurrence_frequency: z.string().optional(),
   recurrence_count: z.coerce.number().int().positive().optional(),
 }).superRefine((data, ctx) => {
-  if (data.sessionType === 'compromisso_pessoal') {
+  // 2. Agrupamos a lógica para os tipos que não precisam de cliente
+  if (data.sessionType === 'compromisso_pessoal' || data.sessionType === 'bloqueio') {
     if (!data.title || data.title.trim().length < 2) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['title'], message: 'O título do compromisso é obrigatório.' });
+      // A mensagem de erro se adapta ao tipo selecionado
+      const message = data.sessionType === 'bloqueio' ? 'O motivo do bloqueio é obrigatório.' : 'O título do compromisso é obrigatório.';
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['title'], message });
     }
-  } else {
+  } else { // Esta lógica agora se aplica apenas aos tipos com cliente
     if (!data.clientId) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['clientId'], message: 'Selecione um cliente.' });
     }
   }
+  // O resto da validação permanece igual
   if (data.sessionType === 'sessoes_recorrentes') {
     if (!data.recurrence_count || data.recurrence_count <= 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['recurrence_count'], message: 'A quantidade de repetições deve ser maior que 0.' });
@@ -214,6 +214,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   useEffect(() => {
     if (isEditing && initial) {
         let sessionType: AppointmentFormData['sessionType'] = 'sessao_unica';
+        // A lógica original já identifica um compromisso/bloqueio corretamente
         if (initial.recurrence_group_id) {
             sessionType = 'sessoes_recorrentes';
         } else if (!initial.client_id) {
@@ -310,6 +311,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           color: data.color
       };
       
+      const getAppointmentType = (sessionType: (typeof SESSION_TYPES)[number]['value']) => {
+          if (sessionType === 'bloqueio') return 'block';
+          if (sessionType === 'compromisso_pessoal') return 'personal';
+          return 'appointment';
+      };
+
       if (data.sessionType === 'sessoes_recorrentes' && data.clientId) {
           const recurrence_group_id = uuidv4();
           const count = data.recurrence_count || 1;
@@ -326,28 +333,32 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               appointmentsToInsert.push({
                   ...baseAppointment, client_id: data.clientId!, title: selectedClient.name,
                   start_time: nextStart.toISOString(), end_time: nextEnd.toISOString(),
-                  recurrence_group_id, recurrence_type: data.recurrence_frequency,
+                  recurrence_group_id, recurrence_type: data.recurrence_frequency as any,
+                  appointment_type: 'appointment',
               });
           }
       } else {
           const selectedClient = data.clientId ? clients.find(c => c.id === data.clientId) : null;
+          const isClientEvent = data.sessionType === 'sessao_unica';
+          
           appointmentsToInsert.push({
               ...baseAppointment,
-              client_id: data.sessionType === 'compromisso_pessoal' ? null : data.clientId!,
-              title: data.sessionType === 'compromisso_pessoal' ? data.title! : selectedClient!.name,
+              client_id: isClientEvent ? data.clientId! : null,
+              title: isClientEvent ? selectedClient!.name : data.title!,
               start_time: startDateTime.toISOString(), end_time: endDateTime.toISOString(),
+              appointment_type: getAppointmentType(data.sessionType),
           });
       }
 
       const { data: newlyCreatedAppointments, error } = await supabase
           .from('appointments')
-          .insert(appointmentsToInsert)
+          .insert(appointmentsToInsert as any)
           .select();
 
       if (error) throw error;
       if (!newlyCreatedAppointments) return;
 
-      if (data.launchFinancial && data.price && parseFloat(data.price) > 0 && data.sessionType !== 'compromisso_pessoal') {
+      if (data.launchFinancial && data.price && parseFloat(data.price) > 0 && (data.sessionType === 'sessao_unica' || data.sessionType === 'sessoes_recorrentes')) {
         const paymentsToInsert = newlyCreatedAppointments.map(app => ({
           user_id: user.id,
           client_id: app.client_id,
@@ -359,14 +370,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         }));
 
         if (paymentsToInsert.length > 0) {
-          const { error: paymentError } = await supabase
-            .from('payments')
-            .insert(paymentsToInsert);
-
+          const { error: paymentError } = await supabase.from('payments').insert(paymentsToInsert as any);
           if (paymentError) {
             toast({
               title: "Atenção: Erro no Financeiro",
-              description: "Os agendamentos foram criados, mas houve um erro ao gerar os lançamentos financeiros.",
+              description: "Os eventos foram criados, mas houve um erro ao gerar os lançamentos financeiros.",
               variant: "destructive",
             });
             console.error("Erro ao criar lançamentos financeiros:", paymentError);
@@ -375,12 +383,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       }
     },
     onSuccess: () => {
-        toast({ title: "Agendamento(s) criado(s)!", description: "Seu(s) agendamento(s) foi/foram adicionado(s) com sucesso." });
+        toast({ title: "Sucesso!", description: "Seu(s) evento(s) foi/foram adicionado(s) com sucesso." });
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         queryClient.invalidateQueries({ queryKey: ['payments'] });
         onClose();
     },
-    onError: (error) => { toast({ title: "Erro ao salvar", description: `Ocorreu um erro: ${error.message}`, variant: "destructive" }); },
+    onError: (error) => { toast({ title: "Erro ao salvar", description: `Ocorreu um erro: ${(error as Error).message}`, variant: "destructive" }); },
     onSettled: () => { setIsSubmitting(false); }
   });
 
@@ -398,9 +406,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             const [endHours, endMinutes] = data.end_time.split(':').map(Number);
             endDateTime.setHours(endHours, endMinutes, 0, 0);
 
+            // A sessionType vem dos valores do formulário, que são definidos no useEffect inicial
+            const isBlock = data.sessionType === 'compromisso_pessoal';
+
             return {
-                client_id: data.sessionType === 'compromisso_pessoal' ? null : data.clientId,
-                title: data.sessionType === 'compromisso_pessoal' ? data.title : selectedClient?.name,
+                client_id: isBlock ? null : data.clientId,
+                title: isBlock ? data.title : selectedClient?.name,
                 start_time: startDateTime.toISOString(),
                 end_time: endDateTime.toISOString(),
                 is_online: data.isOnline,
@@ -408,6 +419,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 description: data.description,
                 price: data.price ? parseFloat(data.price) : null,
                 color: data.color,
+                // ALTERAÇÃO 6: Garante que o tipo seja atualizado corretamente
+                appointment_type: isBlock ? 'block' : 'appointment',
             };
         };
 
@@ -423,7 +436,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 const newAppStartTime = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), currentStartDate.getDate(), newStartTimeOfDay.getHours(), newStartTimeOfDay.getMinutes());
                 const newAppEndTime = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), currentStartDate.getDate(), newEndTimeOfDay.getHours(), newEndTimeOfDay.getMinutes());
                 
-                return supabase.from('appointments').update({ ...finalUpdates, start_time: newAppStartTime.toISOString(), end_time: newAppEndTime.toISOString() }).eq('id', app.id);
+                // Remove o appointment_type do payload de recorrência, pois ele não muda
+                const { appointment_type, ...restOfUpdates } = finalUpdates;
+                
+                return supabase.from('appointments').update({ ...restOfUpdates, start_time: newAppStartTime.toISOString(), end_time: newAppEndTime.toISOString() }).eq('id', app.id);
             });
             const results = await Promise.all(updatePromises);
             const firstError = results.find(res => res.error)?.error;
@@ -446,7 +462,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   });
 
-  // INÍCIO DA ALTERAÇÃO 2: Nova mutation para atualizar o status
   const updateStatusMutation = useMutation({
     mutationFn: async ({ status }: { status: 'completed' | 'no_show' }) => {
       if (!initialData) throw new Error("Agendamento não encontrado para atualizar status.");
@@ -462,19 +477,18 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       const statusText = status === 'completed' ? 'Concluído' : 'Faltou';
       toast({ title: `Status atualizado para "${statusText}"!` });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      onClose(); // Fecha o modal após a ação
+      onClose();
     },
     onError: (error: any) => {
       toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" });
     },
   });
-  // FIM DA ALTERAÇÃO 2
 
   const onSubmit = async (data: AppointmentFormData) => {
     if (isDayDisabled(appointmentDate)) {
       toast({
         title: "Data Inválida",
-        description: "Não é possível criar ou mover um agendamento para um dia que você não atende.",
+        description: "Não é possível criar ou mover um evento para um dia que você não atende.",
         variant: "destructive"
       });
       return;
@@ -516,6 +530,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   }
   const selectedClient = clients.find(client => client.id === form.watch('clientId'));
 
+  const isClientEvent = watchedSessionType === 'sessao_unica' || watchedSessionType === 'sessoes_recorrentes';
+
   return (
     <>
     <Dialog open={true} onOpenChange={onClose}>
@@ -523,7 +539,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            {isEditing ? 'Editar Agendamento' : 'Novo Agendamento'}
+            {isEditing ? 'Editar Evento' : 'Novo Evento na Agenda'}
           </DialogTitle>
         </DialogHeader>
 
@@ -553,8 +569,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 </Popover>
             </div>
             
-            {/* INÍCIO DA ALTERAÇÃO 3: Adição dos botões de status */}
-            {isEditing && initial && (
+            {isEditing && initial && initial.client_id && ( // Só mostra status para agendamentos com cliente
               <div className="grid grid-cols-2 gap-2 pt-2 animate-fade-in">
                 <Button
                   type="button"
@@ -578,14 +593,13 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 </Button>
               </div>
             )}
-            {/* FIM DA ALTERAÇÃO 3 */}
             
-            {/* INÍCIO DA ALTERAÇÃO 4: Lógica para ocultar campos na edição */}
             {isEditing && initial ? (
               <div className="p-3 border rounded-lg bg-muted/30">
-                  <FormLabel>{initial.client_id ? 'Cliente' : 'Compromisso'}</FormLabel>
+                  {/* ALTERAÇÃO 7: Ajusta label e ícone na edição */}
+                  <FormLabel>{initial.client_id ? 'Cliente' : 'Bloqueio'}</FormLabel>
                   <div className="font-semibold text-foreground pt-1 flex items-center gap-2">
-                    {initial.client_id ? <User className="h-4 w-4 text-muted-foreground"/> : <Briefcase className="h-4 w-4 text-muted-foreground"/>}
+                    {initial.client_id ? <User className="h-4 w-4 text-muted-foreground"/> : <Lock className="h-4 w-4 text-muted-foreground"/>}
                     {initial.title}
                   </div>
               </div>
@@ -595,7 +609,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                   control={form.control} name="sessionType" render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           {SESSION_TYPES.map((type) => {
                             const IconComponent = type.icon;
                             return (
@@ -613,38 +627,45 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </FormItem>
                   )}
                 />
-            
-                {watchedSessionType === 'compromisso_pessoal' ? (
-                    <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Título do Compromisso</FormLabel><FormControl><Input placeholder="Ex: Reunião de equipe, Consulta médica" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                ) : (
-                    <FormField control={form.control} name="clientId" render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                        <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />Cliente</FormLabel>
-                        <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
-                            <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={clientsLoading}>
-                                {clientsLoading ? (<><Loader2 className="h-4 w-4 animate-spin" />Carregando...</>) : selectedClient ? (<div className="flex items-center gap-2 truncate"><User className="h-4 w-4 shrink-0" /><span className="truncate">{selectedClient.name}</span></div>) : "Selecione um cliente"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-full p-0" align="start">
-                            <Command shouldFilter={false}>
-                                <CommandInput placeholder="Buscar cliente..." value={clientSearch} onValueChange={setClientSearch} />
-                                <CommandList>
-                                {filteredClients.length === 0 ? (<CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>) : (<CommandGroup>{filteredClients.map((client) => (<CommandItem key={client.id} value={client.id} onSelect={() => { field.onChange(client.id); setClientComboOpen(false); }}><Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />{client.name}</CommandItem>))}</CommandGroup>)}
-                                </CommandList>
-                            </Command>
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                        </FormItem>
-                    )} />
-                )}
+              
+              {isClientEvent ? (
+    <FormField control={form.control} name="clientId" render={({ field }) => (
+        <FormItem className="flex flex-col">
+            <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />Cliente</FormLabel>
+            <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
+                <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={clientsLoading}>
+                            {clientsLoading ? (<><Loader2 className="h-4 w-4 animate-spin" />Carregando...</>) : selectedClient ? (<div className="flex items-center gap-2 truncate"><User className="h-4 w-4 shrink-0" /><span className="truncate">{selectedClient.name}</span></div>) : "Selecione um cliente"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                    <Command shouldFilter={false}>
+                        <CommandInput placeholder="Buscar cliente..." value={clientSearch} onValueChange={setClientSearch} />
+                        <CommandList>
+                            {filteredClients.length === 0 ? (<CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>) : (<CommandGroup>{filteredClients.map((client) => (<CommandItem key={client.id} value={client.id} onSelect={() => { field.onChange(client.id); setClientComboOpen(false); }}><Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />{client.name}</CommandItem>))}</CommandGroup>)}
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+            <FormMessage />
+        </FormItem>
+    )} />
+) : (
+    <FormField control={form.control} name="title" render={({ field }) => (
+        <FormItem>
+            <FormLabel>{watchedSessionType === 'bloqueio' ? 'Motivo do Bloqueio' : 'Título do Compromisso'}</FormLabel>
+            <FormControl>
+                <Input placeholder={watchedSessionType === 'bloqueio' ? "Ex: Almoço, Férias" : "Ex: Reunião de equipe"} {...field} />
+            </FormControl>
+            <FormMessage />
+        </FormItem>
+    )} />
+)}
               </>
             )}
-            {/* FIM DA ALTERAÇÃO 4 */}
             
             {watchedSessionType === 'sessoes_recorrentes' && !isEditing && (
                 <div className="p-3 border rounded-lg space-y-4 bg-muted/30">
@@ -696,7 +717,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               <FormField control={form.control} name="end_time" render={({ field }) => (<FormItem><FormLabel>Término</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>
 
-            {timeConflict && ( <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Atenção: Conflito de Horário!</AlertTitle><AlertDescription>Já existe um agendamento com <strong>"{timeConflict.title}"</strong> que se sobrepõe a este horário.</AlertDescription></Alert> )}
+            {timeConflict && ( <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Atenção: Conflito de Horário!</AlertTitle><AlertDescription>Já existe um evento com <strong>"{timeConflict.title}"</strong> que se sobrepõe a este horário.</AlertDescription></Alert> )}
             
             <FormField control={form.control} name="isOnline" render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -715,7 +736,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             
             {watchedIsOnline && (<FormField control={form.control} name="onlineUrl" render={({ field }) => (<FormItem><FormLabel>URL da Sala</FormLabel><FormControl><Input placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem>)} />)}
             
-            {watchedSessionType !== 'compromisso_pessoal' && !isEditing && (
+            {isClientEvent && !isEditing && (
               <div className="space-y-4">
                   <FormField
                       control={form.control}
@@ -728,11 +749,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                       Lançar no Financeiro
                                   </FormLabel>
                                   <p className="text-sm text-muted-foreground">
-                                      Registrar valor automaticamente no controle financeiro
+                                      Registrar valor no controle financeiro
                                   </p>
                               </div>
                               <FormControl>
-                                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                  <Switch disabled={isEditing} checked={field.value} onCheckedChange={field.onChange} />
                               </FormControl>
                           </FormItem>
                       )}
@@ -747,7 +768,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                   <FormItem>
                                       <FormLabel>Valor da sessão</FormLabel>
                                       <FormControl>
-                                          <Input type="number" step="0.01" placeholder="Ex: 150.00" {...field} />
+                                          <Input disabled={isEditing} type="number" step="0.01" placeholder="Ex: 150.00" {...field} />
                                       </FormControl>
                                       <FormMessage />
                                   </FormItem>
@@ -759,12 +780,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             )}
             
             <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Observações (opcional)</FormLabel><FormControl><Textarea placeholder="Adicione observações importantes..." {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="color" render={({ field }) => (<FormItem><FormLabel>Cor do Agendamento</FormLabel><FormControl><div className="flex flex-wrap gap-2">{APPOINTMENT_COLORS.map(c => (<button type="button" key={c.value} onClick={() => field.onChange(c.value)} className={cn("w-8 h-8 rounded-full border-2", field.value === c.value ? 'ring-2 ring-offset-2 ring-primary border-primary' : 'border-transparent')} style={{ backgroundColor: c.value }} />))}</div></FormControl></FormItem>)} />
+            <FormField control={form.control} name="color" render={({ field }) => (<FormItem><FormLabel>Cor do Evento</FormLabel><FormControl><div className="flex flex-wrap gap-2">{APPOINTMENT_COLORS.map(c => (<button type="button" key={c.value} onClick={() => field.onChange(c.value)} className={cn("w-8 h-8 rounded-full border-2", field.value === c.value ? 'ring-2 ring-offset-2 ring-primary border-primary' : 'border-transparent')} style={{ backgroundColor: c.value }} />))}</div></FormControl></FormItem>)} />
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
               <Button type="submit" disabled={isSubmitting || clientsLoading || updateMutation.isPending || createMutation.isPending} className="flex-1 bg-gradient-to-r from-tanotado-pink to-tanotado-purple hover:shadow-lg transition-all">
-                {(isSubmitting || updateMutation.isPending || createMutation.isPending) ? (<><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</>) : (isEditing ? 'Salvar Alterações' : 'Criar Agendamento')}
+                {(isSubmitting || updateMutation.isPending || createMutation.isPending) ? (<><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</>) : (isEditing ? 'Salvar Alterações' : 'Criar Evento')}
               </Button>
             </div>
           </form>

@@ -1,5 +1,3 @@
-// src/integrations/supabase/types.ts
-
 export type Json =
   | string
   | number
@@ -13,7 +11,7 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
-          client_id: string
+          client_id: string | null // <-- ALTERAÇÃO 1: Permitir nulo para bloqueios
           created_at: string | null
           description: string | null
           end_time: string
@@ -27,9 +25,10 @@ export type Database = {
           title: string
           updated_at: string | null
           user_id: string
+          appointment_type: "appointment" | "block" // <-- ALTERAÇÃO 2: Novo campo adicionado
         }
         Insert: {
-          client_id: string
+          client_id: string | null // <-- ALTERAÇÃO 1: Permitir nulo para bloqueios
           created_at?: string | null
           description?: string | null
           end_time: string
@@ -45,9 +44,10 @@ export type Database = {
           title: string
           updated_at?: string | null
           user_id: string
+          appointment_type?: "appointment" | "block" // <-- ALTERAÇÃO 2: Novo campo adicionado
         }
         Update: {
-          client_id?: string
+          client_id?: string | null // <-- ALTERAÇÃO 1: Permitir nulo para bloqueios
           created_at?: string | null
           description?: string | null
           end_time?: string
@@ -63,6 +63,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id?: string
+          appointment_type?: "appointment" | "block" // <-- ALTERAÇÃO 2: Novo campo adicionado
         }
         Relationships: [
           {
@@ -87,9 +88,7 @@ export type Database = {
           phone: string | null
           updated_at: string | null
           user_id: string
-          // --- INÍCIO DA ADIÇÃO ---
           send_session_reminder: boolean
-          // --- FIM DA ADIÇÃO ---
         }
         Insert: {
           address?: string | null
@@ -103,9 +102,7 @@ export type Database = {
           phone?: string | null
           updated_at?: string | null
           user_id: string
-          // --- INÍCIO DA ADIÇÃO ---
           send_session_reminder?: boolean
-          // --- FIM DA ADIÇÃO ---
         }
         Update: {
           address?: string | null
@@ -119,9 +116,7 @@ export type Database = {
           phone?: string | null
           updated_at?: string | null
           user_id?: string
-          // --- INÍCIO DA ADIÇÃO ---
           send_session_reminder?: boolean
-          // --- FIM DA ADIÇÃO ---
         }
         Relationships: []
       }
@@ -484,19 +479,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-        get_instances_with_user_count: {
-            Args: Record<PropertyKey, never>
-            Returns: {
-              id: string
-              created_at: string
-              user_id: string
-              nome_instancia: string
-              status: string
-              token: string
-              telefone_conectado: string
-              associated_users_count: number
-            }[]
-        }
+      get_instances_with_user_count: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          created_at: string
+          user_id: string
+          nome_instancia: string
+          status: string
+          token: string
+          telefone_conectado: string
+          associated_users_count: number
+        }[]
+      }
     }
     Enums: {
       appointment_status:
