@@ -14,12 +14,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Upload, MapPin, User, Briefcase, Settings, Link as LinkIcon, Clock } from 'lucide-react';
+import { Loader2, Upload, MapPin, User, Briefcase, Settings, Link as LinkIcon } from 'lucide-react';
 import { CustomPhoneInput } from '@/components/ui/phone-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Função utilitária para transformar string em slug
 const slugify = (text: string) => {
@@ -34,7 +33,7 @@ const slugify = (text: string) => {
     .replace(/--+/g, '-');
 };
 
-// Schema completo com todos os campos (antigos e novos)
+// Schema sem o campo 'working_hours'
 const profileSchema = z.object({
   name: z.string().min(3, { message: "O nome é obrigatório." }),
   whatsapp: z.string().optional(),
@@ -51,25 +50,14 @@ const profileSchema = z.object({
   avatar_file: z.any().optional(),
   public_booking_enabled: z.boolean().default(false),
   public_booking_url_slug: z.string().optional().refine(val => {
-    // A validação de formato é a mesma
     if (val !== undefined && val !== null && val.trim() !== '') {
       return /^[a-z0-9-]+$/.test(val); 
     }
-    return true; // Permite vazio se não for ativado ou não preenchido
+    return true;
   }, {
     message: "A URL amigável deve conter apenas letras minúsculas, números e hífens (ex: minha-url-perfeita).",
   }),
-  working_hours: z.object({
-    monday: z.object({ enabled: z.boolean(), start1: z.string().optional(), end1: z.string().optional(), start2: z.string().optional(), end2: z.string().optional(), }),
-    tuesday: z.object({ enabled: z.boolean(), start1: z.string().optional(), end1: z.string().optional(), start2: z.string().optional(), end2: z.string().optional(), }),
-    wednesday: z.object({ enabled: z.boolean(), start1: z.string().optional(), end1: z.string().optional(), start2: z.string().optional(), end2: z.string().optional(), }),
-    thursday: z.object({ enabled: z.boolean(), start1: z.string().optional(), end1: z.string().optional(), start2: z.string().optional(), end2: z.string().optional(), }),
-    friday: z.object({ enabled: z.boolean(), start1: z.string().optional(), end1: z.string().optional(), start2: z.string().optional(), end2: z.string().optional(), }),
-    saturday: z.object({ enabled: z.boolean(), start1: z.string().optional(), end1: z.string().optional(), start2: z.string().optional(), end2: z.string().optional(), }),
-    sunday: z.object({ enabled: z.boolean(), start1: z.string().optional(), end1: z.string().optional(), start2: z.string().optional(), end2: z.string().optional(), }),
-  }).optional(),
 }).superRefine((data, ctx) => {
-  // Validação CONDICIONAL: se public_booking_enabled for true, public_booking_url_slug é obrigatório
   if (data.public_booking_enabled && (!data.public_booking_url_slug || data.public_booking_url_slug.trim() === '')) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -99,32 +87,11 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
       address_city: '', address_state: '', address_complement: '', avatar_url: null,
       public_booking_enabled: false,
       public_booking_url_slug: '',
-      working_hours: {
-        monday: { enabled: false, start1: '', end1: '', start2: '', end2: '' },
-        tuesday: { enabled: false, start1: '', end1: '', start2: '', end2: '' },
-        wednesday: { enabled: false, start1: '', end1: '', start2: '', end2: '' },
-        thursday: { enabled: false, start1: '', end1: '', start2: '', end2: '' },
-        friday: { enabled: false, start1: '', end1: '', start2: '', end2: '' },
-        saturday: { enabled: false, start1: '', end1: '', start2: '', end2: '' },
-        sunday: { enabled: false, start1: '', end1: '', start2: '', end2: '' },
-      }
     },
   });
 
   const isBookingPageEnabled = form.watch('public_booking_enabled');
-  // Obter o slug atual para exibir a URL completa após salvar (ou do user)
   const currentSlug = form.watch('public_booking_url_slug');
-
-
-  const daysOfWeek = [
-    { id: 'monday', label: 'Segunda-feira' },
-    { id: 'tuesday', label: 'Terça-feira' },
-    { id: 'wednesday', label: 'Quarta-feira' },
-    { id: 'thursday', label: 'Quinta-feira' },
-    { id: 'friday', label: 'Sexta-feira' },
-    { id: 'saturday', label: 'Sábado' },
-    { id: 'sunday', label: 'Domingo' },
-  ] as const;
 
   useEffect(() => {
     if (user) {
@@ -160,8 +127,6 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (values: ProfileFormData) => {
-      console.log("Valores a serem salvos (futuramente):", values);
-
       if (!user) throw new Error("Usuário não autenticado.");
       let avatarUrl = values.avatar_url;
       if (values.avatar_file instanceof File) {
@@ -221,7 +186,6 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
         <ScrollArea className="h-[70vh] pr-4">
           <div className="space-y-6">
             
-            {/* SEÇÃO 1: INFORMAÇÕES PESSOAIS (RESTAURADA) */}
             <div className="space-y-4 p-4 border rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><User className="h-5 w-5" />Informações Pessoais</h3>
                 <div className="flex flex-col items-center gap-4 pt-2">
@@ -260,7 +224,6 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
                 </div>
             </div>
             
-            {/* SEÇÃO 2: SOBRE VOCÊ (RESTAURADA) */}
             <div className="space-y-4 p-4 border rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Briefcase className="h-5 w-5" />Sobre Você</h3>
                 <FormField control={form.control} name="about_you" render={({ field }) => (
@@ -268,7 +231,6 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
                 )} />
             </div>
 
-            {/* SEÇÃO 3: PÁGINA DE AGENDAMENTO (INCLUÍDA CORRETAMENTE) */}
             <div className="space-y-4 p-4 border rounded-lg">
               <div className="flex justify-between items-start">
                   <div>
@@ -300,22 +262,20 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
                 <div className="space-y-4 pt-4 border-t animate-fade-in">
                   <FormField
                     control={form.control}
-                    name="public_booking_url_slug" // NOVO CAMPO
+                    name="public_booking_url_slug"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>URL da sua página</FormLabel>
                         <div className="relative">
                           
                           <Input
-                            placeholder="Escolha uma URL" // Placeholder vazio para não ter texto truncado
+                            placeholder="Escolha uma URL"
                             {...field}
                             value={field.value === null ? '' : field.value} 
-                            onChange={(e) => field.onChange(slugify(e.target.value))} 
-                            //className="pl-[200px]" // Ajusta o padding para a URL base
+                            onChange={(e) => field.onChange(slugify(e.target.value))}
                           />
                         </div>
                         <FormMessage />
-                        {/* Exibir a URL completa após salvar */}
                         {user?.public_booking_url_slug && (
                           <p className="text-sm text-muted-foreground mt-2">
                             Link direto: <a href={`${window.location.origin}/agendar/${user.public_booking_url_slug}`} target="_blank" rel="noopener noreferrer" className="text-tanotado-blue hover:underline">
@@ -330,74 +290,6 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
               )}
             </div>
 
-            {/* INÍCIO DA NOVA SEÇÃO: Horários de Atendimento */}
-            <div className="space-y-4 p-4 border rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                    <Clock className="h-5 w-5" /> Horários de Atendimento
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                    Defina seus horários de trabalho para cada dia da semana. Estes horários influenciarão a sua página de agendamento.
-                </p>
-                <div className="space-y-4 pt-2">
-                    {daysOfWeek.map(day => {
-                        const isDayEnabled = form.watch(`working_hours.${day.id}.enabled`);
-                        return (
-                            <div key={day.id} className="p-3 border rounded-md transition-colors duration-300 ease-in-out">
-                                <FormField
-                                    control={form.control}
-                                    name={`working_hours.${day.id}.enabled`}
-                                    render={({ field }) => (
-                                        <FormItem className="flex items-center justify-between">
-                                            <FormLabel className="font-semibold">{day.label}</FormLabel>
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                                {isDayEnabled && (
-                                    <div className="mt-4 pt-4 border-t space-y-4 animate-fade-in">
-                                        {/* Time Slot 1 */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <FormField control={form.control} name={`working_hours.${day.id}.start1`} render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="flex items-center gap-1.5 text-xs"><Clock className="h-3 w-3" /> De</FormLabel>
-                                                    <FormControl><Input type="time" {...field} /></FormControl>
-                                                </FormItem>
-                                            )} />
-                                            <FormField control={form.control} name={`working_hours.${day.id}.end1`} render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="flex items-center gap-1.5 text-xs"><Clock className="h-3 w-3" /> Até</FormLabel>
-                                                    <FormControl><Input type="time" {...field} /></FormControl>
-                                                </FormItem>
-                                            )} />
-                                        </div>
-                                        {/* Time Slot 2 */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <FormField control={form.control} name={`working_hours.${day.id}.start2`} render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="flex items-center gap-1.5 text-xs"><Clock className="h-3 w-3" /> De</FormLabel>
-                                                    <FormControl><Input type="time" {...field} /></FormControl>
-                                                </FormItem>
-                                            )} />
-                                            <FormField control={form.control} name={`working_hours.${day.id}.end2`} render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="flex items-center gap-1.5 text-xs"><Clock className="h-3 w-3" /> Até</FormLabel>
-                                                    <FormControl><Input type="time" {...field} /></FormControl>
-                                                </FormItem>
-                                            )} />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
-                </div>
-            </div>
-            {/* FIM DA NOVA SEÇÃO */}
-
-
-            {/* SEÇÃO 4: ENDEREÇO (RESTAURADA) */}
             <div className="space-y-4 p-4 border rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><MapPin className="h-5 w-5" />Endereço</h3>
                 <div className="grid md:grid-cols-3 gap-4">
