@@ -58,7 +58,7 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
     { id: 'generate-doc', label: 'Criar Documento', icon: FileSignature },
     { id: 'documentos', label: 'Documentos Salvos', icon: Paperclip },
     { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
-    { id: 'cobrancas', label: 'Cobranças', icon: Bell },
+   // { id: 'cobrancas', label: 'Cobranças', icon: Bell },
   ];
 
   const handleExport = () => {

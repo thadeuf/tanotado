@@ -17,22 +17,25 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label'; // <<< CORREÇÃO AQUI
+import { Label } from '@/components/ui/label';
+// <<< INÍCIO DA ALTERAÇÃO 1: Importar RadioGroup >>>
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+// <<< FIM DA ALTERAÇÃO 1 >>>
 
-// Schema atualizado com os novos campos
+
+// <<< INÍCIO DA ALTERAÇÃO 2: Ajuste no Schema >>>
+// Trocamos o objeto 'reminder_schedules' por uma string única 'reminder_schedule'
 const messageSettingsSchema = z.object({
   billing_monthly: z.string().optional(),
   billing_manual: z.string().optional(),
   session_reminder: z.string().optional(),
   session_suspension_reminder: z.string().optional(),
   enable_cancellation: z.boolean().default(false),
-  // Novos campos para lembretes automáticos
   enable_automatic_reminders: z.boolean().default(true),
-  reminder_schedules: z.object({
-    four_hours: z.boolean().default(true),
-    twenty_four_hours: z.boolean().default(false),
-  }).optional(),
+  reminder_schedule: z.enum(['four_hours', 'twenty_four_hours']).default('four_hours'),
 });
+// <<< FIM DA ALTERAÇÃO 2 >>>
+
 
 type MessageSettingsFormData = z.infer<typeof messageSettingsSchema>;
 
@@ -103,16 +106,24 @@ export const MessageSettingsForm: React.FC = () => {
       session_suspension_reminder: "",
       enable_cancellation: false,
       enable_automatic_reminders: true,
-      reminder_schedules: {
-        four_hours: true,
-        twenty_four_hours: false,
-      },
+      // <<< INÍCIO DA ALTERAÇÃO 3: Valor padrão para a nova propriedade >>>
+      reminder_schedule: 'four_hours',
+      // <<< FIM DA ALTERAÇÃO 3 >>>
     },
   });
 
   useEffect(() => {
     if (settings?.message_templates) {
       const templates = settings.message_templates as any;
+      
+      // <<< INÍCIO DA ALTERAÇÃO 4: Lógica para carregar os dados no novo formato >>>
+      // Converte a estrutura antiga (objeto com 2 booleans) para a nova (string única)
+      let scheduleValue: 'four_hours' | 'twenty_four_hours' = 'four_hours';
+      if (templates.reminder_schedules?.twenty_four_hours === true) {
+        scheduleValue = 'twenty_four_hours';
+      }
+      // <<< FIM DA ALTERAÇÃO 4 >>>
+      
       form.reset({
         billing_monthly: templates.billing_monthly || '',
         billing_manual: templates.billing_manual || '',
@@ -120,10 +131,9 @@ export const MessageSettingsForm: React.FC = () => {
         session_suspension_reminder: templates.session_suspension_reminder || '',
         enable_cancellation: templates.enable_cancellation || false,
         enable_automatic_reminders: templates.enable_automatic_reminders ?? true,
-        reminder_schedules: {
-          four_hours: templates.reminder_schedules?.four_hours ?? true,
-          twenty_four_hours: templates.reminder_schedules?.twenty_four_hours ?? false,
-        },
+        // <<< INÍCIO DA ALTERAÇÃO 5: Define o valor carregado >>>
+        reminder_schedule: scheduleValue,
+        // <<< FIM DA ALTERAÇÃO 5 >>>
       });
     }
   }, [settings, form]);
@@ -131,9 +141,23 @@ export const MessageSettingsForm: React.FC = () => {
   const mutation = useMutation({
     mutationFn: async (data: MessageSettingsFormData) => {
       if (!user) throw new Error("Usuário não autenticado");
+      
+      // <<< INÍCIO DA ALTERAÇÃO 6: Converte a string de volta para o formato do banco de dados >>>
+      const message_templates_payload = {
+        ...data,
+        reminder_schedules: {
+            four_hours: data.reminder_schedule === 'four_hours',
+            twenty_four_hours: data.reminder_schedule === 'twenty_four_hours'
+        }
+      };
+      // Remove a propriedade que não existe no banco
+      delete (message_templates_payload as any).reminder_schedule;
+      // <<< FIM DA ALTERAÇÃO 6 >>>
+      
       const { error } = await supabase.from('user_settings').upsert({
         user_id: user.id,
-        message_templates: data as any,
+        // Salva o payload convertido
+        message_templates: message_templates_payload as any,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
       if (error) throw error;
@@ -276,36 +300,44 @@ export const MessageSettingsForm: React.FC = () => {
             />
             
             {form.watch('enable_automatic_reminders') && (
+              // <<< INÍCIO DA ALTERAÇÃO 7: Substituição dos Switches pelo RadioGroup >>>
               <div className="pl-4 border-l-2 ml-2 space-y-4 pt-4 animate-fade-in">
                 <FormField
                   control={form.control}
-                  name="reminder_schedules.twenty_four_hours"
+                  name="reminder_schedule"
                   render={({ field }) => (
-                    <FormItem className="flex items-center gap-4">
+                    <FormItem className="space-y-3">
+                      <FormLabel>Quando enviar o lembrete?</FormLabel>
                       <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} id="24h-reminder" />
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="twenty_four_hours" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              24 horas antes da sessão
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="four_hours" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              4 horas antes da sessão
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
                       </FormControl>
-                      <Label htmlFor="24h-reminder" className="font-normal cursor-pointer">
-                        Enviar lembrete 24 horas antes da sessão
-                      </Label>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="reminder_schedules.four_hours"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-4">
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} id="4h-reminder" />
-                      </FormControl>
-                      <Label htmlFor="4h-reminder" className="font-normal cursor-pointer">
-                        Enviar lembrete 4 horas antes da sessão
-                      </Label>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+              // <<< FIM DA ALTERAÇÃO 7 >>>
             )}
           </div>
 
