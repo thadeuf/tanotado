@@ -1,7 +1,7 @@
 // src/pages/AdminDashboard.tsx
 
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom'; // <<< ADICIONADO
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -13,7 +13,8 @@ import {
     CheckCircle, 
     Clock, 
     Calendar as CalendarIcon, 
-    MessageSquare, // <<< ADICIONADO
+    History,
+    MessageSquare,
     Search, 
     Loader2,
     AlertTriangle,
@@ -216,12 +217,19 @@ const AdminDashboard: React.FC = () => {
             <h1 className="text-3xl font-bold text-tanotado-navy">Dashboard Admin 👨‍💼</h1>
             <p className="text-muted-foreground mt-2">Olá {user?.name?.split(' ')[0]}, gerencie sua plataforma aqui</p>
           </div>
-          <Button asChild>
-            <Link to="/admin/whatsapp-instances">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Instâncias WhatsApp
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild>
+              <Link to="/admin/whatsapp-instances">
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Instâncias WhatsApp
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/admin/message-reports">
+                <History className="mr-2 h-4 w-4" /> Relatório de Envios
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -1,7 +1,7 @@
 // src/App.tsx
 
-import React, { useState, useEffect } from 'react'; // <<< useEffect ADICIONADO
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'; // <<< useLocation ADICIONADO
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,11 +29,10 @@ import Subscription from './pages/Subscription';
 import DocumentTemplates from './pages/DocumentTemplates';
 import EditDocumentTemplate from './pages/EditDocumentTemplate';
 import WhatsappInstances from './pages/admin/WhatsappInstances';
+import MessageReports from './pages/admin/MessageReports';
 
 const queryClient = new QueryClient();
 
-// <<< INÍCIO DA CORREÇÃO >>>
-// Componente auxiliar para forçar a rolagem para o topo em cada navegação
 const ScrollToTop = () => {
   const { pathname } = useLocation();
 
@@ -41,9 +40,8 @@ const ScrollToTop = () => {
     window.scrollTo(0, 0);
   }, [pathname]);
 
-  return null; // Este componente não renderiza nada
+  return null;
 };
-// <<< FIM DA CORREÇÃO >>>
 
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -175,10 +173,7 @@ const AppContent: React.FC = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
-        {/* <<< INÍCIO DA CORREÇÃO >>> */}
-        {/* Adicionamos o componente aqui. Ele vai "ouvir" as mudanças de rota */}
         <ScrollToTop />
-        {/* <<< FIM DA CORREÇÃO >>> */}
         <Routes>
           {/* Rotas públicas */}
           <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />
@@ -191,6 +186,7 @@ const AppContent: React.FC = () => {
           <Route path="/dashboard" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
           <Route path="/admin" element={ <ProtectedRoute> <AdminRoute> <AdminDashboard /> </AdminRoute> </ProtectedRoute> } />
           <Route path="/admin/whatsapp-instances" element={ <ProtectedRoute> <AdminRoute> <WhatsappInstances /> </AdminRoute> </ProtectedRoute> } />
+          <Route path="/admin/message-reports" element={ <ProtectedRoute> <AdminRoute> <MessageReports /> </AdminRoute> </ProtectedRoute> } />
 
           <Route path="/clientes" element={ <ProtectedRoute> <Clients /> </ProtectedRoute> } />
           <Route path="/clientes/editar/:clientId" element={ <ProtectedRoute> <EditClient /> </ProtectedRoute> } />
