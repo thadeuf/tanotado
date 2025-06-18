@@ -136,37 +136,33 @@ const Dashboard: React.FC = () => {
     return (
       <div key={appointment.id || index} className="relative p-4 border rounded-lg hover:bg-muted/50 transition-colors overflow-hidden">
         <div className="absolute left-0 top-0 h-full w-2" style={{ backgroundColor: appointment.color || '#e2e8f0' }} />
-        <div className="ml-4 space-y-2">
+        <div className="ml-4 space-y-3">
           <div className="flex items-start justify-between">
             <p className="font-bold text-tanotado-navy">{displayName}</p>
             <div className="flex items-center -mr-2 -mt-2">
-              {/* Botão de anotações adicionado */}
               {client && (
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleNotesClick(appointment)}>
                     <NotebookPen className="h-4 w-4" />
                 </Button>
               )}
-              {appointment.is_online && (
-                <button 
-                  onClick={() => { /* Lógica para iniciar a video chamada será adicionada aqui */ }}
-                  className="flex items-center gap-1.5 text-sm text-tanotado-blue hover:underline cursor-pointer p-1"
-                >
-                  <Video className="h-4 w-4" />
-                </button>
-              )}
             </div>
           </div>
-          <div className="flex items-start text-sm text-muted-foreground">
-            <div className="flex flex-col items-start">
+          <div className="flex flex-col items-start gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 <span>{timeLabel}</span>
               </div>
-              <Badge variant="outline" className={`flex items-center gap-1 text-xs mt-2 w-fit ${statusInfo.className}`}>
-                  <MessageSquare className="h-3 w-3" />
+              <Badge variant="outline" className={`flex items-center gap-1 text-xs ${statusInfo.className}`}>
                   <span>{statusInfo.text}</span>
               </Badge>
-            </div>
+              {appointment.is_online && appointment.online_url && (
+                <Button asChild size="sm" variant="secondary" className="h-auto px-2 py-1 text-xs bg-tanotado-blue/10 text-tanotado-blue hover:bg-tanotado-blue/20">
+                    <a href={appointment.online_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
+                        <Video className="h-3 w-3" />
+                        Entrar na sala
+                    </a>
+                </Button>
+              )}
           </div>
         </div>
       </div>

@@ -178,10 +178,10 @@ export const AgendaSettingsForm: React.FC<AgendaSettingsFormProps> = ({ onSucces
             <DialogHeader>
                 <DialogTitle className="text-2xl">Configurações da Agenda</DialogTitle>
                 <DialogDescription>
-                  Defina seus horários de trabalho e intervalos de agendamento.
+                  Defina seus horários de trabalho e duração do agendamento.
                 </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="flex-1 my-4 pr-6 -mr-6">
+            <ScrollArea className="flex-1 my-4 pr-6">
               <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                       <FormField
@@ -216,7 +216,7 @@ export const AgendaSettingsForm: React.FC<AgendaSettingsFormProps> = ({ onSucces
                       name="interval"
                       render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Intervalo entre agendamentos</FormLabel>
+                              <FormLabel>Duração do Agendamento</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl>
                                   <SelectTrigger>

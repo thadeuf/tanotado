@@ -253,6 +253,27 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const watchedSessionType = form.watch('sessionType');
   const watchedLaunchFinancial = form.watch('launchFinancial');
 
+  // --- INÍCIO DA CORREÇÃO ---
+  // Este useEffect reage a mudanças no horário de início ou nas configurações
+  // para calcular automaticamente o horário de término.
+  useEffect(() => {
+    const startTimeValue = form.getValues('start_time');
+
+    // Verifica se não estamos editando, se temos um horário de início válido e se as configurações foram carregadas.
+    if (!isEditing && startTimeValue && /^\d{2}:\d{2}$/.test(startTimeValue) && settings?.appointment_duration) {
+      const [hours, minutes] = startTimeValue.split(':').map(Number);
+      const startDate = new Date(appointmentDate); // Usa a data correta do agendamento
+      startDate.setHours(hours, minutes, 0, 0);
+
+      const newEndDate = addMinutes(startDate, settings.appointment_duration);
+      const newEndTime = format(newEndDate, 'HH:mm');
+      
+      // Define o novo horário de término no formulário
+      form.setValue('end_time', newEndTime, { shouldValidate: true });
+    }
+  }, [watchedStartTime, settings, appointmentDate, form, isEditing]);
+  // --- FIM DA CORREÇÃO ---
+
   useEffect(() => {
     if (!watchedStartTime || !watchedEndTime) {
       setTimeConflict(null);
@@ -696,18 +717,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                       <Input 
                         type="time" 
                         {...field}
-                        onChange={(e) => {
-                          field.onChange(e); 
-                          const startTimeValue = e.target.value;
-                          if (startTimeValue && /^\d{2}:\d{2}$/.test(startTimeValue) && settings?.appointment_duration) {
-                            const [hours, minutes] = startTimeValue.split(':').map(Number);
-                            const startDate = new Date();
-                            startDate.setHours(hours, minutes, 0, 0);
-                            const newEndDate = addMinutes(startDate, settings.appointment_duration);
-                            const newEndTime = format(newEndDate, 'HH:mm');
-                            form.setValue('end_time', newEndTime, { shouldValidate: true });
-                          }
-                        }}
+                        // O cálculo agora é feito pelo useEffect,
+                        // então só precisamos do onChange padrão do RHF.
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />

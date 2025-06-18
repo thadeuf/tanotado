@@ -340,12 +340,7 @@ const Agenda: React.FC = () => {
                     <div className="space-y-4">
                       {dailyAppointments.length > 0 ? (
                         dailyAppointments.map(appointment => {
-                          // --- CORREÇÃO AQUI (2/2) ---
-                          // Removido: const client = clients.find(c => c.id === appointment.client_id);
-                          // Usando o cliente que já vem junto com o agendamento do hook useAppointments
                           const client = appointment.clients;
-                          // --- FIM DA CORREÇÃO ---
-                          
                           const isBlock = appointment.appointment_type === 'block';
                           
                           return (
@@ -383,7 +378,20 @@ const Agenda: React.FC = () => {
                                   <div className="font-medium text-tanotado-navy">{client?.name || appointment.title}</div>
                                   {!isBlock && (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                                      {appointment.is_online ? (<><Video className="h-4 w-4 text-tanotado-blue" /><span>Online</span></>) : (<><MapPin className="h-4 w-4 text-tanotado-green" /><span>Presencial</span></>)}
+                                      {appointment.is_online ? (
+                                        appointment.online_url ? (
+                                          <Button asChild size="sm" variant="link" className="h-auto p-0 text-tanotado-blue">
+                                            <a href={appointment.online_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
+                                              <Video className="h-4 w-4" />
+                                              <span>Online (Entrar na sala)</span>
+                                            </a>
+                                          </Button>
+                                        ) : (
+                                          <div className="flex items-center gap-1.5"><Video className="h-4 w-4 text-tanotado-blue" /><span>Online</span></div>
+                                        )
+                                      ) : (
+                                        <div className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-tanotado-green" /><span>Presencial</span></div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
