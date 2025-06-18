@@ -30,9 +30,8 @@ import DocumentTemplates from './pages/DocumentTemplates';
 import EditDocumentTemplate from './pages/EditDocumentTemplate';
 import WhatsappInstances from './pages/admin/WhatsappInstances';
 import MessageReports from './pages/admin/MessageReports';
-// --- NOVO IMPORT ---
-import PatientBooking from './pages/PatientBooking'; // Será criado no próximo passo
-// --- FIM NOVO IMPORT ---
+import PatientBooking from './pages/PatientBooking';
+import HelpPage from './pages/Help';
 
 const queryClient = new QueryClient();
 
@@ -207,6 +206,8 @@ const AppContent: React.FC = () => {
           <Route path="/configuracoes/modelos" element={ <ProtectedRoute> <DocumentTemplates /> </ProtectedRoute> } />
           <Route path="/configuracoes/modelos/novo" element={ <ProtectedRoute> <EditDocumentTemplate /> </ProtectedRoute> } />
           <Route path="/configuracoes/modelos/editar/:templateId" element={ <ProtectedRoute> <EditDocumentTemplate /> </ProtectedRoute> } />
+          <Route path="/ajuda" element={ <ProtectedRoute> <HelpPage /> </ProtectedRoute> } />
+
           
           {/* Redirecionamentos */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
