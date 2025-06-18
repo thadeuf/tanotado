@@ -66,8 +66,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 const SESSION_TYPES = [
-  { value: 'sessao_unica', label: 'Sessão Única', icon: UserCheck },
-  { value: 'sessoes_recorrentes', label: 'Sessões Recorrentes', icon: Repeat },
+  { value: 'sessao_unica', label: 'Único', icon: UserCheck },
+  { value: 'sessoes_recorrentes', label: 'Recorrente', icon: Repeat },
   { value: 'compromisso_pessoal', label: 'Compromisso Pessoal', icon: Briefcase },
   { value: 'bloqueio', label: 'Bloquear Horário', icon: Lock },
 ] as const;
