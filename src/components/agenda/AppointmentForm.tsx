@@ -810,7 +810,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               </div>
             )}
             
-            <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Observações (opcional)</FormLabel><FormControl><Textarea placeholder="Adicione observações importantes..." {...field} /></FormControl><FormMessage /></FormItem>)} />
             <FormField control={form.control} name="color" render={({ field }) => (<FormItem><FormLabel>Cor do Evento</FormLabel><FormControl><div className="flex flex-wrap gap-2">{APPOINTMENT_COLORS.map(c => (<button type="button" key={c.value} onClick={() => field.onChange(c.value)} className={cn("w-8 h-8 rounded-full border-2", field.value === c.value ? 'ring-2 ring-offset-2 ring-primary border-primary' : 'border-transparent')} style={{ backgroundColor: c.value }} />))}</div></FormControl></FormItem>)} />
 
             <div className="flex gap-3 pt-4">

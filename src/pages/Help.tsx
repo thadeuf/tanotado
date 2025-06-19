@@ -19,11 +19,36 @@ import {
   Settings,
   Globe,
   MessageSquare,
-  FileSignature
+  FileSignature,
+  Rocket
 } from 'lucide-react';
 
 const HelpPage: React.FC = () => {
   const sections = [
+    // NOVO ITEM ADICIONADO AQUI
+    {
+      id: 'primeiros-passos',
+      icon: Rocket,
+      title: 'Primeiros Passos',
+      content: (
+        <div className="space-y-4">
+          <p>Para começar a usar o TaNotado, a primeira ação que você deve realizar é o <strong>cadastro de um paciente/cliente</strong>. É a partir desse cadastro que a maioria das funcionalidades, como a criação de agendamentos e prontuários, é habilitada.</p>
+          <h4 className="font-semibold text-foreground">Configurando a Sala de Vídeo para Atendimentos Online</h4>
+          <p>Nossa plataforma oferece flexibilidade para suas consultas por vídeo. Você pode utilizar uma sala de vídeo própria (Google Meet, Zoom, etc.) ou a que é gerada automaticamente pelo TaNotado.</p>
+          <ul className="list-disc space-y-2 pl-5">
+            <li>
+              <strong>Usando sua própria sala de vídeo:</strong> Na ficha de cadastro do cliente, há um campo chamado "Link de video chamada". Insira o link da sua sala pessoal ali. Ao criar um agendamento do tipo "online", este link será automaticamente associado ao evento.
+            </li>
+            <li>
+              <strong>Usando a sala de vídeo do TaNotado:</strong> Se preferir não usar um link próprio, ao marcar uma sessão como "online", nossa plataforma irá gerar um link de vídeo exclusivo e seguro para aquele atendimento. O link será criado e exibido no momento do agendamento.
+            </li>
+          </ul>
+          <p>
+            O link de acesso à sala de vídeo (seja a sua ou a nossa) estará sempre visível no card do respectivo agendamento no <strong>Dashboard</strong> e na página da <strong>Agenda</strong>. Para facilitar, você encontrará um botão no card que permite copiar e enviar o link diretamente para o seu cliente.
+          </p>
+        </div>
+      ),
+    },
     {
       id: 'dashboard',
       icon: LayoutDashboard,

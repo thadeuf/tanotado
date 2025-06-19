@@ -1,6 +1,6 @@
 import React from 'react';
-// ATENÇÃO: O ícone FileText foi removido da importação abaixo
-import { Calendar, User, Settings, Shield, DollarSign, LayoutDashboard, LogOut } from 'lucide-react'; 
+// ATENÇÃO: O ícone LifeBuoy foi adicionado para a página de ajuda
+import { Calendar, User, Settings, Shield, DollarSign, LayoutDashboard, LogOut, LifeBuoy } from 'lucide-react'; 
 import { NavLink, useLocation } from 'react-router-dom';
 import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,9 +29,9 @@ export function AppSidebar() {
       url: '/clientes', 
       icon: User 
     },
-    // A LINHA ABAIXO FOI REMOVIDA
-    // { title: 'Prontuários', url: '/prontuarios', icon: FileText },
     { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
+    // NOVO ITEM DE MENU ADICIONADO ABAIXO
+    { title: 'Ajuda', url: '/ajuda', icon: LifeBuoy },
     { title: 'Configurações', url: '/configuracoes', icon: Settings },
     ...(user?.role === 'admin' ? [{ title: 'Dashboard Admin', url: '/admin', icon: Shield }] : [])
   ];

@@ -4,7 +4,6 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-// O ícone NotebookPen foi adicionado para as anotações
 import { Calendar, Users, Clock, UserX, Video, MapPin, AlertCircle, CheckCircle, Play, Cake, MessageSquare, NotebookPen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,15 +13,15 @@ import { format, isToday, isTomorrow, startOfWeek, endOfWeek, isWithinInterval, 
 import { ptBR } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
-// Importa o novo componente de modal de anotações
 import { SessionNotesDialog } from '../components/notes/SessionNotesDialog';
+// IMPORTAÇÃO DO NOVO COMPONENTE DE CHAT
+import { ChatPopup } from '@/components/chat/ChatPopup';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { data: appointments = [], isLoading: isLoadingAppointments } = useAppointments();
   const { data: clients = [], isLoading: isLoadingClients } = useClients();
 
-  // Estado para controlar o modal de anotações
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
 
   const isLoading = isLoadingAppointments || isLoadingClients;
@@ -34,7 +33,6 @@ const Dashboard: React.FC = () => {
     const todayAppointments = appointments.filter(app => isToday(parseISO(app.start_time))).sort((a,b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     const tomorrowAppointments = appointments.filter(app => isTomorrow(parseISO(app.start_time))).sort((a,b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
-    // Fix for start of week according to pt-BR (Sunday)
     const startOfThisWeek = startOfWeek(now, { locale: ptBR });
     const endOfThisWeek = endOfWeek(now, { locale: ptBR });
     const weekAppointments = appointments
@@ -339,6 +337,8 @@ const Dashboard: React.FC = () => {
         isOpen={!!selectedAppointmentForNotes}
         onOpenChange={(isOpen) => !isOpen && setSelectedAppointmentForNotes(null)}
       />
+      {/* ADICIONANDO O COMPONENTE DE CHAT AQUI */}
+      <ChatPopup />
     </>
   );
 };
