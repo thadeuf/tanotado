@@ -1,3 +1,5 @@
+// src/components/agenda/AppointmentForm.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -86,14 +88,13 @@ const APPOINTMENT_COLORS = [
 const appointmentSchema = z.object({
   clientId: z.string().optional(),
   title: z.string().optional(),
-  // 1. Adicionamos 'bloqueio' à lista de tipos permitidos
   sessionType: z.enum(['sessao_unica', 'sessoes_recorrentes', 'compromisso_pessoal', 'bloqueio'], {
     required_error: 'Selecione o tipo de evento',
   }),
   start_time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Hora inválida. Use o formato HH:mm."),
   end_time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Hora inválida. Use o formato HH:mm."),
   isOnline: z.boolean().default(false),
-  onlineUrl: z.string().optional(),
+  onlineUrl: z.string().url({ message: "URL inválida." }).optional().or(z.literal('')),
   description: z.string().optional(),
   price: z.string().optional(),
   launchFinancial: z.boolean().default(false),
@@ -101,19 +102,16 @@ const appointmentSchema = z.object({
   recurrence_frequency: z.string().optional(),
   recurrence_count: z.coerce.number().int().positive().optional(),
 }).superRefine((data, ctx) => {
-  // 2. Agrupamos a lógica para os tipos que não precisam de cliente
   if (data.sessionType === 'compromisso_pessoal' || data.sessionType === 'bloqueio') {
     if (!data.title || data.title.trim().length < 2) {
-      // A mensagem de erro se adapta ao tipo selecionado
       const message = data.sessionType === 'bloqueio' ? 'O motivo do bloqueio é obrigatório.' : 'O título do compromisso é obrigatório.';
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['title'], message });
     }
-  } else { // Esta lógica agora se aplica apenas aos tipos com cliente
+  } else { 
     if (!data.clientId) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['clientId'], message: 'Selecione um cliente.' });
     }
   }
-  // O resto da validação permanece igual
   if (data.sessionType === 'sessoes_recorrentes') {
     if (!data.recurrence_count || data.recurrence_count <= 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['recurrence_count'], message: 'A quantidade de repetições deve ser maior que 0.' });
@@ -125,11 +123,16 @@ const appointmentSchema = z.object({
   if (data.end_time <= data.start_time) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_time'], message: 'O horário de término deve ser posterior ao de início.' });
   }
+  
+  // A validação de URL agora é mais flexível, permitindo o campo vazio.
   if (data.isOnline && data.onlineUrl && data.onlineUrl.trim()) {
-    try { new URL(data.onlineUrl); } catch {
+    try { 
+      new URL(data.onlineUrl); 
+    } catch {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['onlineUrl'], message: 'URL da sessão online inválida.' });
     }
   }
+  
   if (data.launchFinancial && (!data.price || parseFloat(data.price) <= 0)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -153,6 +156,21 @@ type FullAppointment = Appointment & {
   recurrence_group_id?: string | null;
   online_url?: string | null;
 };
+
+// --- INÍCIO DA CORREÇÃO 1: Nova função para gerar a URL com data e hora ---
+const generateVideoRoomUrl = (): string => {
+  const baseUrl = "https://video.tanotado.com.br/";
+  
+  // Formata a data atual para garantir unicidade e sem caracteres especiais
+  const timestamp = format(new Date(), 'yyyyMMddHHmmss');
+
+  // Gera uma string aleatória curta para garantir ainda mais a unicidade
+  const randomString = Math.random().toString(36).substring(2, 8);
+
+  return `${baseUrl}${timestamp}-${randomString}`;
+};
+// --- FIM DA CORREÇÃO 1 ---
+
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({
   selectedDate,
@@ -186,6 +204,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       sessionType: 'sessao_unica',
       start_time: selectedTime || '',
       isOnline: false,
+      onlineUrl: '', // Garantir que o valor inicial seja uma string vazia
       launchFinancial: false,
       color: '#3B82F6',
       recurrence_frequency: 'weekly',
@@ -214,11 +233,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   useEffect(() => {
     if (isEditing && initial) {
         let sessionType: AppointmentFormData['sessionType'] = 'sessao_unica';
-        // A lógica original já identifica um compromisso/bloqueio corretamente
         if (initial.recurrence_group_id) {
             sessionType = 'sessoes_recorrentes';
         } else if (!initial.client_id) {
-            sessionType = 'compromisso_pessoal';
+            // Ajuste para corretamente identificar bloqueios
+            sessionType = initial.appointment_type === 'block' ? 'bloqueio' : 'compromisso_pessoal';
         }
 
         let recurrenceCount = 0;
@@ -253,26 +272,19 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const watchedSessionType = form.watch('sessionType');
   const watchedLaunchFinancial = form.watch('launchFinancial');
 
-  // --- INÍCIO DA CORREÇÃO ---
-  // Este useEffect reage a mudanças no horário de início ou nas configurações
-  // para calcular automaticamente o horário de término.
   useEffect(() => {
     const startTimeValue = form.getValues('start_time');
-
-    // Verifica se não estamos editando, se temos um horário de início válido e se as configurações foram carregadas.
     if (!isEditing && startTimeValue && /^\d{2}:\d{2}$/.test(startTimeValue) && settings?.appointment_duration) {
       const [hours, minutes] = startTimeValue.split(':').map(Number);
-      const startDate = new Date(appointmentDate); // Usa a data correta do agendamento
+      const startDate = new Date(appointmentDate);
       startDate.setHours(hours, minutes, 0, 0);
 
       const newEndDate = addMinutes(startDate, settings.appointment_duration);
       const newEndTime = format(newEndDate, 'HH:mm');
       
-      // Define o novo horário de término no formulário
       form.setValue('end_time', newEndTime, { shouldValidate: true });
     }
   }, [watchedStartTime, settings, appointmentDate, form, isEditing]);
-  // --- FIM DA CORREÇÃO ---
 
   useEffect(() => {
     if (!watchedStartTime || !watchedEndTime) {
@@ -308,6 +320,19 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       }
     }
   }, [watchedClient, clients, form, isEditing]);
+  
+  // --- INÍCIO DA CORREÇÃO 2: useEffect simplificado para gerar a URL ---
+  useEffect(() => {
+    // Condições para gerar a URL:
+    // 1. O switch "Sessão Online" deve estar ativado.
+    // 2. O campo da URL deve estar vazio (para não sobrescrever uma URL existente ou editada).
+    if (watchedIsOnline && !form.getValues('onlineUrl')) {
+      const newUrl = generateVideoRoomUrl();
+      // Define a nova URL no formulário e dispara a validação.
+      form.setValue('onlineUrl', newUrl, { shouldValidate: true });
+    }
+  }, [watchedIsOnline, form]);
+  // --- FIM DA CORREÇÃO 2 ---
 
   const filteredClients = clients.filter(client => 
     client.name?.toLowerCase().includes(clientSearch.toLowerCase().trim())
@@ -427,12 +452,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             const [endHours, endMinutes] = data.end_time.split(':').map(Number);
             endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-            // A sessionType vem dos valores do formulário, que são definidos no useEffect inicial
-            const isBlock = data.sessionType === 'compromisso_pessoal';
+            const isBlockOrPersonal = data.sessionType === 'compromisso_pessoal' || data.sessionType === 'bloqueio';
 
             return {
-                client_id: isBlock ? null : data.clientId,
-                title: isBlock ? data.title : selectedClient?.name,
+                client_id: isBlockOrPersonal ? null : data.clientId,
+                title: isBlockOrPersonal ? data.title : selectedClient?.name,
                 start_time: startDateTime.toISOString(),
                 end_time: endDateTime.toISOString(),
                 is_online: data.isOnline,
@@ -440,8 +464,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 description: data.description,
                 price: data.price ? parseFloat(data.price) : null,
                 color: data.color,
-                // ALTERAÇÃO 6: Garante que o tipo seja atualizado corretamente
-                appointment_type: isBlock ? 'block' : 'appointment',
+                appointment_type: data.sessionType === 'bloqueio' ? 'block' : (data.sessionType === 'compromisso_pessoal' ? 'personal' : 'appointment'),
             };
         };
 
@@ -457,7 +480,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 const newAppStartTime = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), currentStartDate.getDate(), newStartTimeOfDay.getHours(), newStartTimeOfDay.getMinutes());
                 const newAppEndTime = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), currentStartDate.getDate(), newEndTimeOfDay.getHours(), newEndTimeOfDay.getMinutes());
                 
-                // Remove o appointment_type do payload de recorrência, pois ele não muda
                 const { appointment_type, ...restOfUpdates } = finalUpdates;
                 
                 return supabase.from('appointments').update({ ...restOfUpdates, start_time: newAppStartTime.toISOString(), end_time: newAppEndTime.toISOString() }).eq('id', app.id);
@@ -590,7 +612,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 </Popover>
             </div>
             
-            {isEditing && initial && initial.client_id && ( // Só mostra status para agendamentos com cliente
+            {isEditing && initial && initial.client_id && (
               <div className="grid grid-cols-2 gap-2 pt-2 animate-fade-in">
                 <Button
                   type="button"
@@ -617,8 +639,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             
             {isEditing && initial ? (
               <div className="p-3 border rounded-lg bg-muted/30">
-                  {/* ALTERAÇÃO 7: Ajusta label e ícone na edição */}
-                  <FormLabel>{initial.client_id ? 'Cliente' : 'Bloqueio'}</FormLabel>
+                  <FormLabel>{initial.client_id ? 'Cliente' : 'Evento'}</FormLabel>
                   <div className="font-semibold text-foreground pt-1 flex items-center gap-2">
                     {initial.client_id ? <User className="h-4 w-4 text-muted-foreground"/> : <Lock className="h-4 w-4 text-muted-foreground"/>}
                     {initial.title}
@@ -650,41 +671,41 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 />
               
               {isClientEvent ? (
-    <FormField control={form.control} name="clientId" render={({ field }) => (
-        <FormItem className="flex flex-col">
-            <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />Cliente</FormLabel>
-            <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
-                <PopoverTrigger asChild>
-                    <FormControl>
-                        <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={clientsLoading}>
-                            {clientsLoading ? (<><Loader2 className="h-4 w-4 animate-spin" />Carregando...</>) : selectedClient ? (<div className="flex items-center gap-2 truncate"><User className="h-4 w-4 shrink-0" /><span className="truncate">{selectedClient.name}</span></div>) : "Selecione um cliente"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                    </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                    <Command shouldFilter={false}>
-                        <CommandInput placeholder="Buscar cliente..." value={clientSearch} onValueChange={setClientSearch} />
-                        <CommandList>
-                            {filteredClients.length === 0 ? (<CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>) : (<CommandGroup>{filteredClients.map((client) => (<CommandItem key={client.id} value={client.id} onSelect={() => { field.onChange(client.id); setClientComboOpen(false); }}><Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />{client.name}</CommandItem>))}</CommandGroup>)}
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </Popover>
-            <FormMessage />
-        </FormItem>
-    )} />
-) : (
-    <FormField control={form.control} name="title" render={({ field }) => (
-        <FormItem>
-            <FormLabel>{watchedSessionType === 'bloqueio' ? 'Motivo do Bloqueio' : 'Título do Compromisso'}</FormLabel>
-            <FormControl>
-                <Input placeholder={watchedSessionType === 'bloqueio' ? "Ex: Almoço, Férias" : "Ex: Reunião de equipe"} {...field} />
-            </FormControl>
-            <FormMessage />
-        </FormItem>
-    )} />
-)}
+                <FormField control={form.control} name="clientId" render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                        <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />Cliente</FormLabel>
+                        <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={clientsLoading}>
+                                        {clientsLoading ? (<><Loader2 className="h-4 w-4 animate-spin" />Carregando...</>) : selectedClient ? (<div className="flex items-center gap-2 truncate"><User className="h-4 w-4 shrink-0" /><span className="truncate">{selectedClient.name}</span></div>) : "Selecione um cliente"}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0" align="start">
+                                <Command shouldFilter={false}>
+                                    <CommandInput placeholder="Buscar cliente..." value={clientSearch} onValueChange={setClientSearch} />
+                                    <CommandList>
+                                        {filteredClients.length === 0 ? (<CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>) : (<CommandGroup>{filteredClients.map((client) => (<CommandItem key={client.id} value={client.id} onSelect={() => { field.onChange(client.id); setClientComboOpen(false); }}><Check className={cn("mr-2 h-4 w-4", field.value === client.id ? "opacity-100" : "opacity-0")} />{client.name}</CommandItem>))}</CommandGroup>)}
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+              ) : (
+                <FormField control={form.control} name="title" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>{watchedSessionType === 'bloqueio' ? 'Motivo do Bloqueio' : 'Título do Compromisso'}</FormLabel>
+                        <FormControl>
+                            <Input placeholder={watchedSessionType === 'bloqueio' ? "Ex: Almoço, Férias" : "Ex: Reunião de equipe"} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+              )}
               </>
             )}
             
@@ -717,8 +738,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                       <Input 
                         type="time" 
                         {...field}
-                        // O cálculo agora é feito pelo useEffect,
-                        // então só precisamos do onChange padrão do RHF.
                         onChange={field.onChange}
                       />
                     </FormControl>
@@ -746,7 +765,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 </FormItem>
             )} />
             
-            {watchedIsOnline && (<FormField control={form.control} name="onlineUrl" render={({ field }) => (<FormItem><FormLabel>URL da Sala</FormLabel><FormControl><Input placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem>)} />)}
+            {watchedIsOnline && (<FormField control={form.control} name="onlineUrl" render={({ field }) => (<FormItem><FormLabel>URL da Sala</FormLabel><FormControl><Input placeholder="URL será gerada automaticamente..." {...field} /></FormControl><FormMessage /></FormItem>)} />)}
             
             {isClientEvent && !isEditing && (
               <div className="space-y-4">
