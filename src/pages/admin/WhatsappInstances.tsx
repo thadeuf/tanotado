@@ -57,6 +57,9 @@ const WhatsappInstances: React.FC = () => {
   const [isQrCodeDialogOpen, setIsQrCodeDialogOpen] = useState(false);
   const [instanceName, setInstanceName] = useState('');
   const [useProxy, setUseProxy] = useState(false); 
+  // --- INÍCIO DA ADIÇÃO 1: Estado para o novo switch ---
+  const [useWebhook, setUseWebhook] = useState(true);
+  // --- FIM DA ADIÇÃO 1 ---
   const [currentInstanceName, setCurrentInstanceName] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [instanceToDelete, setInstanceToDelete] = useState<Instance | null>(null);
@@ -66,6 +69,28 @@ const WhatsappInstances: React.FC = () => {
   const [isMigrateDialogOpen, setIsMigrateDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+
+  // --- INÍCIO DA ADIÇÃO 2: Query para buscar a URL do webhook ---
+  const { data: webhookSettings } = useQuery({
+    queryKey: ['admin_settings', 'reminder_response_webhook'],
+    queryFn: async () => {
+      if (!user || user.role !== 'admin') return null;
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'reminder_response_webhook')
+        .maybeSingle();
+
+      if (error) {
+        // Não lançar um erro fatal, mas notificar o usuário
+        toast({ title: "Aviso: Não foi possível carregar a URL do webhook.", description: error.message, variant: "default" });
+        return null;
+      }
+      return data;
+    },
+    enabled: !!user && user.role === 'admin'
+  });
+  // --- FIM DA ADIÇÃO 2 ---
 
   const notifyDisconnection = useCallback(async (disconnectedInstanceName: string) => {
     const webhookUrl = 'https://webhook.artideia.com.br/webhook/zapCaiu';
@@ -112,7 +137,6 @@ const WhatsappInstances: React.FC = () => {
     enabled: !!user,
   });
 
-  // EFFECT 1: Polling do QR Code (sem alterações)
   useEffect(() => {
     if (!isQrCodeDialogOpen || !currentInstanceName) return;
     const intervalId = setInterval(async () => {
@@ -146,7 +170,6 @@ const WhatsappInstances: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [isQrCodeDialogOpen, currentInstanceName, queryClient, user?.id, instances, updateInstanceMutation]);
   
-  // EFFECT 2: Sincronização em segundo plano com LOGS para depuração
   useEffect(() => {
     const syncInstances = async () => {
       if (!user) return;
@@ -194,35 +217,64 @@ const WhatsappInstances: React.FC = () => {
     return () => clearInterval(syncInterval);
   }, [user, updateInstanceMutation, notifyDisconnection]);
 
-  // Restante do código (sem alterações)
+  // --- INÍCIO DA ADIÇÃO 3: Lógica principal de criação da instância ---
   const createInstanceMutation = useMutation({
-    mutationFn: async ({ name, useProxy }: { name: string, useProxy: boolean }) => {
+    mutationFn: async ({ name, useProxy, useWebhook }: { name: string; useProxy: boolean; useWebhook: boolean }) => {
       if (!user) throw new Error("Usuário não autenticado.");
-      const evoResponse = await fetch('https://apievo.tanotado.com.br/instance/create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': apiKey }, body: JSON.stringify({ instanceName: name, qrcode: true, integration: "WHATSAPP-BAILEYS" }) });
-      if (!evoResponse.ok) throw new Error((await evoResponse.json()).message || 'Falha ao criar na Evolution API.');
+
+      const webhookUrl = (webhookSettings?.value as any)?.url;
+      if (useWebhook && (!webhookUrl || webhookUrl.trim() === '')) {
+        throw new Error("A ativação de webhook está ligada, mas nenhuma URL foi configurada nas Configurações de Admin.");
+      }
+      
+      const payload: any = {
+        instanceName: name,
+        qrcode: true,
+        integration: "WHATSAPP-BAILEYS",
+        groupsIgnore: true, // Adicionado conforme solicitado
+      };
+
+      if (useWebhook && webhookUrl) {
+        payload.webhook = {
+          url: webhookUrl,
+          events: ["MESSAGES_UPSERT"],
+        };
+      }
+
+      const evoResponse = await fetch('https://apievo.tanotado.com.br/instance/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!evoResponse.ok) {
+        const errorData = await evoResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Falha ao criar na Evolution API.');
+      }
+      
       const evoData = await evoResponse.json();
       if (!evoData?.hash) throw new Error("Hash (token) não recebido da API.");
+      
       const { error: dbError } = await supabase.from('instances').insert({ user_id: user.id, nome_instancia: name, status: 'disconnected', token: evoData.hash });
       if (dbError) throw new Error(`Erro ao salvar no banco de dados: ${dbError.message}`);
+      
       if (useProxy) {
         const randomProxyId = Math.floor(Math.random() * 100) + 1;
-        const { data: randomProxy, error: proxyError } = await supabase.from('proxy').select('*').eq('id', randomProxyId).single<Proxy>();
-        if (proxyError) throw new Error(`Instância criada, mas falha ao buscar proxy: ${proxyError.message}`);
+        const { data: randomProxy } = await supabase.from('proxy').select('*').eq('id', randomProxyId).single<Proxy>();
         if (!randomProxy) throw new Error("Instância criada, mas não foi possível encontrar um proxy aleatório.");
         const proxyPayload = { enabled: true, host: randomProxy.proxy_address, port: randomProxy.port, protocol: "http", username: randomProxy.username, password: randomProxy.password };
-        const proxySetResponse = await fetch(`https://apievo.tanotado.com.br/proxy/set/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': apiKey }, body: JSON.stringify(proxyPayload) });
-        if (!proxySetResponse.ok) { const proxySetErrorData = await proxySetResponse.json().catch(() => ({})); throw new Error(`Instância criada, mas falha ao configurar o proxy: ${proxySetErrorData.message || 'Erro desconhecido'}`); }
+        await fetch(`https://apievo.tanotado.com.br/proxy/set/${name}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': apiKey }, body: JSON.stringify(proxyPayload) });
       }
       return { useProxy };
     },
-    onSuccess: (result) => { 
-      const description = result.useProxy ? 'Proxy ativado com sucesso. Clique em "Conectar" para ler o QR Code.' : 'Clique em "Conectar" para ler o QR Code.';
-      toast({ title: 'Instância criada com sucesso!', description }); 
+    onSuccess: () => { 
+      toast({ title: 'Instância criada com sucesso!', description: 'Clique em "Conectar" para ler o QR Code.' }); 
       queryClient.invalidateQueries({ queryKey: ['instances_with_user_count', user?.id] }); 
-      setIsCreateDialogOpen(false); setInstanceName(''); setUseProxy(false);
+      setIsCreateDialogOpen(false); setInstanceName(''); setUseProxy(false); setUseWebhook(true);
     },
     onError: (error: any) => toast({ title: 'Erro ao criar instância', description: error.message, variant: 'destructive' })
   });
+  // --- FIM DA ADIÇÃO 3 ---
 
   const restartInstanceMutation = useMutation({
     mutationFn: async (instanceName: string) => {
@@ -290,10 +342,15 @@ const WhatsappInstances: React.FC = () => {
     onSettled: () => { setChangingProxyInstance(null); }
   });
 
+  // --- INÍCIO DA ADIÇÃO 4: Ajuste no handler para passar o novo estado ---
   const handleCreateInstance = () => { 
-    if (instanceName.trim()) { createInstanceMutation.mutate({ name: instanceName.trim(), useProxy }); } 
-    else { toast({ title: 'Erro', description: 'O nome da instância é obrigatório.', variant: 'destructive' }); }
+    if (instanceName.trim()) { 
+      createInstanceMutation.mutate({ name: instanceName.trim(), useProxy, useWebhook }); 
+    } else { 
+      toast({ title: 'Erro', description: 'O nome da instância é obrigatório.', variant: 'destructive' }); 
+    }
   };
+  // --- FIM DA ADIÇÃO 4 ---
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
@@ -315,11 +372,23 @@ const WhatsappInstances: React.FC = () => {
               <DialogContent className="sm:max-w-md">
                 <DialogHeader><DialogTitle>Criar Nova Instância</DialogTitle><DialogDescription>Insira um nome único para a sua nova instância.</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-4">
-                  <div><Label htmlFor="instanceName">Nome</Label><Input id="instanceName" value={instanceName} onChange={(e) => setInstanceName(e.target.value)} placeholder="Ex: ClinicaPrincipal" disabled={createInstanceMutation.isPending} /></div>
-                  <div className="flex items-center space-x-2 pt-2"><Switch id="proxy-switch" checked={useProxy} onCheckedChange={setUseProxy} disabled={createInstanceMutation.isPending} /><Label htmlFor="proxy-switch">Ativar Proxy</Label></div>
+                  <div>
+                    <Label htmlFor="instanceName">Nome</Label>
+                    <Input id="instanceName" value={instanceName} onChange={(e) => setInstanceName(e.target.value)} placeholder="Ex: ClinicaPrincipal" disabled={createInstanceMutation.isPending} />
+                  </div>
+                  <div className="flex items-center space-x-2 pt-2">
+                    <Switch id="proxy-switch" checked={useProxy} onCheckedChange={setUseProxy} disabled={createInstanceMutation.isPending} />
+                    <Label htmlFor="proxy-switch">Ativar Proxy</Label>
+                  </div>
+                  {/* --- INÍCIO DA ADIÇÃO 5: JSX do novo switch --- */}
+                  <div className="flex items-center space-x-2">
+                    <Switch id="webhook-switch" checked={useWebhook} onCheckedChange={setUseWebhook} disabled={createInstanceMutation.isPending} />
+                    <Label htmlFor="webhook-switch">Ativar Webhook de Respostas</Label>
+                  </div>
+                  {/* --- FIM DA ADIÇÃO 5 --- */}
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); setUseProxy(false); }}>Cancelar</Button>
+                  <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); setUseProxy(false); setUseWebhook(true); }}>Cancelar</Button>
                   <Button onClick={handleCreateInstance} disabled={createInstanceMutation.isPending}>{createInstanceMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Criar</Button>
                 </DialogFooter>
               </DialogContent>
@@ -374,3 +443,4 @@ const WhatsappInstances: React.FC = () => {
 };
 
 export default WhatsappInstances;
+

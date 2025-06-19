@@ -18,7 +18,7 @@ interface Message {
 export const ChatPopup: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: 'Olá! Sou a assistente virtual do TaNotado. Como posso te ajudar hoje?', sender: 'assistant' }
+    { id: 1, text: 'Olá! Sou a assistente virtual do tanotado. Como posso te ajudar hoje?', sender: 'assistant' }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -108,7 +108,7 @@ export const ChatPopup: React.FC = () => {
                         <img src="/avatar_ia_suporte.png" alt="Suporte IA" />
                     </Avatar>
                     <div>
-                        <CardTitle className="text-base">Assistente TaNotado</CardTitle>
+                        <CardTitle className="text-base">Assistente tanotado</CardTitle>
                         <div className="flex items-center gap-1.5">
                             <span className="h-2 w-2 rounded-full bg-green-500"></span>
                             <span className="text-xs text-muted-foreground">Online</span>

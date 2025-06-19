@@ -1,3 +1,5 @@
+// src/integrations/supabase/types.ts
+
 export type Json =
   | string
   | number
@@ -6,9 +8,38 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = { // <-- CORREÇÃO AQUI: Garante que há apenas um 'export' antes de 'type Database'
+export type Database = {
   public: {
     Tables: {
+      // --- INÍCIO DA ADIÇÃO ---
+      admin_settings: {
+        Row: {
+          id: number
+          key: string
+          value: Json | null
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          key: string
+          value?: Json | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          key?: string
+          value?: Json | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      // --- FIM DA ADIÇÃO ---
       appointments: {
         Row: {
           client_id: string | null

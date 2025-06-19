@@ -4,21 +4,22 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-    Users, 
-    TrendingUp, 
-    UserPlus, 
-    UserX, 
-    MoreHorizontal, 
-    CheckCircle, 
-    Clock, 
-    Calendar as CalendarIcon, 
+import {
+    Users,
+    TrendingUp,
+    UserPlus,
+    UserX,
+    MoreHorizontal,
+    CheckCircle,
+    Clock,
+    Calendar as CalendarIcon,
     History,
     MessageSquare,
-    Search, 
+    Search,
     Loader2,
     AlertTriangle,
-    UserCheck
+    UserCheck,
+    Settings // Ícone importado
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +38,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ClientInfoDialog } from '@/components/admin/ClientInfoDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AdminSettingsForm } from '@/components/admin/AdminSettingsForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Imports para o Modal
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type ProfileWithCounts = Profile & {
@@ -51,7 +54,10 @@ const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  
+
+  // Estado para controlar o modal de configurações
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
   const [filters, setFilters] = useState({
     subscribed: true,
     trial: true,
@@ -61,13 +67,13 @@ const AdminDashboard: React.FC = () => {
 
   const [isClientInfoOpen, setIsClientInfoOpen] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  
+
   const [userToDeactivate, setUserToDeactivate] = useState<ProfileWithCounts | null>(null);
   const [userToActivate, setUserToActivate] = useState<ProfileWithCounts | null>(null);
 
   const deactivateUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.rpc('deactivate_user_profile', { p_user_id: userId });
+      const { error } = await supabase.from('profiles').update({ is_active: false }).eq('id', userId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -84,7 +90,7 @@ const AdminDashboard: React.FC = () => {
 
   const activateUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.rpc('activate_user_profile', { p_user_id: userId });
+      const { error } = await supabase.from('profiles').update({ is_active: true }).eq('id', userId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -129,14 +135,14 @@ const AdminDashboard: React.FC = () => {
   const filteredUsers = useMemo(() => {
     return allUsers.filter(profile => {
       const status = determineUserDisplayStatus(profile);
-      
+
       const filterMap = {
         subscribed: status.sub === 'subscribed',
         trial: status.sub === 'trial',
         trial_expired: status.sub === 'trial_expired',
         deactivated: status.main === 'deactivated',
       };
-      
+
       const matchesFilter = Object.entries(filters).some(([key, value]) => {
           return value && filterMap[key as keyof typeof filterMap];
       });
@@ -169,7 +175,7 @@ const AdminDashboard: React.FC = () => {
             return <div className="flex items-center gap-1.5 text-sm text-blue-600 font-medium"><Clock className="h-4 w-4" /> Em Teste</div>;
     }
   };
-  
+
   const stats = useMemo(() => {
     if (!allUsers) return { totalUsers: 0, totalSubscribers: 0, newSubscribersCount: 0, cancellationsCount: 0 };
     const today = new Date();
@@ -180,7 +186,7 @@ const AdminDashboard: React.FC = () => {
     const cancellationsCount = allUsers.filter(u => u.canceled_at && new Date(u.canceled_at) >= startOfMonth).length;
     return { totalUsers, totalSubscribers, newSubscribersCount, cancellationsCount };
   }, [allUsers]);
-  
+
   const adminStats = [
     { title: 'Total de Usuários', value: stats.totalUsers.toString(), icon: Users, color: 'from-blue-500 to-blue-400' },
     { title: 'Novos Assinantes (mês)', value: stats.newSubscribersCount.toString(), icon: UserPlus, color: 'from-green-500 to-green-400' },
@@ -229,6 +235,11 @@ const AdminDashboard: React.FC = () => {
                 <History className="mr-2 h-4 w-4" /> Relatório de Envios
               </Link>
             </Button>
+            {/* NOVO BOTÃO DE CONFIGURAÇÕES */}
+            <Button variant="outline" onClick={() => setIsSettingsModalOpen(true)}>
+              <Settings className="mr-2 h-4 w-4" />
+              Configurações
+            </Button>
           </div>
         </div>
 
@@ -250,139 +261,121 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-tanotado-navy">Usuários Cadastrados ({filteredUsers.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
-              <div className="relative w-full sm:w-auto flex-grow">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar por nome, email, whatsapp..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
-              <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="filter-subscribed" checked={filters.subscribed} onCheckedChange={(checked) => handleFilterChange('subscribed', !!checked)} />
-                    <Label htmlFor="filter-subscribed" className="text-sm font-medium">Assinantes</Label>
-                  </div>
-                   <div className="flex items-center space-x-2">
-                    <Checkbox id="filter-trial" checked={filters.trial} onCheckedChange={(checked) => handleFilterChange('trial', !!checked)} />
-                    <Label htmlFor="filter-trial" className="text-sm font-medium">Em Teste</Label>
-                  </div>
-                   <div className="flex items-center space-x-2">
-                    <Checkbox id="filter-trial_expired" checked={filters.trial_expired} onCheckedChange={(checked) => handleFilterChange('trial_expired', !!checked)} />
-                    <Label htmlFor="filter-trial_expired" className="text-sm font-medium">Trial Expirado</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="filter-deactivated" checked={filters.deactivated} onCheckedChange={(checked) => handleFilterChange('deactivated', !!checked)} />
-                    <Label htmlFor="filter-deactivated" className="text-sm font-medium">Desativados</Label>
-                  </div>
-              </div>
-            </div>
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[35%]">Usuário</TableHead>
-                          <TableHead>WhatsApp</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Estatísticas</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoadingUsers ? (
-                           [...Array(5)].map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-40" /></div></div></TableCell>
-                                    <TableCell><Skeleton className="h-8 w-32" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            filteredUsers.map((profile) => (
-                                <TableRow key={profile.id} onClick={() => handleRowClick(profile)} className="cursor-pointer">
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar><AvatarImage src={profile.avatar_url || undefined} /><AvatarFallback className="bg-muted">{getInitials(profile.name)}</AvatarFallback></Avatar>
-                                            <div><p className="font-medium text-gray-800">{profile.name}</p><p className="text-sm text-muted-foreground">{profile.email}</p></div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                      {profile.whatsapp ? (
-                                          <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()} className="font-normal text-muted-foreground hover:text-green-600 h-auto p-1">
-                                              <a href={formatWhatsAppLink(profile.whatsapp)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2"><MessageSquare className="h-4 w-4" />{formatDisplayWhatsApp(profile.whatsapp)}</a>
-                                          </Button>
-                                      ) : (<span className="text-muted-foreground">-</span>)}
-                                    </TableCell>
-                                    <TableCell>{getStatusBadge(profile)}</TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1.5 text-muted-foreground text-xs">
-                                            <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{formatLastLogin(profile.last_sign_in_at)} ({profile.login_count ?? 0})</div></TooltipTrigger><TooltipContent><p>Último login e contagem total de acessos</p></TooltipContent></Tooltip>
-                                            <div className="flex items-center gap-4">
-                                                <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{profile.client_count ?? 0} Clientes</div></TooltipTrigger><TooltipContent><p>Clientes cadastrados</p></TooltipContent></Tooltip>
-                                                <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><CalendarIcon className="h-3.5 w-3.5" />{profile.appointment_count ?? 0} Agend.</div></TooltipTrigger><TooltipContent><p>Agendamentos criados</p></TooltipContent></Tooltip>
+            <CardHeader>
+                <CardTitle className="text-tanotado-navy">Usuários Cadastrados ({filteredUsers.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
+                    <div className="relative w-full sm:w-auto flex-grow">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Buscar por nome, email, whatsapp..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
+                    <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="filter-subscribed" checked={filters.subscribed} onCheckedChange={(checked) => handleFilterChange('subscribed', !!checked)} />
+                            <Label htmlFor="filter-subscribed" className="text-sm font-medium">Assinantes</Label>
+                        </div>
+                         <div className="flex items-center space-x-2">
+                            <Checkbox id="filter-trial" checked={filters.trial} onCheckedChange={(checked) => handleFilterChange('trial', !!checked)} />
+                            <Label htmlFor="filter-trial" className="text-sm font-medium">Em Teste</Label>
+                        </div>
+                         <div className="flex items-center space-x-2">
+                            <Checkbox id="filter-trial_expired" checked={filters.trial_expired} onCheckedChange={(checked) => handleFilterChange('trial_expired', !!checked)} />
+                            <Label htmlFor="filter-trial_expired" className="text-sm font-medium">Trial Expirado</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="filter-deactivated" checked={filters.deactivated} onCheckedChange={(checked) => handleFilterChange('deactivated', !!checked)} />
+                            <Label htmlFor="filter-deactivated" className="text-sm font-medium">Desativados</Label>
+                        </div>
+                    </div>
+                </div>
+                <div className="border rounded-lg">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[35%]">Usuário</TableHead>
+                                <TableHead>WhatsApp</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Estatísticas</TableHead>
+                                <TableHead className="text-right">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoadingUsers ? (
+                               [...Array(5)].map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-40" /></div></div></TableCell>
+                                        <TableCell><Skeleton className="h-8 w-32" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                        <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                filteredUsers.map((profile) => (
+                                    <TableRow key={profile.id} onClick={() => handleRowClick(profile)} className="cursor-pointer">
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar><AvatarImage src={profile.avatar_url || undefined} /><AvatarFallback className="bg-muted">{getInitials(profile.name)}</AvatarFallback></Avatar>
+                                                <div><p className="font-medium text-gray-800">{profile.name}</p><p className="text-sm text-muted-foreground">{profile.email}</p></div>
                                             </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenuItem 
-                                                    onSelect={(e) => { 
-                                                        e.stopPropagation(); 
-                                                        alert('Forçar Login (lógica a ser implementada)'); 
-                                                    }}
-                                                >
-                                                    Forçar Login
-                                                </DropdownMenuItem>
-                                                
-                                                {profile.is_active ? (
-                                                    <DropdownMenuItem 
-                                                        onSelect={(e) => { 
-                                                            e.stopPropagation(); 
-                                                            setUserToDeactivate(profile); 
-                                                        }} 
-                                                        className="text-red-600 focus:text-red-600"
-                                                    >
-                                                        <UserX className="mr-2 h-4 w-4" />Desativar
+                                        </TableCell>
+                                        <TableCell>
+                                          {profile.whatsapp ? (
+                                              <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()} className="font-normal text-muted-foreground hover:text-green-600 h-auto p-1">
+                                                  <a href={formatWhatsAppLink(profile.whatsapp)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2"><MessageSquare className="h-4 w-4" />{formatDisplayWhatsApp(profile.whatsapp)}</a>
+                                              </Button>
+                                          ) : (<span className="text-muted-foreground">-</span>)}
+                                        </TableCell>
+                                        <TableCell>{getStatusBadge(profile)}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-1.5 text-muted-foreground text-xs">
+                                                <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{formatLastLogin(profile.last_sign_in_at)} ({profile.login_count ?? 0})</div></TooltipTrigger><TooltipContent><p>Último login e contagem total de acessos</p></TooltipContent></Tooltip>
+                                                <div className="flex items-center gap-4">
+                                                    <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{profile.client_count ?? 0} Clientes</div></TooltipTrigger><TooltipContent><p>Clientes cadastrados</p></TooltipContent></Tooltip>
+                                                    <Tooltip><TooltipTrigger asChild><div className="flex items-center gap-1.5"><CalendarIcon className="h-3.5 w-3.5" />{profile.appointment_count ?? 0} Agend.</div></TooltipTrigger><TooltipContent><p>Agendamentos criados</p></TooltipContent></Tooltip>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); alert('Forçar Login (lógica a ser implementada)'); }}>
+                                                        Forçar Login
                                                     </DropdownMenuItem>
-                                                ) : (
-                                                    <DropdownMenuItem 
-                                                        onSelect={(e) => { 
-                                                            e.stopPropagation(); 
-                                                            setUserToActivate(profile); 
-                                                        }} 
-                                                        className="text-green-600 focus:text-green-600"
-                                                    >
-                                                        <UserCheck className="mr-2 h-4 w-4" />Ativar
-                                                    </DropdownMenuItem>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-          </CardContent>
-        </Card>
+                                                    {profile.is_active ? (
+                                                        <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setUserToDeactivate(profile); }} className="text-red-600 focus:text-red-600">
+                                                            <UserX className="mr-2 h-4 w-4" />Desativar
+                                                        </DropdownMenuItem>
+                                                    ) : (
+                                                        <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setUserToActivate(profile); }} className="text-green-600 focus:text-green-600">
+                                                            <UserCheck className="mr-2 h-4 w-4" />Ativar
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+          </Card>
       </div>
 
-      <ClientInfoDialog 
+      <ClientInfoDialog
         profileId={selectedProfileId}
         isOpen={isClientInfoOpen}
         onOpenChange={setIsClientInfoOpen}
       />
-      
+
       <AlertDialog open={!!userToDeactivate} onOpenChange={() => setUserToDeactivate(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -427,6 +420,18 @@ const AdminDashboard: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* NOVO MODAL DE CONFIGURAÇÕES */}
+      <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Configurações Gerais do Administrador</DialogTitle>
+            <DialogDescription>
+              Gerencie configurações globais do sistema, como integrações e webhooks.
+            </DialogDescription>
+          </DialogHeader>
+          <AdminSettingsForm onSuccess={() => setIsSettingsModalOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 };
