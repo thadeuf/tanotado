@@ -18,36 +18,32 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Save } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
-// <<< INÍCIO DA ALTERAÇÃO 1: Importar RadioGroup >>>
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-// <<< FIM DA ALTERAÇÃO 1 >>>
 
 
-// <<< INÍCIO DA ALTERAÇÃO 2: Ajuste no Schema >>>
-// Trocamos o objeto 'reminder_schedules' por uma string única 'reminder_schedule'
+// <<< INÍCIO DA ALTERAÇÃO 1: Ajuste no Schema >>>
+// Os campos `session_suspension_reminder` e `enable_cancellation` foram removidos.
 const messageSettingsSchema = z.object({
   billing_monthly: z.string().optional(),
   billing_manual: z.string().optional(),
   session_reminder: z.string().optional(),
-  session_suspension_reminder: z.string().optional(),
-  enable_cancellation: z.boolean().default(false),
   enable_automatic_reminders: z.boolean().default(true),
   reminder_schedule: z.enum(['four_hours', 'twenty_four_hours']).default('four_hours'),
 });
-// <<< FIM DA ALTERAÇÃO 2 >>>
+// <<< FIM DA ALTERAÇÃO 1 >>>
 
 
 type MessageSettingsFormData = z.infer<typeof messageSettingsSchema>;
 
 type MessageSection = {
-  id: keyof MessageSettingsFormData;
+  id: keyof Omit<MessageSettingsFormData, 'enable_automatic_reminders' | 'reminder_schedule'>;
   title: string;
   tags: string[];
-  hasSwitch?: boolean;
-  switchLabel?: string;
-  switchId?: keyof MessageSettingsFormData;
 };
 
+// <<< INÍCIO DA ALTERAÇÃO 2: Ajuste nas Seções de Mensagem >>>
+// A seção 'session_suspension_reminder' foi removida.
+// O switch da seção 'session_reminder' foi removido.
 const messageSections: MessageSection[] = [
   {
     id: 'billing_monthly',
@@ -62,17 +58,10 @@ const messageSections: MessageSection[] = [
   {
     id: 'session_reminder',
     title: 'Lembrete de Sessão',
-    hasSwitch: true,
-    switchLabel: 'Habilitar cancelamento e reagendamento',
-    switchId: 'enable_cancellation',
     tags: ['Nome do paciente', 'Primeiro nome do paciente', 'Meu contato', 'Link do meu contato', 'Primeiro nome do profissional', 'Nome do profissional', 'Data', 'Hora'],
   },
-  {
-    id: 'session_suspension_reminder',
-    title: 'Lembrete de Sessão Suspensa',
-    tags: ['Nome do paciente', 'Primeiro nome do paciente', 'Meu contato', 'Link do meu contato', 'Primeiro nome do profissional', 'Nome do profissional', 'Data', 'Hora'],
-  }
 ];
+// <<< FIM DA ALTERAÇÃO 2 >>>
 
 const tagMap: { [key: string]: string } = {
   'Nome do paciente': '{nome_paciente}',
@@ -99,42 +88,37 @@ export const MessageSettingsForm: React.FC = () => {
 
   const form = useForm<MessageSettingsFormData>({
     resolver: zodResolver(messageSettingsSchema),
+    // <<< INÍCIO DA ALTERAÇÃO 3: Ajuste nos Valores Padrão >>>
+    // Os campos removidos do schema também foram removidos daqui.
     defaultValues: {
-      billing_monthly: "Olá, {nome_paciente}. Tudo bem? Já emitiu sua nota fiscal desse mês?",
+      billing_monthly: "Olá, {nome_paciente}. Tudo bem? Hoje é o dia de vencimento das suas sessões.",
       billing_manual: "Olá, {nome_paciente}. Tudo bem? Quem fala é {nome_profissional}, consta o valor de {valor} em aberto, {descricao}.",
       session_reminder: "",
-      session_suspension_reminder: "",
-      enable_cancellation: false,
       enable_automatic_reminders: true,
-      // <<< INÍCIO DA ALTERAÇÃO 3: Valor padrão para a nova propriedade >>>
       reminder_schedule: 'four_hours',
-      // <<< FIM DA ALTERAÇÃO 3 >>>
     },
+    // <<< FIM DA ALTERAÇÃO 3 >>>
   });
 
   useEffect(() => {
     if (settings?.message_templates) {
       const templates = settings.message_templates as any;
       
-      // <<< INÍCIO DA ALTERAÇÃO 4: Lógica para carregar os dados no novo formato >>>
-      // Converte a estrutura antiga (objeto com 2 booleans) para a nova (string única)
       let scheduleValue: 'four_hours' | 'twenty_four_hours' = 'four_hours';
       if (templates.reminder_schedules?.twenty_four_hours === true) {
         scheduleValue = 'twenty_four_hours';
       }
-      // <<< FIM DA ALTERAÇÃO 4 >>>
       
+      // <<< INÍCIO DA ALTERAÇÃO 4: Lógica de reset do formulário ajustada >>>
+      // Removida a atribuição dos campos que não existem mais.
       form.reset({
         billing_monthly: templates.billing_monthly || '',
         billing_manual: templates.billing_manual || '',
         session_reminder: templates.session_reminder || '',
-        session_suspension_reminder: templates.session_suspension_reminder || '',
-        enable_cancellation: templates.enable_cancellation || false,
         enable_automatic_reminders: templates.enable_automatic_reminders ?? true,
-        // <<< INÍCIO DA ALTERAÇÃO 5: Define o valor carregado >>>
         reminder_schedule: scheduleValue,
-        // <<< FIM DA ALTERAÇÃO 5 >>>
       });
+      // <<< FIM DA ALTERAÇÃO 4 >>>
     }
   }, [settings, form]);
 
@@ -142,7 +126,6 @@ export const MessageSettingsForm: React.FC = () => {
     mutationFn: async (data: MessageSettingsFormData) => {
       if (!user) throw new Error("Usuário não autenticado");
       
-      // <<< INÍCIO DA ALTERAÇÃO 6: Converte a string de volta para o formato do banco de dados >>>
       const message_templates_payload = {
         ...data,
         reminder_schedules: {
@@ -150,13 +133,10 @@ export const MessageSettingsForm: React.FC = () => {
             twenty_four_hours: data.reminder_schedule === 'twenty_four_hours'
         }
       };
-      // Remove a propriedade que não existe no banco
       delete (message_templates_payload as any).reminder_schedule;
-      // <<< FIM DA ALTERAÇÃO 6 >>>
       
       const { error } = await supabase.from('user_settings').upsert({
         user_id: user.id,
-        // Salva o payload convertido
         message_templates: message_templates_payload as any,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
@@ -171,7 +151,7 @@ export const MessageSettingsForm: React.FC = () => {
     },
   });
 
-  const handleTagClick = (fieldId: keyof MessageSettingsFormData, tag: string) => {
+  const handleTagClick = (fieldId: keyof Omit<MessageSettingsFormData, 'enable_automatic_reminders' | 'reminder_schedule'>, tag: string) => {
     const textarea = textareaRefs.current[fieldId];
     if (!textarea) return;
 
@@ -219,7 +199,7 @@ export const MessageSettingsForm: React.FC = () => {
               <h2 className="text-xl font-semibold text-gray-800">{section.title}</h2>
               <FormField
                 control={form.control}
-                name={section.id as keyof MessageSettingsFormData}
+                name={section.id}
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
@@ -247,34 +227,17 @@ export const MessageSettingsForm: React.FC = () => {
                       key={tag}
                       variant="secondary"
                       className="cursor-pointer hover:bg-primary/20"
-                      onClick={() => handleTagClick(section.id as keyof MessageSettingsFormData, tag)}
+                      onClick={() => handleTagClick(section.id, tag)}
                     >
                       {tag}
                     </Badge>
                   ))}
                 </div>
               </div>
-
-              {section.hasSwitch && section.switchId && section.switchLabel && (
-                 <FormField
-                    control={form.control}
-                    name={section.switchId as keyof MessageSettingsFormData}
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-4 rounded-lg border p-3">
-                          <FormControl>
-                              <Switch
-                                  checked={field.value as boolean}
-                                  onCheckedChange={field.onChange}
-                                  id={section.switchId}
-                              />
-                          </FormControl>
-                          <FormLabel htmlFor={section.switchId} className="text-sm font-normal cursor-pointer">
-                            {section.switchLabel}
-                          </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-              )}
+              {/* <<< INÍCIO DA ALTERAÇÃO 5: Bloco do switch removido >>>
+                  O bloco de código que renderizava o switch de cancelamento foi totalmente removido
+                  pois a lógica foi retirada do array `messageSections`.
+              // <<< FIM DA ALTERAÇÃO 5 >>> */}
             </div>
           ))}
 
@@ -300,7 +263,6 @@ export const MessageSettingsForm: React.FC = () => {
             />
             
             {form.watch('enable_automatic_reminders') && (
-              // <<< INÍCIO DA ALTERAÇÃO 7: Substituição dos Switches pelo RadioGroup >>>
               <div className="pl-4 border-l-2 ml-2 space-y-4 pt-4 animate-fade-in">
                 <FormField
                   control={form.control}
@@ -337,7 +299,6 @@ export const MessageSettingsForm: React.FC = () => {
                   )}
                 />
               </div>
-              // <<< FIM DA ALTERAÇÃO 7 >>>
             )}
           </div>
 
