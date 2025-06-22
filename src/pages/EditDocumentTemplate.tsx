@@ -1,5 +1,3 @@
-// src/pages/EditDocumentTemplate.tsx
-
 import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,7 +5,9 @@ import * as z from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate, useParams } from 'react-router-dom';
+// --- INÍCIO DA ALTERAÇÃO 1 ---
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+// --- FIM DA ALTERAÇÃO 1 ---
 import { toast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,6 @@ import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Loader2, Save, ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// --- INÍCIO DAS MUDANÇAS ---
-
-// Definição das tags disponíveis para os documentos
 const documentTags = {
   'Nome do Cliente': '{nome_cliente}',
   'Primeiro Nome do Cliente': '{primeiro_nome_cliente}',
@@ -36,8 +33,6 @@ const documentTags = {
   'Data Atual (Extenso)': '{data_atual_extenso}',
 };
 
-// --- FIM DAS MUDANÇAS ---
-
 const templateSchema = z.object({
   title: z.string().min(3, { message: 'O título do modelo é obrigatório.' }),
   content: z.any().optional(),
@@ -48,6 +43,9 @@ type TemplateFormData = z.infer<typeof templateSchema>;
 const EditDocumentTemplate: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
   const navigate = useNavigate();
+  // --- INÍCIO DA ALTERAÇÃO 2 ---
+  const location = useLocation();
+  // --- FIM DA ALTERAÇÃO 2 ---
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isEditing = !!templateId;
@@ -59,6 +57,20 @@ const EditDocumentTemplate: React.FC = () => {
       content: '',
     },
   });
+  
+  // --- INÍCIO DA ALTERAÇÃO 3 ---
+  // Verifica se há dados da IA no estado da navegação e preenche o formulário
+  useEffect(() => {
+    if (location.state?.aiTitle && location.state?.aiContent) {
+      form.reset({
+        title: location.state.aiTitle,
+        content: location.state.aiContent,
+      });
+      // Limpa o estado para não preencher novamente em re-renderizações
+      window.history.replaceState({}, document.title)
+    }
+  }, [location, form]);
+  // --- FIM DA ALTERAÇÃO 3 ---
 
   const { data: templateData, isLoading } = useQuery({
     queryKey: ['document_template', templateId],
@@ -77,13 +89,14 @@ const EditDocumentTemplate: React.FC = () => {
   });
 
   useEffect(() => {
-    if (isEditing && templateData) {
+    // Garante que o carregamento de um template existente não sobrescreva o conteúdo da IA
+    if (isEditing && templateData && !location.state?.aiTitle) {
       form.reset({
         title: templateData.title,
         content: templateData.content || '',
       });
     }
-  }, [templateData, isEditing, form]);
+  }, [templateData, isEditing, form, location.state]);
 
   const mutation = useMutation({
     mutationFn: async (values: TemplateFormData) => {
@@ -164,13 +177,11 @@ const EditDocumentTemplate: React.FC = () => {
              <FormItem>
                 <FormLabel className="text-base">Conteúdo</FormLabel>
                 <FormControl>
-                    {/* --- INÍCIO DA MUDANÇA --- */}
                     <RichTextEditor
                         content={field.value}
                         onChange={field.onChange}
-                        tags={documentTags} // Passamos nosso objeto de tags aqui
+                        tags={documentTags}
                     />
-                    {/* --- FIM DA MUDANÇA --- */}
                 </FormControl>
                  <FormMessage />
             </FormItem>

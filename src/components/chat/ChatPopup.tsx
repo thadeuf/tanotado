@@ -15,6 +15,10 @@ interface Message {
   sender: 'user' | 'assistant';
 }
 
+// --- INÍCIO DA ALTERAÇÃO ---
+const chatAssistantId = import.meta.env.VITE_OPENAI_CHAT_ASSISTANT_ID;
+// --- FIM DA ALTERAÇÃO ---
+
 export const ChatPopup: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -51,12 +55,17 @@ export const ChatPopup: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentInput = inputValue.trim();
-    if (!currentInput || isLoading || !threadId) {
+    // --- INÍCIO DA ALTERAÇÃO ---
+    if (!currentInput || isLoading || !threadId || !chatAssistantId) {
       if (!threadId) {
         toast({ title: "Aguarde", description: "O chat ainda está sendo inicializado.", variant: "default" });
       }
+      if (!chatAssistantId) {
+         toast({ title: "Erro de Configuração", description: "O ID do assistente de chat não foi encontrado.", variant: "destructive" });
+      }
       return;
     }
+    // --- FIM DA ALTERAÇÃO ---
 
     const userMessage: Message = { id: Date.now(), text: currentInput, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
@@ -65,7 +74,10 @@ export const ChatPopup: React.FC = () => {
 
     try {
       await addMessageToThread(threadId, currentInput);
-      const runId = await runAssistant(threadId);
+      // --- INÍCIO DA ALTERAÇÃO ---
+      // Passamos o ID do assistente de chat para a função.
+      const runId = await runAssistant(threadId, chatAssistantId);
+      // --- FIM DA ALTERAÇÃO ---
 
       const pollStatus = async () => {
         const status = await checkRunStatus(threadId, runId);

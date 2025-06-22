@@ -5,8 +5,6 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
-const assistantId = import.meta.env.VITE_OPENAI_ASSISTANT_ID;
-
 /**
  * ATENÇÃO: EM UM AMBIENTE DE PRODUÇÃO, ESTA FUNÇÃO DEVE ESTAR NO BACKEND.
  */
@@ -23,14 +21,17 @@ export const addMessageToThread = async (threadId: string, message: string) => {
   });
 };
 
-export const runAssistant = async (threadId: string) => {
-  if (!assistantId) throw new Error("ID do Assistente da OpenAI não foi encontrado. Verifique o arquivo .env.");
+// --- INÍCIO DA ALTERAÇÃO ---
+// A função agora aceita o ID do assistente como um parâmetro.
+export const runAssistant = async (threadId: string, assistantId: string) => {
+  if (!assistantId) throw new Error("O ID do Assistente da OpenAI não foi fornecido.");
   
   const run = await openai.beta.threads.runs.create(threadId, {
     assistant_id: assistantId,
   });
   return run.id;
 };
+// --- FIM DA ALTERAÇÃO ---
 
 export const checkRunStatus = async (threadId: string, runId: string): Promise<string> => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
