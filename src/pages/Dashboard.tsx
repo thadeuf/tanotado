@@ -4,7 +4,22 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Calendar, Users, Clock, UserX, Video, MapPin, AlertCircle, CheckCircle, Play, Cake, MessageSquare, NotebookPen } from 'lucide-react';
+import {
+  Calendar, Users, Clock, UserX, Video, MapPin, AlertCircle, CheckCircle, Play, Cake, MessageSquare, NotebookPen, Send, Loader2
+} from 'lucide-react';
+// --- INÍCIO DA ALTERAÇÃO 1: Importar AlertDialog e supabase ---
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { supabase } from '../integrations/supabase/client';
+// --- FIM DA ALTERAÇÃO 1 ---
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppointments, Appointment } from '../hooks/useAppointments';
@@ -14,7 +29,6 @@ import { ptBR } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { SessionNotesDialog } from '../components/notes/SessionNotesDialog';
-// IMPORTAÇÃO DO NOVO COMPONENTE DE CHAT
 import { ChatPopup } from '@/components/chat/ChatPopup';
 
 const Dashboard: React.FC = () => {
@@ -23,10 +37,13 @@ const Dashboard: React.FC = () => {
   const { data: clients = [], isLoading: isLoadingClients } = useClients();
 
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
+  const [sendingLink, setSendingLink] = useState<string | null>(null);
+  // --- INÍCIO DA ALTERAÇÃO 2: Adicionar estado para o modal de confirmação ---
+  const [confirmingAppointment, setConfirmingAppointment] = useState<Appointment | null>(null);
+  // --- FIM DA ALTERAÇÃO 2 ---
 
   const isLoading = isLoadingAppointments || isLoadingClients;
 
-  // Memoize processed appointments
   const { today, tomorrow, week } = useMemo(() => {
     if (isLoading) return { today: [], tomorrow: [], week: [] };
     const now = new Date();
@@ -42,7 +59,6 @@ const Dashboard: React.FC = () => {
     return { today: todayAppointments, tomorrow: tomorrowAppointments, week: weekAppointments };
   }, [appointments, isLoading]);
 
-  // Memoize dashboard stats
   const dashboardStats = useMemo(() => {
     if (isLoading) return [
       { title: 'Próximo Agendamento', value: '-', icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
@@ -77,7 +93,6 @@ const Dashboard: React.FC = () => {
     ];
   }, [appointments, today, isLoading]);
 
-  // Memoize birthdays
   const birthdaysToday = useMemo(() => {
     if (isLoading) return [];
     const now = new Date();
@@ -125,11 +140,82 @@ const Dashboard: React.FC = () => {
     setSelectedAppointmentForNotes(appointment);
   };
 
+  // --- INÍCIO DA ALTERAÇÃO 3: Lógica de envio do link ---
+  const handleSendVideoLink = async (appointment: Appointment | null) => {
+    if (!appointment || sendingLink === appointment.id) return;
+
+    setConfirmingAppointment(null);
+    setSendingLink(appointment.id);
+
+    try {
+      const client = appointment.client_id ? clientMap.get(appointment.client_id) : null;
+      if (!client || !client.whatsapp) {
+        throw new Error("O cliente não possui um número de WhatsApp cadastrado.");
+      }
+      if (!appointment.online_url) {
+        throw new Error("Este agendamento não possui um link de sala de vídeo.");
+      }
+
+      const { data: instanceData, error: instanceError } = await supabase
+        .from('instances')
+        .select('nome_instancia, status')
+        .eq('user_id', appointment.user_id)
+        .limit(1)
+        .single();
+
+      if (instanceError || !instanceData) {
+        throw new Error("Nenhuma instância do WhatsApp encontrada para este profissional.");
+      }
+
+      if (instanceData.status !== 'connected') {
+        toast({
+          title: "Aviso: Instância Desconectada",
+          description: "Sua instância do WhatsApp parece estar offline. A mensagem será enviada quando ela reconectar.",
+          variant: "default",
+        });
+      }
+
+      const payload = {
+        clientName: client.name,
+        videoLink: appointment.online_url,
+        clientPhone: client.whatsapp,
+        professionalInstance: instanceData.nome_instancia,
+      };
+
+      const webhookUrl = 'https://webhook.artideia.com.br/webhook/envia-link-video'; // URL de Produção
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`O servidor respondeu com um erro: ${response.statusText}`);
+      }
+
+      toast({
+        title: "Link na fila de envio!",
+        description: `O link da sala de vídeo foi enviado para a fila para ${client.name}.`
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Erro ao Enviar Link",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingLink(null);
+    }
+  };
+  // --- FIM DA ALTERAÇÃO 3 ---
+
   const renderAppointment = (appointment: Appointment, index: number) => {
     const client = appointment.client_id ? clientMap.get(appointment.client_id) : null;
     const timeLabel = `${format(parseISO(appointment.start_time), 'HH:mm')} - ${format(parseISO(appointment.end_time), 'HH:mm')}`;
     const displayName = client?.name || appointment.title;
     const statusInfo = getStatusInfo(appointment.status);
+    const isSending = sendingLink === appointment.id;
 
     return (
       <div key={appointment.id || index} className="relative p-4 border rounded-lg hover:bg-muted/50 transition-colors overflow-hidden">
@@ -154,12 +240,30 @@ const Dashboard: React.FC = () => {
                   <span>{statusInfo.text}</span>
               </Badge>
               {appointment.is_online && appointment.online_url && (
-                <Button asChild size="sm" variant="secondary" className="h-auto px-2 py-1 text-xs bg-tanotado-blue/10 text-tanotado-blue hover:bg-tanotado-blue/20">
-                    <a href={appointment.online_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
-                        <Video className="h-3 w-3" />
-                        Entrar na sala
-                    </a>
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button asChild size="sm" variant="secondary" className="h-auto px-2 py-1 text-xs bg-tanotado-blue/10 text-tanotado-blue hover:bg-tanotado-blue/20">
+                      <a href={appointment.online_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
+                          <Video className="h-3 w-3" />
+                          Entrar na sala
+                      </a>
+                  </Button>
+                  {/* --- INÍCIO DA ALTERAÇÃO 4: O botão agora abre o modal de confirmação --- */}
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="h-auto px-2 py-1 text-xs bg-green-500/10 text-green-600 hover:bg-green-500/20"
+                    onClick={() => setConfirmingAppointment(appointment)}
+                    disabled={isSending}
+                  >
+                    {isSending ? (
+                      <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3 w-3 mr-1.5" />
+                    )}
+                    Enviar Link
+                  </Button>
+                  {/* --- FIM DA ALTERAÇÃO 4 --- */}
+                </div>
               )}
           </div>
         </div>
@@ -337,7 +441,27 @@ const Dashboard: React.FC = () => {
         isOpen={!!selectedAppointmentForNotes}
         onOpenChange={(isOpen) => !isOpen && setSelectedAppointmentForNotes(null)}
       />
-      {/* ADICIONANDO O COMPONENTE DE CHAT AQUI */}
+      
+      {/* --- INÍCIO DA ALTERAÇÃO 5: Adicionar o componente de diálogo de confirmação --- */}
+      <AlertDialog open={!!confirmingAppointment} onOpenChange={() => setConfirmingAppointment(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Envio de Link</AlertDialogTitle>
+                <AlertDialogDescription>
+                   Lembre-se de enviar o link somente após você já ter entrado na sala de vídeo!
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleSendVideoLink(confirmingAppointment)} disabled={!!sendingLink}>
+                   {sendingLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                    Confirmar e Enviar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* --- FIM DA ALTERAÇÃO 5 --- */}
+
       <ChatPopup />
     </>
   );

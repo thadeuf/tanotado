@@ -18,7 +18,7 @@ interface Message {
 export const ChatPopup: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: 'Olá! Sou a assistente virtual do tanotado. Como posso te ajudar hoje?', sender: 'assistant' }
+    { id: 1, text: 'Olá! Sou a Nina, assistente virtual do tanotado. Como posso te ajudar hoje?', sender: 'assistant' }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
