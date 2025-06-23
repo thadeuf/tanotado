@@ -1,5 +1,4 @@
 // src/pages/Dashboard.tsx
-
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import {
   Calendar, Users, Clock, UserX, Video, MapPin, AlertCircle, CheckCircle, Play, Cake, MessageSquare, NotebookPen, Send, Loader2
 } from 'lucide-react';
-// --- INÍCIO DA ALTERAÇÃO 1: Importar AlertDialog e supabase ---
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +17,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '../integrations/supabase/client';
-// --- FIM DA ALTERAÇÃO 1 ---
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppointments, Appointment } from '../hooks/useAppointments';
@@ -30,6 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { SessionNotesDialog } from '../components/notes/SessionNotesDialog';
 import { ChatPopup } from '@/components/chat/ChatPopup';
+import { toast } from '@/hooks/use-toast';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -38,9 +36,7 @@ const Dashboard: React.FC = () => {
 
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
   const [sendingLink, setSendingLink] = useState<string | null>(null);
-  // --- INÍCIO DA ALTERAÇÃO 2: Adicionar estado para o modal de confirmação ---
   const [confirmingAppointment, setConfirmingAppointment] = useState<Appointment | null>(null);
-  // --- FIM DA ALTERAÇÃO 2 ---
 
   const isLoading = isLoadingAppointments || isLoadingClients;
 
@@ -129,7 +125,7 @@ const Dashboard: React.FC = () => {
     switch (status) {
       case 'scheduled': return { text: 'Agendado', className: 'bg-tanotado-blue/10 text-tanotado-blue border-tanotado-blue/20' };
       case 'confirmed': return { text: 'Confirmado', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
-      case 'completed': return { text: 'Concluído', className: 'bg-tanotado-green/10 text-tanotado-green border-tanotado-green/20' };
+      case 'completed': return { text: 'Compareceu', className: 'bg-tanotado-green/10 text-tanotado-green border-tanotado-green/20' };
       case 'cancelled': return { text: 'Cancelado', className: 'bg-red-100 text-red-700 border-red-200' };
       case 'no_show': return { text: 'Faltou', className: 'bg-orange-100 text-orange-700 border-orange-200' };
       default: return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-200' };
@@ -140,7 +136,6 @@ const Dashboard: React.FC = () => {
     setSelectedAppointmentForNotes(appointment);
   };
 
-  // --- INÍCIO DA ALTERAÇÃO 3: Lógica de envio do link ---
   const handleSendVideoLink = async (appointment: Appointment | null) => {
     if (!appointment || sendingLink === appointment.id) return;
 
@@ -208,7 +203,6 @@ const Dashboard: React.FC = () => {
       setSendingLink(null);
     }
   };
-  // --- FIM DA ALTERAÇÃO 3 ---
 
   const renderAppointment = (appointment: Appointment, index: number) => {
     const client = appointment.client_id ? clientMap.get(appointment.client_id) : null;
@@ -247,7 +241,6 @@ const Dashboard: React.FC = () => {
                           Entrar na sala
                       </a>
                   </Button>
-                  {/* --- INÍCIO DA ALTERAÇÃO 4: O botão agora abre o modal de confirmação --- */}
                   <Button 
                     size="sm" 
                     variant="secondary" 
@@ -262,7 +255,6 @@ const Dashboard: React.FC = () => {
                     )}
                     Enviar Link
                   </Button>
-                  {/* --- FIM DA ALTERAÇÃO 4 --- */}
                 </div>
               )}
           </div>
@@ -442,7 +434,6 @@ const Dashboard: React.FC = () => {
         onOpenChange={(isOpen) => !isOpen && setSelectedAppointmentForNotes(null)}
       />
       
-      {/* --- INÍCIO DA ALTERAÇÃO 5: Adicionar o componente de diálogo de confirmação --- */}
       <AlertDialog open={!!confirmingAppointment} onOpenChange={() => setConfirmingAppointment(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
@@ -460,7 +451,6 @@ const Dashboard: React.FC = () => {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {/* --- FIM DA ALTERAÇÃO 5 --- */}
 
       <ChatPopup />
     </>

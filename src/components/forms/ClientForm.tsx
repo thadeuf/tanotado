@@ -1,5 +1,4 @@
 // src/components/forms/ClientForm.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,9 +10,7 @@ import { format, parse, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
-// --- CORREÇÃO AQUI ---
 import { Input } from '@/components/ui/input';
-// --- FIM CORREÇÃO ---
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -110,15 +107,12 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
 
       Object.keys(formSchema.shape).forEach(key => {
         if (sanitizedData[key as keyof typeof sanitizedData] === null) {
-          sanitizedData[key as keyof typeof sanitizedData] = '';
+          (sanitizedData as any)[key] = '';
         }
       });
       
       sanitizedData.birth_date = initialData.birth_date ? new Date(initialData.birth_date) : null;
       
-      sanitizedData.session_value = initialData.session_value || undefined;
-      sanitizedData.billing_day = initialData.billing_day || undefined;
-
       if (initialData.approval_status) { 
           sanitizedData.approval_status = initialData.approval_status; 
       }

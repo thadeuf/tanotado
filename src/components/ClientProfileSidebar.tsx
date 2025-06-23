@@ -1,5 +1,4 @@
 // src/components/ClientProfileSidebar.tsx
-
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,8 +11,6 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { cn } from '@/lib/utils';
 
-// <<< INÍCIO DA ALTERAÇÃO >>>
-// Tipagem atualizada para incluir os novos campos de estatísticas
 type ClientData = {
   id: string;
   name: string;
@@ -34,7 +31,6 @@ type ClientData = {
   missed_sessions?: number;
   total_due?: number;
 };
-// <<< FIM DA ALTERAÇÃO >>>
 
 interface ClientProfileSidebarProps {
   client: ClientData | null;
@@ -54,11 +50,11 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
   const menuItems = [
     { id: 'dados', label: 'Dados principais', icon: User },
     { id: 'prontuario', label: 'Prontuário', icon: FileText },
+    { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
     { id: 'anotacoes', label: 'Anotações da Sessão', icon: MessageSquare },
     { id: 'generate-doc', label: 'Criar Documento', icon: FileSignature },
     { id: 'documentos', label: 'Documentos Salvos', icon: Paperclip },
     { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
-   // { id: 'cobrancas', label: 'Cobranças', icon: Bell },
   ];
 
   const handleExport = () => {
@@ -72,7 +68,7 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
       Sexo: client.gender || '-',
       'Estado Civil': client.marital_status || '-',
       Endereço: client.address || '-',
-      Bairro: client.neighborhood || '-',
+      Bairro: client.address_neighborhood || '-',
       Cidade: client.city || '-',
       Estado: client.state || '-',
       'Valor da Sessão': client.session_value ? `R$ ${client.session_value.toFixed(2)}` : '-',
@@ -118,8 +114,6 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         )}
       </div>
 
-      {/* <<< INÍCIO DA ALTERAÇÃO >>> */}
-      {/* Bloco de Estatísticas agora usa os dados dinâmicos */}
       <Card>
         <CardContent className="p-4 flex justify-around">
           <div className="text-center">
@@ -140,12 +134,10 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         </CardContent>
       </Card>
 
-      {/* Bloco Financeiro agora usa o dado dinâmico */}
       <div className="bg-primary/10 p-3 rounded-lg flex justify-between items-center">
         <span className="text-sm font-medium text-primary">Total vencidos:</span>
         <span className="text-lg font-bold text-primary">R$ {(client.total_due || 0).toFixed(2)}</span>
       </div>
-      {/* <<< FIM DA ALTERAÇÃO >>> */}
 
       <div className="flex flex-col gap-1">
         {menuItems.map((item) => (

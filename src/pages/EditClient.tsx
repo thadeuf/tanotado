@@ -1,5 +1,4 @@
 // src/pages/EditClient.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,9 +12,8 @@ import { GenerateDocumentDialog } from '@/components/documents/GenerateDocumentD
 import { useAuth } from '@/contexts/AuthContext';
 import { SessionNotesList } from '@/components/notes/SessionNotesList';
 import { ClientFinancialRecords } from '@/components/financial/ClientFinancialRecords';
-// INÍCIO DA IMPORTAÇÃO
 import { SavedDocumentsList } from '@/components/documents/SavedDocumentsList';
-// FIM DA IMPORTAÇÃO
+import { ClientAppointmentsList } from '@/components/agenda/ClientAppointmentsList';
 
 const EditClient: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -120,6 +118,10 @@ const EditClient: React.FC = () => {
               <ProntuarioContainer client={clientData} />
           )}
 
+          {activeView === 'agendamentos' && clientData && (
+              <ClientAppointmentsList client={clientData} />
+          )}
+
           {activeView === 'anotacoes' && clientData && (
               <SessionNotesList client={clientData} />
           )}
@@ -128,14 +130,11 @@ const EditClient: React.FC = () => {
               <ClientFinancialRecords client={clientData} />
           )}
           
-          {/* INÍCIO DA ADIÇÃO */}
           {activeView === 'documentos' && clientData && (
               <SavedDocumentsList client={clientData} />
           )}
-          {/* FIM DA ADIÇÃO */}
           
-          {/* Ajuste no fallback */}
-          {activeView !== 'dados' && activeView !== 'prontuario' && activeView !== 'anotacoes' && activeView !== 'financeiro' && activeView !== 'documentos' && (
+          {activeView !== 'dados' && activeView !== 'prontuario' && activeView !== 'agendamentos' && activeView !== 'anotacoes' && activeView !== 'financeiro' && activeView !== 'documentos' && (
               <Card>
                   <CardHeader>
                       <CardTitle className="capitalize">{activeView}</CardTitle>

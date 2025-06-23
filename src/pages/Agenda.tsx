@@ -1,3 +1,4 @@
+// src/pages/Agenda.tsx
 import React, { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,13 +78,9 @@ const Agenda: React.FC = () => {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
 
-  // --- CORREÇÃO AQUI (1/2) ---
-  // Passamos o estado `selectedDate` para o hook useAppointments.
-  // Agora, sempre que a data selecionada mudar, os dados dos agendamentos serão buscados novamente.
   const { data: appointments = [], isLoading } = useAppointments(selectedDate);
-  // --- FIM DA CORREÇÃO ---
   
-  const { data: clients = [] } = useClients(); // Mantido para outras funcionalidades se necessário
+  const { data: clients = [] } = useClients(); 
   const { data: settings } = useUserSettings();
   const queryClient = useQueryClient();
 
@@ -176,7 +173,7 @@ const Agenda: React.FC = () => {
     switch (status) {
       case 'scheduled': return { text: 'Agendado', className: 'bg-tanotado-blue/10 text-tanotado-blue border-tanotado-blue/20' };
       case 'confirmed': return { text: 'Confirmado', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
-      case 'completed': return { text: 'Concluído', className: 'bg-tanotado-green/10 text-tanotado-green border-tanotado-green/20' };
+      case 'completed': return { text: 'Compareceu', className: 'bg-tanotado-green/10 text-tanotado-green border-tanotado-green/20' };
       case 'cancelled': return { text: 'Cancelado', className: 'bg-red-100 text-red-700 border-red-200' };
       case 'no_show': return { text: 'Faltou', className: 'bg-orange-100 text-orange-700 border-orange-200' };
       default: return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-200' };

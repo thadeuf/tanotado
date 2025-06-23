@@ -1,3 +1,4 @@
+// src/components/agenda/TimeSlots.tsx
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -95,7 +96,7 @@ const TimeSlots: React.FC<TimeSlotsProps> = ({ selectedDate, onTimeSelect, appoi
   const getStatusText = (status: string) => {
     switch (status) {
       case 'scheduled': return 'Agendado';
-      case 'completed': return 'Concluído';
+      case 'completed': return 'Compareceu';
       case 'cancelled': return 'Cancelado';
       default: return status;
     }
