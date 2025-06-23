@@ -43,13 +43,16 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ appointm
     queryKey: ['session_note', appointment?.id],
     queryFn: async () => {
       if (!appointment) return null;
+      // --- INÍCIO DA ALTERAÇÃO ---
       const { data, error } = await supabase
         .from('session_notes')
         .select('content, id')
         .eq('appointment_id', appointment.id)
-        .single();
+        .maybeSingle(); // Troquei .single() por .maybeSingle()
       
-      if (error && error.code !== 'PGRST116') throw error; // Ignora erro "not found"
+      // A verificação de erro pode ser simplificada, pois maybeSingle não lança erro se não encontrar nada
+      if (error) throw error; 
+      // --- FIM DA ALTERAÇÃO ---
       return data;
     },
     enabled: !!appointment && isOpen,
@@ -100,9 +103,7 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ appointm
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      {/* INÍCIO DA ALTERAÇÃO */}
       <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
-      {/* FIM DA ALTERAÇÃO */}
         <DialogHeader>
           <DialogTitle>Anotações da Sessão</DialogTitle>
           <DialogDescription className="flex items-center gap-4 pt-1">

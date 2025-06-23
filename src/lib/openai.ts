@@ -9,6 +9,26 @@ const openai = new OpenAI({
  * ATENÇÃO: EM UM AMBIENTE DE PRODUÇÃO, ESTA FUNÇÃO DEVE ESTAR NO BACKEND.
  */
 
+// --- INÍCIO DA ALTERAÇÃO 1: Adicionar função de transcrição ---
+/**
+ * Envia um arquivo de áudio para a API da OpenAI para transcrição.
+ * @param audioFile O arquivo de áudio a ser transcrito.
+ * @returns O texto transcrito.
+ */
+export const transcribeAudio = async (audioFile: File): Promise<string> => {
+  try {
+    const response = await openai.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+    });
+    return response.text;
+  } catch (error) {
+    console.error("Erro na transcrição do áudio:", error);
+    throw new Error("Não foi possível transcrever o áudio.");
+  }
+};
+// --- FIM DA ALTERAÇÃO 1 ---
+
 export const createThread = async (): Promise<string> => {
   const thread = await openai.beta.threads.create();
   return thread.id;
@@ -21,7 +41,6 @@ export const addMessageToThread = async (threadId: string, message: string) => {
   });
 };
 
-// --- INÍCIO DA ALTERAÇÃO ---
 // A função agora aceita o ID do assistente como um parâmetro.
 export const runAssistant = async (threadId: string, assistantId: string) => {
   if (!assistantId) throw new Error("O ID do Assistente da OpenAI não foi fornecido.");
@@ -31,7 +50,6 @@ export const runAssistant = async (threadId: string, assistantId: string) => {
   });
   return run.id;
 };
-// --- FIM DA ALTERAÇÃO ---
 
 export const checkRunStatus = async (threadId: string, runId: string): Promise<string> => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
