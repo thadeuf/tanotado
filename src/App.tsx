@@ -1,7 +1,11 @@
 // src/App.tsx
 
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+// --- INÍCIO DA ALTERAÇÃO 1: Importações adicionadas ---
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Settings as SettingsIconLucide, LogOut } from 'lucide-react'; // Renomeado para evitar conflito
+// --- FIM DA ALTERAÇÃO 1 ---
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -47,7 +51,8 @@ const ScrollToTop = () => {
 
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth(); // Adicionado logout do useAuth
+  const navigate = useNavigate(); // Adicionado hook de navegação
 
   if (isLoading) {
     return (
@@ -82,26 +87,42 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
               <SidebarTrigger className="lg:hidden" />
             </div>
 
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar_url || ""} alt={user.name} />
-                  <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
-                    {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                  <div className="text-sm font-medium text-foreground">
-                    {user.name}
-                  </div>
-                  {user.role === 'admin' && (
-                    <div className="text-xs text-tanotado-purple">
-                      👑 Administrador
+            {/* --- INÍCIO DA ALTERAÇÃO 2: Implementação do DropdownMenu --- */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-accent transition-colors">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.avatar_url || ""} alt={user.name} />
+                    <AvatarFallback className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white font-medium text-sm">
+                      {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <div className="text-sm font-medium text-foreground">
+                      {user.name}
                     </div>
-                  )}
+                    {user.role === 'admin' && (
+                      <div className="text-xs text-tanotado-purple">
+                        👑 Administrador
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onSelect={() => navigate('/configuracoes')}>
+                  <SettingsIconLucide className="mr-2 h-4 w-4" />
+                  <span>Configurações</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={logout} className="text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* --- FIM DA ALTERAÇÃO 2 --- */}
+
           </header>
           
           <main className="p-6">
@@ -113,6 +134,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   );
 };
 
+// ... (Restante do arquivo permanece inalterado)
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
 

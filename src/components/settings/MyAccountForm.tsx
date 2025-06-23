@@ -12,13 +12,13 @@ import { toast } from '@/hooks/use-toast';
 // Componentes da UI
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Upload, MapPin, User, Briefcase, Settings, Link as LinkIcon } from 'lucide-react';
+import { Loader2, Upload, MapPin, User, Settings, Link as LinkIcon, Users } from 'lucide-react';
 import { CustomPhoneInput } from '@/components/ui/phone-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Função utilitária para transformar string em slug
 const slugify = (text: string) => {
@@ -33,12 +33,12 @@ const slugify = (text: string) => {
     .replace(/--+/g, '-');
 };
 
-// Schema sem o campo 'working_hours'
 const profileSchema = z.object({
   name: z.string().min(3, { message: "O nome é obrigatório." }),
   whatsapp: z.string().optional(),
   council_registration: z.string().optional(),
-  about_you: z.string().optional(),
+  client_nomenclature: z.string({ required_error: 'Por favor, selecione uma opção.' }),
+  custom_client_nomenclature: z.string().optional(),
   cep: z.string().optional(),
   address: z.string().optional(),
   address_number: z.string().optional(),
@@ -65,6 +65,13 @@ const profileSchema = z.object({
       message: 'A URL amigável é obrigatória quando o autoagendamento está ativado.',
     });
   }
+  if (data.client_nomenclature === 'outro' && (!data.custom_client_nomenclature || data.custom_client_nomenclature.trim().length < 2)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['custom_client_nomenclature'],
+      message: 'O nome personalizado é obrigatório e deve ter no mínimo 2 caracteres.',
+    });
+  }
 });
 
 
@@ -79,10 +86,13 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<string | null>(null);
 
+  const nomenclatureOptions = ['paciente', 'cliente'];
+
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: '', whatsapp: '', council_registration: '', about_you: '',
+      name: '', whatsapp: '', council_registration: '',
+      client_nomenclature: '', custom_client_nomenclature: '',
       cep: '', address: '', address_number: '', address_neighborhood: '',
       address_city: '', address_state: '', address_complement: '', avatar_url: null,
       public_booking_enabled: false,
@@ -91,15 +101,19 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
   });
 
   const isBookingPageEnabled = form.watch('public_booking_enabled');
-  const currentSlug = form.watch('public_booking_url_slug');
+  const watchedNomenclature = form.watch('client_nomenclature');
 
   useEffect(() => {
     if (user) {
+      const currentNomenclature = user.clientNomenclature || 'paciente';
+      const isCustom = !nomenclatureOptions.includes(currentNomenclature);
+
       form.reset({
         name: user.name || '',
         whatsapp: user.whatsapp || '',
         council_registration: user.council_registration || '',
-        about_you: user.about_you || '',
+        client_nomenclature: isCustom ? 'outro' : currentNomenclature,
+        custom_client_nomenclature: isCustom ? currentNomenclature : '',
         cep: user.cep || '',
         address: user.address || '',
         address_number: user.address_number || '',
@@ -138,16 +152,29 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
         avatarUrl = publicUrl;
       }
       
+      const finalNomenclature = values.client_nomenclature === 'outro'
+        ? values.custom_client_nomenclature
+        : values.client_nomenclature;
+
       const profileData = { 
-        ...values, 
+        name: values.name,
+        whatsapp: values.whatsapp,
+        council_registration: values.council_registration,
+        cep: values.cep,
+        address: values.address,
+        address_number: values.address_number,
+        address_neighborhood: values.address_neighborhood,
+        address_city: values.address_city,
+        address_state: values.address_state,
+        address_complement: values.address_complement,
+        client_nomenclature: finalNomenclature,
+        public_booking_enabled: values.public_booking_enabled,
+        public_booking_url_slug: values.public_booking_url_slug?.trim() || null, 
         id: user.id, 
         updated_at: new Date().toISOString(), 
         avatar_url: avatarUrl,
-        public_booking_enabled: values.public_booking_enabled,
-        public_booking_url_slug: values.public_booking_url_slug?.trim() || null, 
       };
-
-      delete (profileData as any).avatar_file;
+      
       const { error } = await supabase.from('profiles').update(profileData).eq('id', user.id);
       if (error) throw error;
       return profileData;
@@ -223,14 +250,51 @@ export const MyAccountForm: React.FC<MyAccountFormProps> = ({ onSuccess }) => {
                   )} />
                 </div>
             </div>
-            
-            <div className="space-y-4 p-4 border rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Briefcase className="h-5 w-5" />Sobre Você</h3>
-                <FormField control={form.control} name="about_you" render={({ field }) => (
-                  <FormItem><FormLabel>Resumo Profissional</FormLabel><FormControl><Textarea placeholder="Fale um pouco sobre sua especialidade..." {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-            </div>
 
+            <div className="space-y-4 p-4 border rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Users className="h-5 w-5" />Nomenclatura</h3>
+                <p className="text-sm text-muted-foreground">
+                    Personalize como o sistema se refere aos seus contatos.
+                </p>
+                <FormField
+                    control={form.control}
+                    name="client_nomenclature"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Como você chama seus clientes/pacientes?</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione uma opção..." />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="paciente">Paciente</SelectItem>
+                                    <SelectItem value="cliente">Cliente</SelectItem>
+                                    <SelectItem value="outro">Outro (Personalizar)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                {watchedNomenclature === 'outro' && (
+                    <FormField
+                        control={form.control}
+                        name="custom_client_nomenclature"
+                        render={({ field }) => (
+                            <FormItem className="animate-fade-in">
+                                <FormLabel>Digite o nome personalizado</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Ex: Consulente, Atendido..." {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+            </div>
+            
             <div className="space-y-4 p-4 border rounded-lg">
               <div className="flex justify-between items-start">
                   <div>
