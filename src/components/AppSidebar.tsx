@@ -1,6 +1,6 @@
 import React from 'react';
-// ATENÇÃO: O ícone LifeBuoy foi adicionado para a página de ajuda
-import { Calendar, User, Settings, Shield, DollarSign, LayoutDashboard, LogOut, LifeBuoy } from 'lucide-react'; 
+// ATENÇÃO: O ícone Sparkles foi adicionado para a nova página
+import { Calendar, User, Settings, Shield, DollarSign, LayoutDashboard, LogOut, LifeBuoy, Sparkles } from 'lucide-react'; 
 import { NavLink, useLocation } from 'react-router-dom';
 import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +31,7 @@ export function AppSidebar() {
     },
     { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
     // NOVO ITEM DE MENU ADICIONADO ABAIXO
+    { title: 'Posts com IA', url: '/posts-ia', icon: Sparkles },
     { title: 'Ajuda', url: '/ajuda', icon: LifeBuoy },
     { title: 'Configurações', url: '/configuracoes', icon: Settings },
     ...(user?.role === 'admin' ? [{ title: 'Dashboard Admin', url: '/admin', icon: Shield }] : [])

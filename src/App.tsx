@@ -36,6 +36,7 @@ import WhatsappInstances from './pages/admin/WhatsappInstances';
 import MessageReports from './pages/admin/MessageReports';
 import PatientBooking from './pages/PatientBooking';
 import HelpPage from './pages/Help';
+import AiPosts from './pages/AiPosts';
 
 const queryClient = new QueryClient();
 
@@ -229,6 +230,8 @@ const AppContent: React.FC = () => {
           <Route path="/configuracoes/modelos/novo" element={ <ProtectedRoute> <EditDocumentTemplate /> </ProtectedRoute> } />
           <Route path="/configuracoes/modelos/editar/:templateId" element={ <ProtectedRoute> <EditDocumentTemplate /> </ProtectedRoute> } />
           <Route path="/ajuda" element={ <ProtectedRoute> <HelpPage /> </ProtectedRoute> } />
+
+          <Route path="/posts-ia" element={ <ProtectedRoute> <AiPosts /> </ProtectedRoute> } />
 
           
           {/* Redirecionamentos */}
