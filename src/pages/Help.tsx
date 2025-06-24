@@ -20,12 +20,13 @@ import {
   Globe,
   MessageSquare,
   FileSignature,
-  Rocket
+  Rocket,
+  Sparkles
 } from 'lucide-react';
 
 const HelpPage: React.FC = () => {
   const sections = [
-    // NOVO ITEM ADICIONADO AQUI
+    // Seção existente
     {
       id: 'primeiros-passos',
       icon: Rocket,
@@ -49,6 +50,7 @@ const HelpPage: React.FC = () => {
         </div>
       ),
     },
+    // Seção existente
     {
       id: 'dashboard',
       icon: LayoutDashboard,
@@ -65,6 +67,7 @@ const HelpPage: React.FC = () => {
         </div>
       ),
     },
+    // Seção existente
     {
       id: 'agenda',
       icon: Calendar,
@@ -89,6 +92,7 @@ const HelpPage: React.FC = () => {
         </div>
       ),
     },
+    // Seção existente
     {
         id: 'clientes',
         icon: Users,
@@ -113,6 +117,36 @@ const HelpPage: React.FC = () => {
             </div>
         )
     },
+    // --- NOVA SEÇÃO ADICIONADA ---
+    {
+      id: 'ia-integrada',
+      icon: Sparkles,
+      title: 'IA Integrada: Sua Assistente Pessoal',
+      content: (
+        <div className="space-y-4">
+          <p>O TaNotado conta com <strong>ferramentas exclusivas de Inteligência Artificial</strong>, projetadas para otimizar seu tempo e aprofundar a qualidade do seu trabalho clínico. Nossas IAs são próprias e integradas diretamente no sistema para garantir sua privacidade e eficiência.</p>
+          <ul className="list-disc space-y-3 pl-5">
+            <li>
+              <strong>Criação de Documentos com IA:</strong> Precisa de um contrato, declaração ou laudo? Vá em <strong>Modelos de Documentos {'>'} Criar com IA</strong>, descreva o que precisa, e nossa assistente irá gerar uma estrutura inicial completa para você editar e salvar.
+            </li>
+            <li>
+              <strong>Transcrição de Áudio para Texto:</strong> No editor de Anotações de Sessão, clique no ícone do microfone (🎤) para gravar seus pensamentos. Ao parar a gravação, nossa IA transcreve todo o áudio diretamente para o texto, poupando um tempo precioso de digitação.
+            </li>
+            <li>
+              <strong>Insights e Análise de Anotações:</strong> Na tela de um cliente, na aba "Anotações da Sessão", clique no botão <strong>IA Insights</strong>. Você pode pedir à IA para realizar análises complexas sobre o histórico de anotações daquele cliente, como:
+              <ul className="list-circle space-y-1 pl-5 mt-2">
+                <li>Fazer um resumo dos principais temas abordados.</li>
+                <li>Identificar padrões de comportamento ou pensamento.</li>
+                <li>Listar a evolução de sintomas específicos ao longo do tempo.</li>
+                <li>Preparar um resumo para uma supervisão ou encaminhamento.</li>
+              </ul>
+            </li>
+          </ul>
+          <p>A IA analisa todas as anotações de sessão, prontuários e documentos daquele cliente para fornecer um insight coeso e bem fundamentado, sempre mantendo o foco clínico e a segurança dos dados.</p>
+        </div>
+      ),
+    },
+    // Seção existente
     {
       id: 'financeiro',
       icon: DollarSign,
@@ -130,6 +164,7 @@ const HelpPage: React.FC = () => {
         </div>
       ),
     },
+    // Seção existente
     {
       id: 'documentos',
       icon: FileSignature,
@@ -151,6 +186,7 @@ const HelpPage: React.FC = () => {
         </div>
       ),
     },
+    // Seção existente
     {
       id: 'configuracoes',
       icon: Settings,
@@ -170,6 +206,7 @@ const HelpPage: React.FC = () => {
         </div>
       ),
     },
+    // Seção existente
     {
       id: 'public-booking',
       icon: Globe,
