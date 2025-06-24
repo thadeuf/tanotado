@@ -87,7 +87,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
       video_call_link: '', email: '', cpf: '', rg: '', cep: '',
       address: '', address_number: '', address_neighborhood: '',
       address_city: '', address_state: '', address_complement: '',
-      session_value: undefined, billing_day: undefined,
+      // --- INÍCIO DA CORREÇÃO ---
+      session_value: '' as any,
+      billing_day: '' as any,
+      // --- FIM DA CORREÇÃO ---
       send_billing_reminder: false, financial_responsible_name: '',
       financial_responsible_whatsapp: '', financial_responsible_email: '',
       financial_responsible_cpf: '', financial_responsible_rg: '',

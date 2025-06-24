@@ -21,7 +21,7 @@ import { MyAccountForm } from '@/components/settings/MyAccountForm';
 import { GroupSettingsForm } from '@/components/settings/GroupSettingsForm';
 import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 import { useAuth } from '../contexts/AuthContext';
-import { ResetPasswordForm } from '@/components/settings/ResetPasswordForm'; // <<< NOVO IMPORT
+import { ResetPasswordForm } from '@/components/settings/ResetPasswordForm'; 
 
 type SettingItem = {
   icon: React.ElementType;
@@ -35,7 +35,7 @@ const Settings: React.FC = () => {
   const [isMyAccountOpen, setIsMyAccountOpen] = useState(false);
   const [isGroupsModalOpen, setIsGroupsModalOpen] = useState(false);
   const [isAgendaSettingsModalOpen, setIsAgendaSettingsModalOpen] = useState(false);
-  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false); // <<< NOVO ESTADO
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false); 
   const [isSignOutAlertOpen, setIsSignOutAlertOpen] = useState(false);
   const [isUpdateAlertOpen, setIsUpdateAlertOpen] = useState(false);
   const navigate = useNavigate();
@@ -95,7 +95,6 @@ const Settings: React.FC = () => {
       description: 'Gerencie seu plano, faturas e método de pagamento.',
       action: () => navigate('/assinatura'),
     },
-    // <<< INÍCIO DA ALTERAÇÃO >>>
     {
       id: 'reset-password',
       icon: Lock,
@@ -103,7 +102,6 @@ const Settings: React.FC = () => {
       description: 'Altere sua senha de acesso para manter sua conta segura.',
       action: () => setIsResetPasswordModalOpen(true),
     },
-    // <<< FIM DA ALTERAÇÃO >>>
     {
       id: 'logout-all',
       icon: LogOut,
@@ -157,6 +155,11 @@ const Settings: React.FC = () => {
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">Informações básicas</DialogTitle>
+            {/* --- INÍCIO DA CORREÇÃO --- */}
+            <DialogDescription>
+                Atualize seus dados pessoais, de contato e endereço.
+            </DialogDescription>
+            {/* --- FIM DA CORREÇÃO --- */}
           </DialogHeader>
           <MyAccountForm onSuccess={() => setIsMyAccountOpen(false)} />
         </DialogContent>
@@ -182,7 +185,6 @@ const Settings: React.FC = () => {
         </DialogContent>
       </Dialog>
       
-      {/* <<< INÍCIO DO NOVO MODAL >>> */}
       {/* Modal Redefinir Senha */}
       <Dialog open={isResetPasswordModalOpen} onOpenChange={setIsResetPasswordModalOpen}>
         <DialogContent className="sm:max-w-md">
@@ -195,7 +197,6 @@ const Settings: React.FC = () => {
           <ResetPasswordForm onSuccess={() => setIsResetPasswordModalOpen(false)} />
         </DialogContent>
       </Dialog>
-      {/* <<< FIM DO NOVO MODAL >>> */}
 
       {/* AlertDialog para Sair de Todos os Dispositivos */}
       <AlertDialog open={isSignOutAlertOpen} onOpenChange={setIsSignOutAlertOpen}>
