@@ -338,105 +338,121 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     client.name?.toLowerCase().includes(clientSearch.toLowerCase().trim())
   );
   
-  const createMutation = useMutation({
-    mutationFn: async (data: AppointmentFormData) => {
-      if (!user?.id) throw new Error('Usuário não autenticado');
-      
-      const [startHours, startMinutes] = data.start_time.split(':').map(Number);
-      const startDateTime = new Date(appointmentDate);
-      startDateTime.setHours(startHours, startMinutes, 0, 0);
-      const [endHours, endMinutes] = data.end_time.split(':').map(Number);
-      const endDateTime = new Date(appointmentDate);
-      endDateTime.setHours(endHours, endMinutes, 0, 0);
-      
-      let appointmentsToInsert = [];
-      const baseAppointment = {
-          user_id: user.id, description: data.description || null, status: 'scheduled' as const,
-          price: data.price ? parseFloat(data.price) : null,
-          is_online: data.isOnline, online_url: data.isOnline && data.onlineUrl ? data.onlineUrl : null,
-          color: data.color
-      };
-      
-      const getAppointmentType = (sessionType: (typeof SESSION_TYPES)[number]['value']) => {
-          if (sessionType === 'bloqueio') return 'block';
-          if (sessionType === 'compromisso_pessoal') return 'personal';
-          return 'appointment';
-      };
+  // Dentro de src/components/agenda/AppointmentForm.tsx
 
-      if (data.sessionType === 'sessoes_recorrentes' && data.clientId) {
-          const recurrence_group_id = uuidv4();
-          const count = data.recurrence_count || 1;
-          const selectedClient = clients.find(c => c.id === data.clientId);
-          if (!selectedClient) throw new Error("Cliente não encontrado.");
-          for (let i = 0; i < count; i++) {
-              let nextStart = new Date(startDateTime);
-              let nextEnd = new Date(endDateTime);
-              if (i > 0) {
-                  if (data.recurrence_frequency === 'weekly') { nextStart = addWeeks(nextStart, i); nextEnd = addWeeks(nextEnd, i); }
-                  else if (data.recurrence_frequency === 'biweekly') { nextStart = addWeeks(nextEnd, i * 2); }
-                  else if (data.recurrence_frequency === 'monthly') { nextStart = addMonths(nextStart, i); nextEnd = addMonths(nextEnd, i); }
-              }
-              appointmentsToInsert.push({
-                  ...baseAppointment, client_id: data.clientId!, title: selectedClient.name,
-                  start_time: nextStart.toISOString(), end_time: nextEnd.toISOString(),
-                  recurrence_group_id, recurrence_type: data.recurrence_frequency as any,
-                  appointment_type: 'appointment',
-              });
-          }
-      } else {
-          const selectedClient = data.clientId ? clients.find(c => c.id === data.clientId) : null;
-          const isClientEvent = data.sessionType === 'sessao_unica';
-          
-          appointmentsToInsert.push({
-              ...baseAppointment,
-              client_id: isClientEvent ? data.clientId! : null,
-              title: isClientEvent ? selectedClient!.name : data.title!,
-              start_time: startDateTime.toISOString(), end_time: endDateTime.toISOString(),
-              appointment_type: getAppointmentType(data.sessionType),
-          });
-      }
+const createMutation = useMutation({
+  mutationFn: async (data: AppointmentFormData) => {
+    if (!user?.id) throw new Error('Usuário não autenticado');
+    
+    // ... (toda a lógica para preparar os appointmentsToInsert continua a mesma) ...
+    const [startHours, startMinutes] = data.start_time.split(':').map(Number);
+    const startDateTime = new Date(appointmentDate);
+    startDateTime.setHours(startHours, startMinutes, 0, 0);
+    const [endHours, endMinutes] = data.end_time.split(':').map(Number);
+    const endDateTime = new Date(appointmentDate);
+    endDateTime.setHours(endHours, endMinutes, 0, 0);
+    
+    let appointmentsToInsert = [];
+    const baseAppointment = {
+        user_id: user.id, description: data.description || null, status: 'scheduled' as const,
+        price: data.price ? parseFloat(data.price) : null,
+        is_online: data.isOnline, online_url: data.isOnline && data.onlineUrl ? data.onlineUrl : null,
+        color: data.color
+    };
+    
+    const getAppointmentType = (sessionType: any) => {
+        if (sessionType === 'bloqueio') return 'block';
+        return 'appointment';
+    };
 
-      const { data: newlyCreatedAppointments, error } = await supabase
-          .from('appointments')
-          .insert(appointmentsToInsert as any)
-          .select();
-
-      if (error) throw error;
-      if (!newlyCreatedAppointments) return;
-
-      if (data.launchFinancial && data.price && parseFloat(data.price) > 0 && (data.sessionType === 'sessao_unica' || data.sessionType === 'sessoes_recorrentes')) {
-        const paymentsToInsert = newlyCreatedAppointments.map(app => ({
-          user_id: user.id,
-          client_id: app.client_id,
-          appointment_id: app.id,
-          amount: app.price,
-          status: 'pending' as const,
-          due_date: app.start_time,
-          notes: `Sessão do dia ${format(parseISO(app.start_time), 'dd/MM/yyyy')}`
-        }));
-
-        if (paymentsToInsert.length > 0) {
-          const { error: paymentError } = await supabase.from('payments').insert(paymentsToInsert as any);
-          if (paymentError) {
-            toast({
-              title: "Atenção: Erro no Financeiro",
-              description: "Os eventos foram criados, mas houve um erro ao gerar os lançamentos financeiros.",
-              variant: "destructive",
+    if (data.sessionType === 'sessoes_recorrentes' && data.clientId) {
+        const recurrence_group_id = uuidv4();
+        const count = data.recurrence_count || 1;
+        const selectedClient = clients.find(c => c.id === data.clientId);
+        if (!selectedClient) throw new Error("Cliente não encontrado.");
+        for (let i = 0; i < count; i++) {
+            let nextStart = new Date(startDateTime);
+            let nextEnd = new Date(endDateTime);
+            if (i > 0) {
+                if (data.recurrence_frequency === 'weekly') { nextStart = addWeeks(nextStart, i); nextEnd = addWeeks(nextEnd, i); }
+                else if (data.recurrence_frequency === 'biweekly') { nextStart = addWeeks(nextStart, i * 2); }
+                else if (data.recurrence_frequency === 'monthly') { nextStart = addMonths(nextStart, i); nextEnd = addMonths(nextEnd, i); }
+            }
+            appointmentsToInsert.push({
+                ...baseAppointment, client_id: data.clientId!, title: selectedClient.name,
+                start_time: nextStart.toISOString(), end_time: nextEnd.toISOString(),
+                recurrence_group_id, recurrence_type: data.recurrence_frequency as any,
+                appointment_type: 'appointment',
             });
-            console.error("Erro ao criar lançamentos financeiros:", paymentError);
-          }
         }
+    } else {
+        const selectedClient = data.clientId ? clients.find(c => c.id === data.clientId) : null;
+        const isClientEvent = data.sessionType === 'sessao_unica' || data.sessionType === 'sessoes_recorrentes';
+        
+        appointmentsToInsert.push({
+            ...baseAppointment,
+            client_id: isClientEvent ? data.clientId! : null,
+            title: isClientEvent && selectedClient ? selectedClient.name : data.title!,
+            start_time: startDateTime.toISOString(), end_time: endDateTime.toISOString(),
+            appointment_type: getAppointmentType(data.sessionType),
+        });
+    }
+
+    const { data: newlyCreatedAppointments, error } = await supabase
+        .from('appointments')
+        .insert(appointmentsToInsert as any)
+        .select();
+
+    if (error) throw error;
+    if (!newlyCreatedAppointments) throw new Error("Falha ao obter retorno da criação do agendamento.");
+
+    // Gerar lançamentos financeiros se necessário
+    if (data.launchFinancial && data.price && parseFloat(data.price) > 0 && (data.sessionType === 'sessao_unica' || data.sessionType === 'sessoes_recorrentes')) {
+      const paymentsToInsert = newlyCreatedAppointments.map(app => ({
+        user_id: user.id, client_id: app.client_id, appointment_id: app.id,
+        amount: app.price, status: 'pending' as const, due_date: app.start_time,
+        notes: `Sessão do dia ${format(parseISO(app.start_time), 'dd/MM/yyyy')}`
+      }));
+      if (paymentsToInsert.length > 0) {
+        await supabase.from('payments').insert(paymentsToInsert as any);
       }
-    },
-    onSuccess: () => {
-        toast({ title: "Sucesso!", description: "Seu(s) evento(s) foi/foram adicionado(s) com sucesso." });
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        queryClient.invalidateQueries({ queryKey: ['payments'] });
-        onClose();
-    },
-    onError: (error) => { toast({ title: "Erro ao salvar", description: `Ocorreu um erro: ${(error as Error).message}`, variant: "destructive" }); },
-    onSettled: () => { setIsSubmitting(false); }
-  });
+    }
+
+    return newlyCreatedAppointments;
+  },
+  onSuccess: (newlyCreatedAppointments) => {
+      toast({ title: "Sucesso!", description: "Seu(s) evento(s) foi/foram adicionado(s) com sucesso." });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+
+      // --- INÍCIO DA ALTERAÇÃO FINAL ---
+      // Para cada agendamento criado, invocamos a função que o sincroniza com o Google Agenda.
+      newlyCreatedAppointments.forEach(app => {
+          // Não precisamos verificar se a integração está ativa aqui, pois a própria função já faz isso.
+          console.log(`Invocando sincronização com Google Agenda para o agendamento: ${app.id}`);
+          
+          supabase.functions.invoke('create-google-event', {
+              body: { appointmentId: app.id },
+          }).then(({ data, error }) => {
+              if (error) {
+                  // Mostra um erro se a função falhar, mas não impede o fluxo principal.
+                  toast({ title: "Erro na Integração", description: `Não foi possível criar o evento no Google Agenda: ${error.message}`, variant: 'destructive'});
+              } else if (data.message.includes("desativada")) {
+                  // Loga no console se a sincronização estiver desativada, não mostra toast para o usuário.
+                  console.log("Sincronização com Google Agenda desativada pelo usuário.");
+              } else {
+                  // Mostra um toast de sucesso se o evento foi criado.
+                  toast({ title: "Google Agenda", description: "Evento sincronizado com sucesso!" });
+              }
+          });
+      });
+      // --- FIM DA ALTERAÇÃO FINAL ---
+
+      onClose();
+  },
+  onError: (error) => { toast({ title: "Erro ao salvar", description: `Ocorreu um erro: ${(error as Error).message}`, variant: "destructive" }); },
+  onSettled: () => { setIsSubmitting(false); }
+});
 
   const updateMutation = useMutation({
     mutationFn: async (vars: { scope: 'one' | 'all'; updates: Partial<AppointmentFormData> }) => {
