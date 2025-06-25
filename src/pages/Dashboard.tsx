@@ -19,6 +19,7 @@ import {
 import { supabase } from '../integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { useAppointments, Appointment } from '../hooks/useAppointments';
 import { useClients } from '../hooks/useClients';
 import { format, isToday, isTomorrow, startOfWeek, endOfWeek, isWithinInterval, parseISO, getMonth, getDate, differenceInYears } from 'date-fns';
@@ -37,8 +38,29 @@ const Dashboard: React.FC = () => {
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
   const [sendingLink, setSendingLink] = useState<string | null>(null);
   const [confirmingAppointment, setConfirmingAppointment] = useState<Appointment | null>(null);
+  
+  // --- INÍCIO DA ALTERAÇÃO CORRIGIDA ---
+  const { data: pendingNotesCount, isLoading: isLoadingPendingNotes } = useQuery({
+    queryKey: ['pendingNotesCount', user?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { data, error } = await supabase.rpc('get_pending_notes_count');
+      if (error) {
+        console.error("Erro ao buscar contagem de anotações pendentes:", error);
+        toast({
+          title: "Erro ao buscar lembrete",
+          description: "Não foi possível verificar as anotações pendentes.",
+          variant: "destructive"
+        });
+        return 0;
+      }
+      return data || 0;
+    },
+    enabled: !!user,
+  });
+  // --- FIM DA ALTERAÇÃO CORRIGIDA ---
 
-  const isLoading = isLoadingAppointments || isLoadingClients;
+  const isLoading = isLoadingAppointments || isLoadingClients || isLoadingPendingNotes;
 
   const { today, tomorrow, week } = useMemo(() => {
     if (isLoading) return { today: [], tomorrow: [], week: [] };
@@ -374,57 +396,78 @@ const Dashboard: React.FC = () => {
               </Tabs>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-tanotado-navy flex items-center gap-2">
-                <Cake className="h-5 w-5 text-tanotado-pink" />
-                Aniversariantes de Hoje
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                  <div className="space-y-4">
-                      <Skeleton className="h-16 w-full" />
-                      <Skeleton className="h-16 w-full" />
-                  </div>
-              ) : birthdaysToday.length > 0 ? (
-                <div className="space-y-4">
-                  {birthdaysToday.map((client, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-gradient-to-r from-tanotado-pink/10 to-tanotado-purple/10">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-tanotado-pink to-tanotado-purple rounded-full flex items-center justify-center">
-                          <Cake className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-tanotado-navy">{client.name}</p>
-                          {client.birth_date && <p className="text-sm text-muted-foreground">{calculateAge(client.birth_date)} anos</p>}
-                          {client.phone && <p className="text-xs text-muted-foreground">{client.phone}</p>}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Button
-                          asChild
-                          size="sm"
-                          className="bg-gradient-to-r from-tanotado-green to-tanotado-blue hover:shadow-lg text-white mt-1 h-8 px-3 text-xs"
-                        >
-                            <a href={formatWhatsAppLink(client.phone)} target='_blank' rel='noopener noreferrer'>
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                              Parabenizar
-                            </a>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Cake className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">Nenhum aniversário hoje</p>
-                </div>
+          
+          <div className="space-y-6">
+              {pendingNotesCount > 0 && (
+                  <Card className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white">
+                      <CardContent className="p-6">
+                          <div className="flex items-center gap-4">
+                              <div className="p-3 bg-white/20 rounded-full">
+                                  <NotebookPen className="h-6 w-6 text-white"/>
+                              </div>
+                              <div>
+                                  <p className="font-bold text-lg">Anotações Pendentes</p>
+                                  <p className="text-sm opacity-90">
+                                      Você tem {pendingNotesCount} sessões para atualizar as anotações.
+                                  </p>
+                              </div>
+                          </div>
+                      </CardContent>
+                  </Card>
               )}
-            </CardContent>
-          </Card>
+
+              <Card>
+                  <CardHeader>
+                      <CardTitle className="text-tanotado-navy flex items-center gap-2">
+                          <Cake className="h-5 w-5 text-tanotado-pink" />
+                          Aniversariantes de Hoje
+                      </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      {isLoading ? (
+                          <div className="space-y-4">
+                              <Skeleton className="h-16 w-full" />
+                              <Skeleton className="h-16 w-full" />
+                          </div>
+                      ) : birthdaysToday.length > 0 ? (
+                          <div className="space-y-4">
+                              {birthdaysToday.map((client, index) => (
+                                  <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-gradient-to-r from-tanotado-pink/10 to-tanotado-purple/10">
+                                      <div className="flex items-center space-x-3">
+                                          <div className="w-10 h-10 bg-gradient-to-r from-tanotado-pink to-tanotado-purple rounded-full flex items-center justify-center">
+                                              <Cake className="h-5 w-5 text-white" />
+                                          </div>
+                                          <div>
+                                              <p className="font-medium text-tanotado-navy">{client.name}</p>
+                                              {client.birth_date && <p className="text-sm text-muted-foreground">{calculateAge(client.birth_date)} anos</p>}
+                                              {client.phone && <p className="text-xs text-muted-foreground">{client.phone}</p>}
+                                          </div>
+                                      </div>
+                                      <div className="text-right">
+                                          <Button
+                                              asChild
+                                              size="sm"
+                                              className="bg-gradient-to-r from-tanotado-green to-tanotado-blue hover:shadow-lg text-white mt-1 h-8 px-3 text-xs"
+                                          >
+                                              <a href={formatWhatsAppLink(client.phone)} target='_blank' rel='noopener noreferrer'>
+                                                  <MessageSquare className="h-4 w-4 mr-2" />
+                                                  Parabenizar
+                                              </a>
+                                          </Button>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      ) : (
+                          <div className="text-center py-8">
+                              <Cake className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-muted-foreground">Nenhum aniversário hoje</p>
+                          </div>
+                      )}
+                  </CardContent>
+              </Card>
+          </div>
+
         </div>
       </div>
       

@@ -1,3 +1,5 @@
+// src/hooks/useAppointments.ts
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth } from 'date-fns';
@@ -23,6 +25,9 @@ export type Appointment = {
   created_at: string;
   updated_at: string;
   appointment_type: 'appointment' | 'block'; // <-- CAMPO ADICIONADO
+  // --- INÍCIO DA ALTERAÇÃO ---
+  session_notes: { id: string }[];
+  // --- FIM DA ALTERAÇÃO ---
   clients: {
     id: string;
     name: string;
@@ -40,6 +45,7 @@ export const useAppointments = (month?: Date) => {
     const startDate = startOfMonth(dateToQuery).toISOString();
     const endDate = endOfMonth(dateToQuery).toISOString();
     
+    // --- INÍCIO DA ALTERAÇÃO ---
     // A query com select(`*, ...`) já busca todos os campos da tabela appointments.
     const { data, error } = await supabase
       .from('appointments')
@@ -48,8 +54,12 @@ export const useAppointments = (month?: Date) => {
         clients (
           id,
           name
+        ),
+        session_notes (
+          id
         )
       `)
+      // --- FIM DA ALTERAÇÃO ---
       .eq('user_id', user.id)
       .gte('start_time', startDate)
       .lte('start_time', endDate)
