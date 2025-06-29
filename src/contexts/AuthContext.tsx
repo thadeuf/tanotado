@@ -95,10 +95,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               address_state: profile.address_state,
               address_complement: profile.address_complement,
               is_active: profile.is_active,
-              // --- CARREGAR NOVOS CAMPOS ---
               public_booking_enabled: profile.public_booking_enabled ?? false,
               public_booking_url_slug: profile.public_booking_url_slug,
-              // --- FIM CARREGAR NOVOS CAMPOS ---
+              receita_saude_enabled: profile.receita_saude_enabled ?? false,
+              procuracao_receita_saude_url: profile.procuracao_receita_saude_url,
             };
             setUser(userData);
             setIsLoading(false);

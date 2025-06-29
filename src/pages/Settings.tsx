@@ -13,7 +13,9 @@ import {
   Lock,
   LogOut,
   ChevronRight,
-  RefreshCw
+  RefreshCw,
+  // Ícone para a nova integração, pode ser qualquer um da lucide-react
+  HeartPulse 
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -24,11 +26,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { ResetPasswordForm } from '@/components/settings/ResetPasswordForm'; 
 
 type SettingItem = {
+  id: string;
   icon: React.ElementType;
   title: string;
   description: string;
   action?: () => void;
-  id: string;
 };
 
 const Settings: React.FC = () => {
@@ -40,7 +42,7 @@ const Settings: React.FC = () => {
   const [isUpdateAlertOpen, setIsUpdateAlertOpen] = useState(false);
   const navigate = useNavigate();
 
-  const { signOutFromAllDevices, forceAppUpdate } = useAuth();
+  const { user, signOutFromAllDevices, forceAppUpdate } = useAuth();
 
   const handleSignOutAllClick = async () => {
     await signOutFromAllDevices();
@@ -51,6 +53,23 @@ const Settings: React.FC = () => {
     await forceAppUpdate();
     setIsUpdateAlertOpen(false);
   };
+  
+  // Função para verificar se a especialidade do usuário é da área de saúde
+  const isHealthProfessional = () => {
+    if (!user?.specialty) return false;
+    const healthSpecialties = [
+      'psicologo', 
+      'medico', 
+      'dentista', 
+      'nutricionista', 
+      'fisioterapeuta', 
+      'fonoaudiologo', 
+      'otorrino'
+    ];
+    // Compara a especialidade em minúsculas para garantir a correspondência
+    return healthSpecialties.includes(user.specialty.toLowerCase());
+  };
+
 
   const settingsList: SettingItem[] = [
     {
@@ -95,6 +114,14 @@ const Settings: React.FC = () => {
       description: 'Gerencie seu plano, faturas e método de pagamento.',
       action: () => navigate('/assinatura'),
     },
+    // Inserção condicional do novo item de menu
+    ...(isHealthProfessional() ? [{
+      id: 'integracao-receita-saude',
+      icon: HeartPulse, // Ícone para a nova seção
+      title: 'Integração Receita Saúde',
+      description: 'Conecte sua conta para integrar com o Carnê Leão da Receita.',
+      action: () => navigate('/configuracoes/integracao-receita-saude'),
+    }] : []),
     {
       id: 'reset-password',
       icon: Lock,
@@ -155,11 +182,9 @@ const Settings: React.FC = () => {
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">Informações básicas</DialogTitle>
-            {/* --- INÍCIO DA CORREÇÃO --- */}
             <DialogDescription>
                 Atualize seus dados pessoais, de contato e endereço.
             </DialogDescription>
-            {/* --- FIM DA CORREÇÃO --- */}
           </DialogHeader>
           <MyAccountForm onSuccess={() => setIsMyAccountOpen(false)} />
         </DialogContent>

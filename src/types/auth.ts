@@ -12,7 +12,6 @@ export interface User {
   isSubscribed: boolean;
   subscriptionStatus: 'active' | 'trial' | 'expired' | 'cancelled';
   createdAt: Date;
-  // Novos campos adicionados
   avatar_url?: string | null;
   council_registration?: string | null;
   about_you?: string | null;
@@ -23,8 +22,9 @@ export interface User {
   address_city?: string | null;
   address_state?: string | null;
   address_complement?: string | null;
-  // --- NOVO CAMPO ADICIONADO ---
   public_booking_url_slug?: string | null;
+  procuracao_receita_saude_url?: string | null;
+  receita_saude_enabled?: boolean;
 }
 
 export interface AuthContextType {

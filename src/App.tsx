@@ -37,6 +37,7 @@ import MessageReports from './pages/admin/MessageReports';
 import PatientBooking from './pages/PatientBooking';
 import HelpPage from './pages/Help';
 import AiPosts from './pages/AiPosts';
+import IntegracaoReceitaSaude from './pages/IntegracaoReceitaSaude';
 
 const queryClient = new QueryClient();
 
@@ -222,6 +223,7 @@ const AppContent: React.FC = () => {
           <Route path="/financeiro" element={ <ProtectedRoute> <Financial /> </ProtectedRoute> } />
           <Route path="/prontuarios" element={ <ProtectedRoute> <Prontuarios /> </ProtectedRoute> } />
           <Route path="/configuracoes" element={ <ProtectedRoute> <Settings /> </ProtectedRoute> } />
+          <Route path="/configuracoes/integracao-receita-saude" element={ <ProtectedRoute> <IntegracaoReceitaSaude /> </ProtectedRoute> } />
           <Route path="/configuracoes/mensagens" element={ <ProtectedRoute> <MessageSettings /> </ProtectedRoute> } />
           
           <Route path="/agenda" element={ <ProtectedRoute> <Agenda /> </ProtectedRoute> } />

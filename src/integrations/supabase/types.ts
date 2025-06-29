@@ -11,7 +11,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      // --- INÍCIO DA ADIÇÃO ---
       admin_settings: {
         Row: {
           id: number
@@ -39,7 +38,6 @@ export type Database = {
         }
         Relationships: []
       }
-      // --- FIM DA ADIÇÃO ---
       appointments: {
         Row: {
           client_id: string | null
@@ -352,8 +350,10 @@ export type Database = {
           address_state: string | null
           address_complement: string | null
           instance_id: string | null
-          public_booking_url_slug: string | null;
-          public_booking_enabled: boolean | null;
+          public_booking_url_slug: string | null
+          public_booking_enabled: boolean | null
+          procuracao_receita_saude_url: string | null
+          receita_saude_enabled: boolean | null
         }
         Insert: {
           client_nomenclature?: string | null
@@ -386,8 +386,10 @@ export type Database = {
           address_state?: string | null
           address_complement?: string | null
           instance_id?: string | null
-          public_booking_url_slug?: string | null;
-          public_booking_enabled?: boolean | null;
+          public_booking_url_slug?: string | null
+          public_booking_enabled?: boolean | null
+          procuracao_receita_saude_url?: string | null
+          receita_saude_enabled?: boolean | null
         }
         Update: {
           client_nomenclature?: string | null
@@ -420,8 +422,10 @@ export type Database = {
           address_state?: string | null
           address_complement?: string | null
           instance_id?: string | null
-          public_booking_url_slug?: string | null;
-          public_booking_enabled?: boolean | null;
+          public_booking_url_slug?: string | null
+          public_booking_enabled?: boolean | null
+          procuracao_receita_saude_url?: string | null
+          receita_saude_enabled?: boolean | null
         }
         Relationships: [
           {
