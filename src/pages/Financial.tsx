@@ -26,13 +26,18 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { DollarSign, TrendingUp, TrendingDown, Plus, Search, MoreHorizontal, Edit, Trash2, CheckCircle, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronRight, FileSignature, Copy } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Search, MoreHorizontal, Edit, Trash2, CheckCircle, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronRight, FileSignature } from 'lucide-react';
 
 
 // --- DEFINIÇÃO DE TIPO ---
 type PaymentWithClient = Database['public']['Tables']['payments']['Row'] & {
   clients: { name: string; avatar_url: string | null; cpf: string | null } | null;
 };
+// --- INÍCIO DA ALTERAÇÃO 1: Adicionando a nova coluna payment_id ao tipo local ---
+type Receipt = Database['public']['Tables']['recibos_ecac']['Row'] & {
+    payment_id?: string | null;
+};
+// --- FIM DA ALTERAÇÃO 1 ---
 
 // =================================================================================
 // COMPONENTE PRINCIPAL DA PÁGINA FINANCEIRA
@@ -46,14 +51,9 @@ const Financial: React.FC = () => {
   const [paymentToDelete, setPaymentToDelete] = useState<PaymentWithClient | null>(null);
   const [paymentToPay, setPaymentToPay] = useState<PaymentWithClient | null>(null);
   
-  // --- INÍCIO DA ALTERAÇÃO 1: Estados para o novo fluxo de recibo ---
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-  const [receiptApiCallData, setReceiptApiCallData] = useState<{ request: object; response: object; } | null>(null);
   const [isDescriptionPromptOpen, setIsDescriptionPromptOpen] = useState(false);
   const [paymentForReceipt, setPaymentForReceipt] = useState<PaymentWithClient | null>(null);
-  const [isEmittingReceipt, setIsEmittingReceipt] = useState(false);
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
-  // --- FIM DA ALTERAÇÃO 1 ---
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
@@ -71,6 +71,33 @@ const Financial: React.FC = () => {
     },
     enabled: !!user?.id,
   });
+  
+  const { data: receiptsData = [] } = useQuery<Receipt[], Error>({
+    queryKey: ['recibos_ecac', user?.id],
+    queryFn: async () => {
+        if (!user) return [];
+        const { data, error } = await supabase.from('recibos_ecac').select('*');
+        if (error) {
+            console.error("Erro ao buscar recibos:", error.message);
+            return [];
+        }
+        return data || [];
+    },
+    enabled: !!user,
+  });
+
+  // --- INÍCIO DA ALTERAÇÃO 2: Mapeando status pelo ID do pagamento ---
+  const receiptStatusMap = useMemo(() => {
+      const map = new Map<string, string>();
+      receiptsData.forEach(receipt => {
+          if (receipt.payment_id) {
+              map.set(receipt.payment_id, receipt.status);
+          }
+      });
+      return map;
+  }, [receiptsData]);
+  // --- FIM DA ALTERAÇÃO 2 ---
+
 
   const periodPayments = useMemo(() => {
     return allPayments.filter(p => {
@@ -110,9 +137,9 @@ const Financial: React.FC = () => {
   };
   
   const stats = [
-    { title: `Receitas em ${format(currentDate, viewMode === 'month' ? "MMMM 'de' yyyy" : 'yyyy', { locale: ptBR })}`, value: formatCurrency(income), icon: TrendingUp, color: 'from-tanotado-green to-tanotado-blue' },
-    { title: `Despesas em ${format(currentDate, viewMode === 'month' ? "MMMM 'de' yyyy" : 'yyyy', { locale: ptBR })}`, value: formatCurrency(expenses), icon: TrendingDown, color: 'from-tanotado-pink to-tanotado-purple' },
-    { title: `Saldo em ${format(currentDate, viewMode === 'month' ? "MMMM 'de' yyyy" : 'yyyy', { locale: ptBR })}`, value: formatCurrency(balance), icon: DollarSign, color: 'from-tanotado-blue to-tanotado-purple' },
+    { title: `Receitas em ${format(currentDate, "MMMM 'de' yyyy", { locale: ptBR })}`, value: formatCurrency(income), icon: TrendingUp, color: 'from-tanotado-green to-tanotado-blue' },
+    { title: `Despesas em ${format(currentDate, "MMMM 'de' yyyy", { locale: ptBR })}`, value: formatCurrency(expenses), icon: TrendingDown, color: 'from-tanotado-pink to-tanotado-purple' },
+    { title: `Saldo em ${format(currentDate, "MMMM 'de' yyyy", { locale: ptBR })}`, value: formatCurrency(balance), icon: DollarSign, color: 'from-tanotado-blue to-tanotado-purple' },
   ];
 
   const deleteMutation = useMutation({
@@ -128,68 +155,54 @@ const Financial: React.FC = () => {
     onError: (e: any) => toast({ title: "Erro ao atualizar.", description: e.message, variant: 'destructive'}),
     onSettled: () => setPaymentToPay(null),
   });
+  
+  const createReceiptMutation = useMutation({
+    mutationFn: async (variables: { payment: PaymentWithClient; description?: string }) => {
+        const { payment, description } = variables;
+        if (!user || !payment.clients) throw new Error("Dados do profissional ou cliente incompletos.");
 
-  // --- INÍCIO DA ALTERAÇÃO 2: Funções para o novo fluxo ---
+        const cleanCPF = (cpf: string | null | undefined) => cpf ? cpf.replace(/[^\d]/g, '') : null;
+
+        // --- INÍCIO DA ALTERAÇÃO 3: Adicionando o ID do pagamento ao payload ---
+        const payload: Omit<Receipt, 'id' | 'created_at'> = {
+            id_profissional: user.id,
+            id_cliente: payment.client_id,
+            payment_id: payment.id, // <--- CAMPO ADICIONADO
+            cpf_profissional: cleanCPF(user.cpf),
+            cpf_pagador: cleanCPF(payment.clients.cpf),
+            cpf_beneficiario: cleanCPF(payment.clients.cpf),
+            valor: payment.amount,
+            data_pagamento: payment.payment_date,
+            descricao: description || payment.notes,
+            status: 'Em processamento',
+        };
+        // --- FIM DA ALTERAÇÃO 3 ---
+
+        const { error } = await supabase.from('recibos_ecac').insert(payload);
+        if (error) throw error;
+    },
+    onSuccess: () => {
+        toast({ title: "Recibo em fila!", description: "O recibo foi adicionado à fila de emissão." });
+        queryClient.invalidateQueries({ queryKey: ['recibos_ecac'] });
+        setIsDescriptionPromptOpen(false);
+        setPaymentForReceipt(null);
+    },
+    onError: (error: any) => {
+        toast({ title: "Erro ao enfileirar recibo", description: error.message, variant: "destructive" });
+        setIsDescriptionPromptOpen(false);
+    }
+  });
+
   const handleOpenReceiptPrompt = (payment: PaymentWithClient) => {
     setPaymentForReceipt(payment);
     setIsDescriptionPromptOpen(true);
   };
-  
-  const handleApiCallForReceipt = async () => {
-    if (!user || !paymentForReceipt || !paymentForReceipt.clients) {
-      toast({ title: "Erro", description: "Dados do profissional ou cliente incompletos.", variant: "destructive" });
-      return;
-    }
-    
-    setIsEmittingReceipt(true);
-    setIsDescriptionPromptOpen(false);
 
+  const handleConfirmReceiptEmission = () => {
+    if (!paymentForReceipt) return;
     const customDescription = descriptionInputRef.current?.value;
-    const finalDescription = customDescription && customDescription.trim() !== '' ? customDescription : paymentForReceipt.notes || '';
-
-    const cleanCPF = (cpf: string | null | undefined) => cpf ? cpf.replace(/[^\d]/g, '') : null;
-    const formatDateForApi = (dateStr: string | null) => dateStr ? format(parseISO(dateStr), 'ddMMyyyy') : null;
-
-    const payload = {
-      id_profissional: user.id,
-      id_cliente: paymentForReceipt.client_id,
-      cpf_profissional: cleanCPF(user.cpf),
-      cpf_pagador: cleanCPF(paymentForReceipt.clients.cpf),
-      cpf_beneficiario: cleanCPF(paymentForReceipt.clients.cpf),
-      valor: String(paymentForReceipt.amount), // Valor como string
-      data_pagamento: formatDateForApi(paymentForReceipt.payment_date),
-      descricao: finalDescription,
-    };
-    
-    const apiToken = import.meta.env.VITE_RECEITA_SAUDE_API_TOKEN;
-
-    if (!apiToken) {
-        toast({ title: "Erro de Configuração", description: "O token da API não foi encontrado.", variant: "destructive" });
-        setIsEmittingReceipt(false);
-        return;
-    }
-
-    try {
-      const response = await fetch('https://ecac.tanotado.com.br/emitir-recibo', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiToken}`
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseData = await response.json();
-      setReceiptApiCallData({ request: payload, response: responseData });
-
-    } catch (error: any) {
-      setReceiptApiCallData({ request: payload, response: { error: "Falha na comunicação com a API.", details: error.message } });
-    } finally {
-      setIsEmittingReceipt(false);
-      setIsReceiptModalOpen(true);
-    }
+    createReceiptMutation.mutate({ payment: paymentForReceipt, description: customDescription });
   };
-  // --- FIM DA ALTERAÇÃO 2 ---
 
   const handleOpenForm = (payment: PaymentWithClient | null = null) => { setEditingPayment(payment); setIsFormOpen(true); };
   const handleCloseForm = () => { setIsFormOpen(false); setEditingPayment(null); };
@@ -197,11 +210,6 @@ const Financial: React.FC = () => {
   const handleDateChange = (direction: 'prev' | 'next') => {
     const fn = direction === 'prev' ? (viewMode === 'month' ? subMonths : subYears) : (viewMode === 'month' ? addMonths : addYears);
     setCurrentDate(fn(currentDate, 1));
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: "Copiado!", description: "O conteúdo foi copiado para a área de transferência." });
   };
   
   return (
@@ -249,6 +257,10 @@ const Financial: React.FC = () => {
             filteredPayments.map(payment => {
               const isExpense = (payment.amount || 0) < 0;
               const isOverdue = isPast(parseISO(payment.due_date)) && payment.status === 'pending';
+              // --- INÍCIO DA ALTERAÇÃO 4: Buscando o status pelo ID do pagamento ---
+              const receiptStatus = receiptStatusMap.get(payment.id);
+              // --- FIM DA ALTERAÇÃO 4 ---
+
               return (
                 <TableRow key={payment.id} className="hover:bg-muted/50">
                   <TableCell className="text-center">{isExpense ? <ArrowDown className="h-5 w-5 text-red-500 mx-auto" /> : <ArrowUp className="h-5 w-5 text-green-500 mx-auto" />}</TableCell>
@@ -272,15 +284,22 @@ const Financial: React.FC = () => {
                   </TableCell>
                   <TableCell>{formatDate(payment.due_date)}</TableCell>
                   <TableCell className="text-right">
-                    {user?.receita_saude_enabled && payment.status === 'paid' && (
-                        <Badge 
-                            role="button"
-                            className="mr-2 gap-2 text-xs cursor-pointer bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
-                            onClick={() => handleOpenReceiptPrompt(payment)}
-                        >
-                          <FileSignature className="h-3 w-3" />
-                          Emitir Recibo
+                    {receiptStatus ? (
+                        <Badge className="mr-2 gap-2 text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            {receiptStatus}
                         </Badge>
+                    ) : (
+                        user?.receita_saude_enabled && payment.status === 'paid' && (
+                            <Badge 
+                                role="button"
+                                className="mr-2 gap-2 text-xs cursor-pointer bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
+                                onClick={() => handleOpenReceiptPrompt(payment)}
+                            >
+                              <FileSignature className="h-3 w-3" />
+                              Emitir Recibo
+                            </Badge>
+                        )
                     )}
                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -300,9 +319,9 @@ const Financial: React.FC = () => {
       <AlertDialog open={isDescriptionPromptOpen} onOpenChange={setIsDescriptionPromptOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Descrição do Recibo</AlertDialogTitle>
+            <AlertDialogTitle>Descrição para o Recibo</AlertDialogTitle>
             <AlertDialogDescription>
-              Deseja adicionar uma descrição personalizada para este recibo? Se deixar em branco, será usada a descrição padrão do lançamento.
+              Você pode usar a descrição padrão do lançamento ou adicionar uma personalizada para este recibo específico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
@@ -316,46 +335,13 @@ const Financial: React.FC = () => {
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApiCallForReceipt} disabled={isEmittingReceipt}>
-              {isEmittingReceipt && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Continuar
+            <AlertDialogAction onClick={handleConfirmReceiptEmission} disabled={createReceiptMutation.isPending}>
+              {createReceiptMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enfileirar Emissão
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* --- INÍCIO DA ALTERAÇÃO 3: Modal para exibir o JSON --- */}
-      <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
-        <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-                <DialogTitle>Depuração da Chamada de API</DialogTitle>
-                <DialogDescription>
-                    Abaixo estão os dados enviados para a API e a resposta recebida.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="mt-4 space-y-4">
-                <div>
-                    <h3 className="font-semibold mb-2">Dados Enviados (Request)</h3>
-                    <div className="relative bg-gray-900 text-white p-4 rounded-md overflow-x-auto">
-                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-white" onClick={() => copyToClipboard(JSON.stringify(receiptApiCallData?.request, null, 2))}>
-                            <Copy className="h-4 w-4" />
-                        </Button>
-                        <pre><code>{JSON.stringify(receiptApiCallData?.request, null, 2)}</code></pre>
-                    </div>
-                </div>
-                <div>
-                    <h3 className="font-semibold mb-2">Resposta da API (Response)</h3>
-                    <div className="relative bg-gray-800 text-white p-4 rounded-md overflow-x-auto">
-                         <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-white" onClick={() => copyToClipboard(JSON.stringify(receiptApiCallData?.response, null, 2))}>
-                            <Copy className="h-4 w-4" />
-                        </Button>
-                        <pre><code>{JSON.stringify(receiptApiCallData?.response, null, 2)}</code></pre>
-                    </div>
-                </div>
-            </div>
-        </DialogContent>
-      </Dialog>
-      {/* --- FIM DA ALTERAÇÃO 3 --- */}
 
       <AlertDialog open={!!paymentToDelete} onOpenChange={(open) => !open && setPaymentToDelete(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir o lançamento "{paymentToDelete?.notes}"? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
