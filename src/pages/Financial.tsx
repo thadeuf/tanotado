@@ -1,6 +1,6 @@
 // src/pages/Financial.tsx
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO, isPast, addMonths, subMonths, addYears, subYears } from 'date-fns';
@@ -12,24 +12,26 @@ import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 // Componentes
-import { TransactionForm } from '@/components/Financial/TransactionForm';
+import { TransactionForm } from '@/components/financial/TransactionForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { DollarSign, TrendingUp, TrendingDown, Plus, Search, MoreHorizontal, Edit, Trash2, CheckCircle, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Search, MoreHorizontal, Edit, Trash2, CheckCircle, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronRight, FileSignature, Copy } from 'lucide-react';
 
 
 // --- DEFINIÇÃO DE TIPO ---
 type PaymentWithClient = Database['public']['Tables']['payments']['Row'] & {
-  clients: { name: string; avatar_url: string | null; } | null;
+  clients: { name: string; avatar_url: string | null; cpf: string | null } | null;
 };
 
 // =================================================================================
@@ -43,6 +45,15 @@ const Financial: React.FC = () => {
   const [editingPayment, setEditingPayment] = useState<PaymentWithClient | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<PaymentWithClient | null>(null);
   const [paymentToPay, setPaymentToPay] = useState<PaymentWithClient | null>(null);
+  
+  // --- INÍCIO DA ALTERAÇÃO 1: Estados para o novo fluxo de recibo ---
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptApiCallData, setReceiptApiCallData] = useState<{ request: object; response: object; } | null>(null);
+  const [isDescriptionPromptOpen, setIsDescriptionPromptOpen] = useState(false);
+  const [paymentForReceipt, setPaymentForReceipt] = useState<PaymentWithClient | null>(null);
+  const [isEmittingReceipt, setIsEmittingReceipt] = useState(false);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+  // --- FIM DA ALTERAÇÃO 1 ---
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
@@ -51,7 +62,7 @@ const Financial: React.FC = () => {
     queryKey: ['payments', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase.from('payments').select(`*, clients (name, avatar_url)`).eq('user_id', user.id).order('due_date', { ascending: false });
+      const { data, error } = await supabase.from('payments').select(`*, clients (name, avatar_url, cpf)`).eq('user_id', user.id).order('due_date', { ascending: false });
       if (error) {
         toast({ title: "Erro ao buscar lançamentos.", description: error.message, variant: "destructive" });
         throw error;
@@ -118,12 +129,79 @@ const Financial: React.FC = () => {
     onSettled: () => setPaymentToPay(null),
   });
 
+  // --- INÍCIO DA ALTERAÇÃO 2: Funções para o novo fluxo ---
+  const handleOpenReceiptPrompt = (payment: PaymentWithClient) => {
+    setPaymentForReceipt(payment);
+    setIsDescriptionPromptOpen(true);
+  };
+  
+  const handleApiCallForReceipt = async () => {
+    if (!user || !paymentForReceipt || !paymentForReceipt.clients) {
+      toast({ title: "Erro", description: "Dados do profissional ou cliente incompletos.", variant: "destructive" });
+      return;
+    }
+    
+    setIsEmittingReceipt(true);
+    setIsDescriptionPromptOpen(false);
+
+    const customDescription = descriptionInputRef.current?.value;
+    const finalDescription = customDescription && customDescription.trim() !== '' ? customDescription : paymentForReceipt.notes || '';
+
+    const cleanCPF = (cpf: string | null | undefined) => cpf ? cpf.replace(/[^\d]/g, '') : null;
+    const formatDateForApi = (dateStr: string | null) => dateStr ? format(parseISO(dateStr), 'ddMMyyyy') : null;
+
+    const payload = {
+      id_profissional: user.id,
+      id_cliente: paymentForReceipt.client_id,
+      cpf_profissional: cleanCPF(user.cpf),
+      cpf_pagador: cleanCPF(paymentForReceipt.clients.cpf),
+      cpf_beneficiario: cleanCPF(paymentForReceipt.clients.cpf),
+      valor: String(paymentForReceipt.amount), // Valor como string
+      data_pagamento: formatDateForApi(paymentForReceipt.payment_date),
+      descricao: finalDescription,
+    };
+    
+    const apiToken = import.meta.env.VITE_RECEITA_SAUDE_API_TOKEN;
+
+    if (!apiToken) {
+        toast({ title: "Erro de Configuração", description: "O token da API não foi encontrado.", variant: "destructive" });
+        setIsEmittingReceipt(false);
+        return;
+    }
+
+    try {
+      const response = await fetch('https://ecac.tanotado.com.br/emitir-recibo', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiToken}`
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseData = await response.json();
+      setReceiptApiCallData({ request: payload, response: responseData });
+
+    } catch (error: any) {
+      setReceiptApiCallData({ request: payload, response: { error: "Falha na comunicação com a API.", details: error.message } });
+    } finally {
+      setIsEmittingReceipt(false);
+      setIsReceiptModalOpen(true);
+    }
+  };
+  // --- FIM DA ALTERAÇÃO 2 ---
+
   const handleOpenForm = (payment: PaymentWithClient | null = null) => { setEditingPayment(payment); setIsFormOpen(true); };
   const handleCloseForm = () => { setIsFormOpen(false); setEditingPayment(null); };
 
   const handleDateChange = (direction: 'prev' | 'next') => {
     const fn = direction === 'prev' ? (viewMode === 'month' ? subMonths : subYears) : (viewMode === 'month' ? addMonths : addYears);
     setCurrentDate(fn(currentDate, 1));
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copiado!", description: "O conteúdo foi copiado para a área de transferência." });
   };
   
   return (
@@ -175,7 +253,6 @@ const Financial: React.FC = () => {
                 <TableRow key={payment.id} className="hover:bg-muted/50">
                   <TableCell className="text-center">{isExpense ? <ArrowDown className="h-5 w-5 text-red-500 mx-auto" /> : <ArrowUp className="h-5 w-5 text-green-500 mx-auto" />}</TableCell>
                   <TableCell>
-                    {/* <<< INÍCIO DA CORREÇÃO >>> */}
                     <div className="font-medium text-gray-800 flex items-center gap-2">
                         <Avatar className="h-5 w-5">
                             <AvatarImage src={payment.clients?.avatar_url || ''} />
@@ -186,7 +263,6 @@ const Financial: React.FC = () => {
                     <div className="text-sm text-muted-foreground pl-7">
                         {payment.notes}
                     </div>
-                    {/* <<< FIM DA CORREÇÃO >>> */}
                   </TableCell>
                   <TableCell className={`text-right font-bold ${isExpense ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(payment.amount)}</TableCell>
                   <TableCell className="text-center">
@@ -196,6 +272,16 @@ const Financial: React.FC = () => {
                   </TableCell>
                   <TableCell>{formatDate(payment.due_date)}</TableCell>
                   <TableCell className="text-right">
+                    {user?.receita_saude_enabled && payment.status === 'paid' && (
+                        <Badge 
+                            role="button"
+                            className="mr-2 gap-2 text-xs cursor-pointer bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
+                            onClick={() => handleOpenReceiptPrompt(payment)}
+                        >
+                          <FileSignature className="h-3 w-3" />
+                          Emitir Recibo
+                        </Badge>
+                    )}
                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleOpenForm(payment)}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
@@ -211,6 +297,66 @@ const Financial: React.FC = () => {
         </TableBody></Table></CardContent>
       </Card>
       
+      <AlertDialog open={isDescriptionPromptOpen} onOpenChange={setIsDescriptionPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descrição do Recibo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja adicionar uma descrição personalizada para este recibo? Se deixar em branco, será usada a descrição padrão do lançamento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="receipt-description">Descrição Personalizada (Opcional)</Label>
+            <Textarea
+              id="receipt-description"
+              ref={descriptionInputRef}
+              placeholder={paymentForReceipt?.notes || "Ex: Referente às sessões do mês de Junho..."}
+              className="mt-2"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApiCallForReceipt} disabled={isEmittingReceipt}>
+              {isEmittingReceipt && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* --- INÍCIO DA ALTERAÇÃO 3: Modal para exibir o JSON --- */}
+      <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Depuração da Chamada de API</DialogTitle>
+                <DialogDescription>
+                    Abaixo estão os dados enviados para a API e a resposta recebida.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 space-y-4">
+                <div>
+                    <h3 className="font-semibold mb-2">Dados Enviados (Request)</h3>
+                    <div className="relative bg-gray-900 text-white p-4 rounded-md overflow-x-auto">
+                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-white" onClick={() => copyToClipboard(JSON.stringify(receiptApiCallData?.request, null, 2))}>
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                        <pre><code>{JSON.stringify(receiptApiCallData?.request, null, 2)}</code></pre>
+                    </div>
+                </div>
+                <div>
+                    <h3 className="font-semibold mb-2">Resposta da API (Response)</h3>
+                    <div className="relative bg-gray-800 text-white p-4 rounded-md overflow-x-auto">
+                         <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-gray-400 hover:bg-gray-700 hover:text-white" onClick={() => copyToClipboard(JSON.stringify(receiptApiCallData?.response, null, 2))}>
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                        <pre><code>{JSON.stringify(receiptApiCallData?.response, null, 2)}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </DialogContent>
+      </Dialog>
+      {/* --- FIM DA ALTERAÇÃO 3 --- */}
+
       <AlertDialog open={!!paymentToDelete} onOpenChange={(open) => !open && setPaymentToDelete(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir o lançamento "{paymentToDelete?.notes}"? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => paymentToDelete && deleteMutation.mutate(paymentToDelete.id)} disabled={deleteMutation.isPending} className="bg-red-600 hover:bg-red-700">{deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Confirmar</AlertDialogAction></AlertDialogFooter>

@@ -1,3 +1,5 @@
+// src/hooks/usePayments.ts
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +11,7 @@ export type PaymentWithClient = Database['public']['Tables']['payments']['Row'] 
   clients: {
     name: string;
     avatar_url: string | null;
+    cpf: string | null; // Adicionado CPF
   } | null;
 };
 
@@ -22,18 +25,21 @@ export const usePayments = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      // Busca os pagamentos e junta informações da tabela 'clients'
+      // --- INÍCIO DA ALTERAÇÃO ---
+      // Busca os pagamentos e junta informações da tabela 'clients', incluindo o CPF
       const { data, error } = await supabase
         .from('payments')
         .select(`
           *,
           clients (
             name,
-            avatar_url
+            avatar_url,
+            cpf
           )
         `)
         .eq('user_id', user.id)
         .order('due_date', { ascending: false });
+      // --- FIM DA ALTERAÇÃO ---
 
       if (error) {
         console.error('Error fetching payments:', error);
