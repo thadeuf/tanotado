@@ -26,18 +26,14 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { DollarSign, TrendingUp, TrendingDown, Plus, Search, MoreHorizontal, Edit, Trash2, CheckCircle, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronRight, FileSignature } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Search, MoreHorizontal, Edit, Trash2, CheckCircle, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronRight, FileSignature, FileCheck } from 'lucide-react';
 
 
 // --- DEFINIÇÃO DE TIPO ---
 type PaymentWithClient = Database['public']['Tables']['payments']['Row'] & {
   clients: { name: string; avatar_url: string | null; cpf: string | null } | null;
 };
-// --- INÍCIO DA ALTERAÇÃO 1: Adicionando a nova coluna payment_id ao tipo local ---
-type Receipt = Database['public']['Tables']['recibos_ecac']['Row'] & {
-    payment_id?: string | null;
-};
-// --- FIM DA ALTERAÇÃO 1 ---
+type Receipt = Database['public']['Tables']['recibos_ecac']['Row'];
 
 // =================================================================================
 // COMPONENTE PRINCIPAL DA PÁGINA FINANCEIRA
@@ -76,7 +72,7 @@ const Financial: React.FC = () => {
     queryKey: ['recibos_ecac', user?.id],
     queryFn: async () => {
         if (!user) return [];
-        const { data, error } = await supabase.from('recibos_ecac').select('*');
+        const { data, error } = await supabase.from('recibos_ecac').select('*').eq('id_profissional', user.id);
         if (error) {
             console.error("Erro ao buscar recibos:", error.message);
             return [];
@@ -86,17 +82,15 @@ const Financial: React.FC = () => {
     enabled: !!user,
   });
 
-  // --- INÍCIO DA ALTERAÇÃO 2: Mapeando status pelo ID do pagamento ---
-  const receiptStatusMap = useMemo(() => {
-      const map = new Map<string, string>();
+  const receiptMap = useMemo(() => {
+      const map = new Map<string, Receipt>();
       receiptsData.forEach(receipt => {
           if (receipt.payment_id) {
-              map.set(receipt.payment_id, receipt.status);
+              map.set(receipt.payment_id, receipt);
           }
       });
       return map;
   }, [receiptsData]);
-  // --- FIM DA ALTERAÇÃO 2 ---
 
 
   const periodPayments = useMemo(() => {
@@ -163,20 +157,18 @@ const Financial: React.FC = () => {
 
         const cleanCPF = (cpf: string | null | undefined) => cpf ? cpf.replace(/[^\d]/g, '') : null;
 
-        // --- INÍCIO DA ALTERAÇÃO 3: Adicionando o ID do pagamento ao payload ---
         const payload: Omit<Receipt, 'id' | 'created_at'> = {
             id_profissional: user.id,
             id_cliente: payment.client_id,
-            payment_id: payment.id, // <--- CAMPO ADICIONADO
+            payment_id: payment.id,
             cpf_profissional: cleanCPF(user.cpf),
             cpf_pagador: cleanCPF(payment.clients.cpf),
             cpf_beneficiario: cleanCPF(payment.clients.cpf),
             valor: payment.amount,
             data_pagamento: payment.payment_date,
             descricao: description || payment.notes,
-            status: 'Em processamento',
+            status: 'Pendente',
         };
-        // --- FIM DA ALTERAÇÃO 3 ---
 
         const { error } = await supabase.from('recibos_ecac').insert(payload);
         if (error) throw error;
@@ -257,9 +249,7 @@ const Financial: React.FC = () => {
             filteredPayments.map(payment => {
               const isExpense = (payment.amount || 0) < 0;
               const isOverdue = isPast(parseISO(payment.due_date)) && payment.status === 'pending';
-              // --- INÍCIO DA ALTERAÇÃO 4: Buscando o status pelo ID do pagamento ---
-              const receiptStatus = receiptStatusMap.get(payment.id);
-              // --- FIM DA ALTERAÇÃO 4 ---
+              const receipt = receiptMap.get(payment.id);
 
               return (
                 <TableRow key={payment.id} className="hover:bg-muted/50">
@@ -284,23 +274,41 @@ const Financial: React.FC = () => {
                   </TableCell>
                   <TableCell>{formatDate(payment.due_date)}</TableCell>
                   <TableCell className="text-right">
-                    {receiptStatus ? (
-                        <Badge className="mr-2 gap-2 text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            {receiptStatus}
-                        </Badge>
-                    ) : (
-                        user?.receita_saude_enabled && payment.status === 'paid' && (
-                            <Badge 
-                                role="button"
-                                className="mr-2 gap-2 text-xs cursor-pointer bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
-                                onClick={() => handleOpenReceiptPrompt(payment)}
-                            >
-                              <FileSignature className="h-3 w-3" />
-                              Emitir Recibo
-                            </Badge>
-                        )
-                    )}
+                    {/* --- INÍCIO DA ALTERAÇÃO FINAL --- */}
+                    {(() => {
+                        if (receipt) {
+                            if (receipt.status === 'Emitido') {
+                                return (
+                                    <a href={receipt.url_recibo || '#'} target="_blank" rel="noopener noreferrer" onClick={(e) => !receipt.url_recibo && e.preventDefault()}>
+                                        <Badge role="button" className="mr-2 gap-2 text-xs cursor-pointer bg-green-100 text-green-800 border-green-300 hover:bg-green-200">
+                                            <FileCheck className="h-3 w-3" />
+                                            Baixar Recibo
+                                        </Badge>
+                                    </a>
+                                );
+                            } else { // Pendente
+                                return (
+                                    <Badge className="mr-2 gap-2 text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        Pendente
+                                    </Badge>
+                                );
+                            }
+                        } else if (user?.receita_saude_enabled && payment.status === 'paid' && !isExpense) { // <<-- SÓ MOSTRA SE FOR RECEITA
+                            return (
+                                <Badge 
+                                    role="button"
+                                    className="mr-2 gap-2 text-xs cursor-pointer bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
+                                    onClick={() => handleOpenReceiptPrompt(payment)}
+                                >
+                                  <FileSignature className="h-3 w-3" />
+                                  Emitir Recibo
+                                </Badge>
+                            );
+                        }
+                        return null;
+                    })()}
+                    {/* --- FIM DA ALTERAÇÃO FINAL --- */}
                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleOpenForm(payment)}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
