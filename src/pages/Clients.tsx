@@ -70,6 +70,9 @@ const Clients: React.FC = () => {
   };
 
   const filteredClients = clients.filter(client => {
+    if (client.name.toLowerCase() === 'minha clínica') {
+        return false;
+    }
     const matchesSearch = searchTerm ? client.name.toLowerCase().includes(searchTerm.toLowerCase()) : true; 
     
     let matchesFilter = false;
