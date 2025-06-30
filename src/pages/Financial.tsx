@@ -29,6 +29,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DollarSign, TrendingUp, TrendingDown, Plus, Search, MoreHorizontal, Edit, Trash2, CheckCircle, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronRight, FileSignature, FileCheck } from 'lucide-react';
 
 
+
 // --- DEFINIÇÃO DE TIPO ---
 type PaymentWithClient = Database['public']['Tables']['payments']['Row'] & {
   clients: { name: string; avatar_url: string | null; cpf: string | null } | null;
@@ -46,6 +47,7 @@ const Financial: React.FC = () => {
   const [editingPayment, setEditingPayment] = useState<PaymentWithClient | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<PaymentWithClient | null>(null);
   const [paymentToPay, setPaymentToPay] = useState<PaymentWithClient | null>(null);
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   
   const [isDescriptionPromptOpen, setIsDescriptionPromptOpen] = useState(false);
   const [paymentForReceipt, setPaymentForReceipt] = useState<PaymentWithClient | null>(null);
@@ -112,9 +114,21 @@ const Financial: React.FC = () => {
     }, { income: 0, expenses: 0, balance: 0 });
   }, [periodPayments]);
 
-  const filteredPayments = useMemo(() => (
-    periodPayments.filter(p => (p.notes || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.clients?.name || '').toLowerCase().includes(searchTerm.toLowerCase()))
-  ), [periodPayments, searchTerm]);
+  const filteredPayments = useMemo(() => {
+    return periodPayments.filter(p => {
+      const matchesSearch = (p.notes || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.clients?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (!matchesSearch) return false;
+  
+      if (filterType === 'income') {
+        return (p.amount || 0) > 0;
+      }
+      if (filterType === 'expense') {
+        return (p.amount || 0) < 0;
+      }
+      return true; // para o caso 'all'
+    });
+  }, [periodPayments, searchTerm, filterType]);
 
   // --- FUNÇÕES AUXILIARES ---
   const formatCurrency = (v: number | null) => v?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00';
@@ -231,14 +245,24 @@ const Financial: React.FC = () => {
       </div>
       
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-            <div className="relative w-full md:max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar por descrição ou cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
-            </div>
-            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'month' | 'year')} size="sm">
-                <ToggleGroupItem value="month">Mês</ToggleGroupItem>
-                <ToggleGroupItem value="year">Ano</ToggleGroupItem>
+      <CardHeader className="flex-row items-center justify-between">
+    <div className="relative w-full md:max-w-xs">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Buscar por descrição ou cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+    </div>
+            <div className="flex items-center gap-4">
+            <ToggleGroup type="single" value={filterType} onValueChange={(value) => value && setFilterType(value as any)} size="sm">
+                <ToggleGroupItem value="all">Todas</ToggleGroupItem>
+                <ToggleGroupItem value="income">Receitas</ToggleGroupItem>
+                <ToggleGroupItem value="expense">Despesas</ToggleGroupItem>
             </ToggleGroup>
+        
+        <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'month' | 'year')} size="sm">
+            <ToggleGroupItem value="month">Mês</ToggleGroupItem>
+            <ToggleGroupItem value="year">Ano</ToggleGroupItem>
+        </ToggleGroup>
+    </div>
+            
         </CardHeader>
         <CardContent className="p-0"><Table><TableHeader><TableRow>
           <TableHead className="w-[40px] text-center">Tipo</TableHead><TableHead>Descrição / Cliente</TableHead><TableHead className="text-right">Valor</TableHead>
