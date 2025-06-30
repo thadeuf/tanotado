@@ -1,11 +1,12 @@
 // src/App.tsx
 
 import React, { useState, useEffect } from 'react';
-// --- INÍCIO DA ALTERAÇÃO 1: Importações adicionadas ---
+// --- INÍCIO DA ALTERAÇÃO: Importações adicionadas ---
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Settings as SettingsIconLucide, LogOut } from 'lucide-react'; // Renomeado para evitar conflito
-// --- FIM DA ALTERAÇÃO 1 ---
+// Ícone CreditCard adicionado
+import { Settings as SettingsIconLucide, LogOut, CreditCard } from 'lucide-react';
+// --- FIM DA ALTERAÇÃO ---
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,6 +31,7 @@ import Prontuarios from './pages/Prontuarios';
 import Settings from './pages/Settings';
 import MessageSettings from './pages/MessageSettings';
 import Subscription from './pages/Subscription';
+import ManageSubscriptionPage from './pages/ManageSubscription';
 import DocumentTemplates from './pages/DocumentTemplates';
 import EditDocumentTemplate from './pages/EditDocumentTemplate';
 import WhatsappInstances from './pages/admin/WhatsappInstances';
@@ -53,8 +55,8 @@ const ScrollToTop = () => {
 
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isLoading, logout } = useAuth(); // Adicionado logout do useAuth
-  const navigate = useNavigate(); // Adicionado hook de navegação
+  const { user, isLoading, logout } = useAuth();
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
@@ -89,7 +91,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
               <SidebarTrigger className="lg:hidden" />
             </div>
 
-            {/* --- INÍCIO DA ALTERAÇÃO 2: Implementação do DropdownMenu --- */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-accent transition-colors">
@@ -116,6 +117,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
                   <SettingsIconLucide className="mr-2 h-4 w-4" />
                   <span>Configurações</span>
                 </DropdownMenuItem>
+
+                {/* --- NOVA OPÇÃO ADICIONADA AQUI --- */}
+                <DropdownMenuItem onSelect={() => navigate('/assinatura')}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  <span>Minha Assinatura</span>
+                </DropdownMenuItem>
+                {/* --- FIM DA NOVA OPÇÃO --- */}
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={logout} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
@@ -123,7 +132,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {/* --- FIM DA ALTERAÇÃO 2 --- */}
 
           </header>
           
@@ -136,7 +144,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   );
 };
 
-// ... (Restante do arquivo permanece inalterado)
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
 
@@ -204,13 +211,11 @@ const AppContent: React.FC = () => {
           {/* Rotas públicas */}
           <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />
           <Route path="/register" element={ <PublicRoute> <Register /> </PublicRoute> } />
-
-          {/* --- NOVA ROTA PÚBLICA PARA AGENDAMENTO --- */}
           <Route path="/agendar/:slug" element={ <PatientBooking /> } />
-          {/* --- FIM NOVA ROTA PÚBLICA --- */}
 
           {/* Rota para a página de assinatura */}
           <Route path="/assinatura" element={ <SubscriptionRoute> <Subscription /> </SubscriptionRoute> } />
+          <Route path="/manage-subscription" element={ <ProtectedRoute> <ManageSubscriptionPage /> </ProtectedRoute> } />
 
           {/* Rotas protegidas */}
           <Route path="/dashboard" element={ <ProtectedRoute> <Dashboard /> </ProtectedRoute> } />
