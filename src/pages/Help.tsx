@@ -1,6 +1,7 @@
 // src/pages/Help.tsx
 
 import React from 'react';
+import { Link } from 'react-router-dom'; // <<< CORREÇÃO AQUI
 import {
   Accordion,
   AccordionContent,
@@ -21,7 +22,8 @@ import {
   MessageSquare,
   FileSignature,
   Rocket,
-  Sparkles
+  Sparkles,
+  HeartPulse
 } from 'lucide-react';
 
 const HelpPage: React.FC = () => {
@@ -145,6 +147,33 @@ const HelpPage: React.FC = () => {
           <p>A IA analisa todas as anotações de sessão, prontuários e documentos daquele cliente para fornecer um insight coeso e bem fundamentado, sempre mantendo o foco clínico e a segurança dos dados.</p>
         </div>
       ),
+    },
+     // Seção de Integração com Receita Saúde
+     {
+      id: 'integracao-receita-saude',
+      icon: HeartPulse,
+      title: 'Integração com Receita Saúde',
+      content: (
+        <div className="space-y-4">
+          <h4 className="font-semibold text-foreground">Por que a procuração digital é necessária?</h4>
+          <p>Para que o <strong>tanotado</strong> possa registrar seus recebimentos de forma automática no sistema Carnê Leão da Receita Federal, precisamos de uma autorização formal. A <strong>procuração digital</strong> é o meio oficial e seguro que nos concede a permissão para atuar em seu nome exclusivamente para este fim, garantindo a automação e a conformidade fiscal do processo.</p>
+          
+          <h4 className="font-semibold text-foreground pt-2">Como configurar a integração?</h4>
+          <p>Siga os passos abaixo para gerar e nos enviar sua procuração:</p>
+          <ol className="list-decimal space-y-2 pl-5">
+            <li>Acesse o portal e-CAC da Receita Federal.</li>
+            <li>Clique em "Senhas e procurações".</li>
+            <li>Depois em "Cadastros, consultas e cancelamentos — Procuração para e-CAC".</li>
+            <li>Agora em "Cadastrar procuração".</li>
+            <li>Insira o CNPJ <strong>12.113.578/0001-33</strong> da Artideia (a razão social do tanotado) nos dados de outorgante.</li>
+            <li>Selecione a opção "IRPF - Carnê Leão Web".</li>
+            <li>Assine digitalmente a procuração.</li>
+            <li>Retorne ao passo 3 e, em seguida, clique em "Consultar por outorgante".</li>
+            <li>Baixe o arquivo PDF da procuração que você acabou de assinar.</li>
+            <li>Finalmente, anexe este arquivo PDF na página de <Link to="/configuracoes/integracao-receita-saude" className="text-tanotado-blue underline">Configuração da Integração</Link>.</li>
+          </ol>
+        </div>
+      )
     },
     // Seção existente
     {
