@@ -1,13 +1,55 @@
-// src/pages/ManageSubscription.tsx
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CreditCard, Calendar } from 'lucide-react';
 
 const ManageSubscriptionPage: React.FC = () => {
-    const { user, logout } = useAuth();
+    const { user, isLoading } = useAuth();
+
+    const getStatusInfo = () => {
+        if (!user || !user.stripe_subscription_status) {
+            return { text: 'Desconhecido', className: 'bg-gray-100 text-gray-800' };
+        }
+        
+        switch (user.stripe_subscription_status) {
+            case 'active':
+            case 'trialing':
+                return { text: 'Ativa', className: 'bg-green-100 text-green-800' };
+            case 'past_due':
+            case 'unpaid':
+                return { text: 'Pagamento Pendente', className: 'bg-yellow-100 text-yellow-800' };
+            case 'canceled':
+                return { text: 'Cancelada', className: 'bg-red-100 text-red-800' };
+            default:
+                return { text: user.stripe_subscription_status, className: 'bg-gray-100 text-gray-800' };
+        }
+    };
+
+    const renewalDate = user?.subscription_current_period_end 
+        ? format(parseISO(user.subscription_current_period_end), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+        : 'Não aplicável';
+
+    const statusInfo = getStatusInfo();
+    
+    if (isLoading) {
+        return (
+            <div className="max-w-4xl mx-auto animate-fade-in space-y-6">
+                <Skeleton className="h-10 w-3/4" />
+                <Card className="w-full">
+                    <CardHeader><Skeleton className="h-8 w-1/2 mb-2" /></CardHeader>
+                    <CardContent className="space-y-4">
+                        <Skeleton className="h-24 w-full" />
+                        <Skeleton className="h-24 w-full" />
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl mx-auto animate-fade-in">
@@ -18,25 +60,52 @@ const ManageSubscriptionPage: React.FC = () => {
                 </p>
             </div>
 
-            <Card className="w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Card de Status */}
+                <Card className="w-full">
+                    <CardHeader className="flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-base font-medium">Status da Assinatura</CardTitle>
+                        <CreditCard className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-tanotado-navy">
+                            {statusInfo.text}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Baseado nas informações da sua fatura.
+                        </p>
+                    </CardContent>
+                </Card>
+
+                {/* Card de Próxima Cobrança */}
+                <Card className="w-full bg-gradient-to-r from-tanotado-pink to-tanotado-purple text-white">
+                    <CardHeader className="flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-base font-medium">Próxima Cobrança</CardTitle>
+                        <Calendar className="h-5 w-5 text-white/80" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {renewalDate}
+                        </div>
+                        <p className="text-xs text-white/80">
+                            {user?.stripe_subscription_status === 'active' 
+                                ? "Data da renovação automática do seu plano."
+                                : "A assinatura não será renovada."
+                            }
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Card com detalhes do plano */}
+            <Card className="w-full mt-6">
                 <CardHeader>
                     <CardTitle>Detalhes do seu Plano</CardTitle>
                     <CardDescription>
-                        Plano atual: <strong>Anual Pro</strong>
+                        Plano atual: <strong>Individual Básico</strong>
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="p-4 border rounded-lg bg-muted/50">
-                        <h3 className="font-semibold text-foreground">Status da Assinatura</h3>
-                        <p className="text-sm text-green-600 font-medium">Ativa</p>
-                        <p className="text-sm text-muted-foreground mt-1">Sua assinatura será renovada em: <strong>30 de Junho de 2026</strong></p>
-                    </div>
-                     <div className="p-4 border rounded-lg bg-muted/50">
-                        <h3 className="font-semibold text-foreground">Método de Pagamento</h3>
-                        <p className="text-sm text-muted-foreground">Cartão de Crédito final **** 1234</p>
-                    </div>
-                </CardContent>
-                <CardFooter className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6">
+                <CardFooter className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
                    <div className="space-x-2">
                      <Button disabled>Alterar Plano (em breve)</Button>
                      <Button variant="outline" disabled>Cancelar Assinatura (em breve)</Button>

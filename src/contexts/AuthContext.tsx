@@ -34,19 +34,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   const createNewProfile = async (authUser: any) => {
-    // --- INÍCIO DA ALTERAÇÃO ---
-    // A lógica de criação de perfil agora é tratada por um gatilho (Trigger)
-    // diretamente no banco de dados para garantir a consistência dos dados.
-    // Esta função no frontend agora pode apenas registrar o evento e
-    // garantir que os dados mais recentes sejam buscados após a criação automática.
-    console.log(`O perfil para o usuário ${authUser.id} será criado pelo gatilho do banco de dados. Recarregando dados...`); //
-    
-    // Aguarda um breve momento para garantir que o gatilho no DB tenha tempo de executar
-    await new Promise(resolve => setTimeout(resolve, 1000)); //
-
-    // Recarrega o perfil do usuário para obter os dados recém-criados pelo gatilho.
-    await loadUserProfile(supabase.auth.getSession()?.data?.session); //
-    // --- FIM DA ALTERAÇÃO ---
+    console.log(`O perfil para o usuário ${authUser.id} será criado pelo gatilho do banco de dados. Recarregando dados...`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await loadUserProfile(supabase.auth.getSession()?.data?.session);
   };
 
   const loadUserProfile = async (session: Session | null) => {
@@ -63,57 +53,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', session.user.id)
         .single();
 
-        if (error && error.code === 'PGRST116') {
-            // Se o perfil ainda não existe (devido a um pequeno atraso do gatilho),
-            // a função createNewProfile será chamada para tentar recarregar.
-            await createNewProfile(session.user);
-        } else if (error) {
-            throw error;
-        } else if (profile) {
-            const userData: User = {
-              id: profile.id,
-              email: profile.email,
-              name: profile.name,
-              whatsapp: profile.whatsapp || '',
-              cpf: profile.cpf || '',
-              hasCompletedOnboarding: profile.has_completed_onboarding,
-              clientNomenclature: profile.client_nomenclature || 'cliente',
-              specialty: profile.specialty || '',
-              role: profile.role || 'user',
-              trialEndsAt: new Date(profile.trial_ends_at),
-              isSubscribed: profile.is_subscribed,
-              subscriptionStatus: (profile.subscription_status as any) || 'trial',
-              createdAt: new Date(profile.created_at),
-              avatar_url: profile.avatar_url,
-              council_registration: profile.council_registration,
-              about_you: profile.about_you,
-              cep: profile.cep,
-              address: profile.address,
-              address_number: profile.address_number,
-              address_neighborhood: profile.address_neighborhood,
-              address_city: profile.address_city,
-              address_state: profile.address_state,
-              address_complement: profile.address_complement,
-              is_active: profile.is_active,
-              public_booking_enabled: profile.public_booking_enabled ?? false,
-              public_booking_url_slug: profile.public_booking_url_slug,
-              receita_saude_enabled: profile.receita_saude_enabled ?? false,
-              procuracao_receita_saude_url: profile.procuracao_receita_saude_url,
-            };
-            setUser(userData);
-            setIsLoading(false);
-        }
+      if (error && error.code === 'PGRST116') {
+        await createNewProfile(session.user);
+      } else if (error) {
+        throw error;
+      } else if (profile) {
+        // --- INÍCIO DA ÁREA CORRIGIDA ---
+        // Mapeamos todos os campos do perfil para o nosso objeto User.
+        // O `select('*')` acima garante que todos os campos, incluindo os
+        // novos da Stripe, sejam buscados do banco.
+        const userData: User = {
+          id: profile.id,
+          email: profile.email,
+          name: profile.name,
+          whatsapp: profile.whatsapp || '',
+          cpf: profile.cpf || '',
+          hasCompletedOnboarding: profile.has_completed_onboarding,
+          clientNomenclature: profile.client_nomenclature || 'cliente',
+          specialty: profile.specialty || '',
+          role: profile.role || 'user',
+          trialEndsAt: new Date(profile.trial_ends_at),
+          isSubscribed: profile.is_subscribed,
+          subscriptionStatus: (profile.subscription_status as any) || 'trial',
+          createdAt: new Date(profile.created_at),
+          avatar_url: profile.avatar_url,
+          council_registration: profile.council_registration,
+          about_you: profile.about_you,
+          cep: profile.cep,
+          address: profile.address,
+          address_number: profile.address_number,
+          address_neighborhood: profile.address_neighborhood,
+          address_city: profile.address_city,
+          address_state: profile.address_state,
+          address_complement: profile.address_complement,
+          is_active: profile.is_active,
+          public_booking_enabled: profile.public_booking_enabled ?? false,
+          public_booking_url_slug: profile.public_booking_url_slug,
+          receita_saude_enabled: profile.receita_saude_enabled ?? false,
+          procuracao_receita_saude_url: profile.procuracao_receita_saude_url,
+          // Mapeamento dos campos da assinatura Stripe
+          stripe_customer_id: profile.stripe_customer_id,
+          stripe_subscription_id: profile.stripe_subscription_id,
+          stripe_subscription_status: profile.stripe_subscription_status,
+          subscription_current_period_end: profile.subscription_current_period_end,
+        };
+        // --- FIM DA ÁREA CORRIGIDA ---
+        
+        setUser(userData);
+      }
     } catch (error) {
-      console.error('Error loading user profile:', error); //
-      setUser(null); //
-      setIsLoading(false); //
+      console.error('Error loading user profile:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        // Pequeno atraso para garantir que o gatilho do DB tenha tempo de rodar antes da leitura
         setTimeout(() => {
           loadUserProfile(session);
         }, 500);
@@ -137,9 +135,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password }); //
-      if (authError) throw authError; //
-      if (!authData.user) throw new Error("Usuário não encontrado após login."); //
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Usuário não encontrado após login.");
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -163,32 +161,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return; 
       }
       
-      await loadUserProfile(authData.session); //
-      toast({ title: "Login realizado com sucesso!", description: "Bem-vindo de volta!" }); //
+      await loadUserProfile(authData.session);
+      toast({ title: "Login realizado com sucesso!", description: "Bem-vindo de volta!" });
 
     } catch (error: any) {
-      console.error('Login error:', error); //
-      toast({ title: "Erro no login", description: error.message || "Verifique suas credenciais e tente novamente", variant: "destructive" }); //
-      setIsLoading(false); //
-      throw error; //
+      console.error('Login error:', error);
+      toast({ title: "Erro no login", description: error.message || "Verifique suas credenciais e tente novamente", variant: "destructive" });
+      setIsLoading(false);
+      throw error;
     }
   };
 
   const register = async (userData: RegisterData) => {
     setIsLoading(true);
     try {
-      const cleanCPF = userData.cpf.replace(/[^\d]/g, ''); //
+      const cleanCPF = userData.cpf.replace(/[^\d]/g, '');
 
-      // Chama a função RPC para verificar se o CPF existe
       const { data: cpfAlreadyExists, error: rpcError } = await supabase
-        .rpc('cpf_exists', { cpf_to_check: cleanCPF }); //
+        .rpc('cpf_exists', { cpf_to_check: cleanCPF });
 
-      // Se a chamada da função der erro, interrompe o processo
       if (rpcError) {
         throw rpcError;
       }
 
-      // Se a função retornar 'true', o CPF já existe
       if (cpfAlreadyExists) {
         toast({
           title: "Erro no Cadastro",
@@ -196,10 +191,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           variant: "destructive",
         });
         setIsLoading(false);
-        return; // Sai da função sem registrar
+        return;
       }
 
-      // Se o CPF for único, prossegue com o cadastro
       const { error: signUpError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -215,59 +209,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (signUpError) throw signUpError;
 
-      toast({ title: "Cadastro realizado com sucesso!", description: "Vá para Login e Acesse sua conta." }); //
+      toast({ title: "Cadastro realizado com sucesso!", description: "Vá para Login e Acesse sua conta." });
     } catch (error: any) {
-      console.error('Register error:', error); //
-      toast({ title: "Erro no cadastro", description: error.message || "Tente novamente.", variant: "destructive" }); //
-      throw error; //
+      console.error('Register error:', error);
+      toast({ title: "Erro no cadastro", description: error.message || "Tente novamente.", variant: "destructive" });
+      throw error;
     } finally {
-      setIsLoading(false); //
+      setIsLoading(false);
     }
   };
 
   const updateUser = async (updates: Partial<User>) => {
-    if (!user) return; //
+    if (!user) return;
     try {
       const profileUpdates: any = {
         name: updates.name,
         has_completed_onboarding: updates.hasCompletedOnboarding,
         client_nomenclature: updates.clientNomenclature,
         specialty: updates.specialty,
-        // --- ENVIA NOVOS CAMPOS ---
         public_booking_enabled: updates.public_booking_enabled,
         public_booking_url_slug: updates.public_booking_url_slug,
-        // --- FIM ENVIA NOVOS CAMPOS ---
       };
-      const { error } = await supabase.from('profiles').update(profileUpdates).eq('id', user.id); //
-      if (error) throw error; //
-      setUser({ ...user, ...updates }); //
+      const { error } = await supabase.from('profiles').update(profileUpdates).eq('id', user.id);
+      if (error) throw error;
+      setUser({ ...user, ...updates });
     } catch (error) {
-      console.error('Error updating user:', error); //
-      toast({ title: "Erro ao atualizar perfil", variant: "destructive" }); //
+      console.error('Error updating user:', error);
+      toast({ title: "Erro ao atualizar perfil", variant: "destructive" });
     }
   };
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut(); //
-      setUser(null); //
-      toast({ title: "Logout realizado", description: "Até a próxima!" }); //
+      await supabase.auth.signOut();
+      setUser(null);
+      toast({ title: "Logout realizado", description: "Até a próxima!" });
     } catch (error) {
-      console.error('Logout error:', error); //
+      console.error('Logout error:', error);
     }
   };
 
   const signOutFromAllDevices = async () => {
     try {
-      const { error } = await supabase.auth.signOut({ scope: 'global' }); //
-      if (error) throw error; //
-      setUser(null); //
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) throw error;
+      setUser(null);
       toast({
         title: "Sessão encerrada em todos os dispositivos",
         description: "Você foi desconectado de todas as suas sessões ativas.",
       });
     } catch (error: any) {
-      console.error('Global sign out error:', error); //
+      console.error('Global sign out error:', error);
       toast({
         title: "Erro ao desconectar",
         description: "Não foi possível encerrar as outras sessões. Tente novamente.",
@@ -300,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }, 1000);
 
     } catch (error) {
-      console.error("Erro ao forçar a atualização:", error); //
+      console.error("Erro ao forçar a atualização:", error);
       toast({
         title: "Erro na atualização",
         description: "Não foi possível limpar o cache. Tente atualizar a página manualmente (Ctrl+Shift+R).",
@@ -310,7 +302,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password }); //
+    const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       toast({
         title: "Erro ao redefinir a senha",

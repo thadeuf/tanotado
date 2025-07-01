@@ -25,6 +25,10 @@ export interface User {
   public_booking_url_slug?: string | null;
   procuracao_receita_saude_url?: string | null;
   receita_saude_enabled?: boolean;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_subscription_status?: string | null;
+  subscription_current_period_end?: string | null;
 }
 
 export interface AuthContextType {
