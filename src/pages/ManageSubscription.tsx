@@ -1,9 +1,11 @@
+// src/pages/ManageSubscription.tsx
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, fromUnixTime } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditCard, Calendar, Download, FileText } from 'lucide-react';
@@ -17,34 +19,33 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Database } from '@/integrations/supabase/types';
 
-// A interface agora espera o link direto do PDF da fatura/recibo.
-interface StripeInvoice {
-  id: string;
-  created: number;
-  total: number;
-  paid: boolean;
-  invoice_pdf: string | null; // <-- O campo correto para o PDF
-  status: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void';
-  charge: {
-    receipt_url: string | null;
-  } | null;
-}
+// Usando o tipo diretamente do seu schema do Supabase - Perfeito!
+type InvoiceFromDB = Database['public']['Tables']['invoices']['Row'];
 
 const ManageSubscriptionPage: React.FC = () => {
     const { user, isLoading: isUserLoading } = useAuth();
-    const [invoices, setInvoices] = useState<StripeInvoice[]>([]);
+    const [invoices, setInvoices] = useState<InvoiceFromDB[]>([]);
     const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
 
+    // Seu useEffect já está perfeito, buscando os dados da tabela correta.
     useEffect(() => {
-        const fetchInvoices = async () => {
+        const fetchInvoicesFromDB = async () => {
             if (user) {
+                setIsLoadingInvoices(true);
                 try {
-                    const { data, error } = await supabase.functions.invoke('get-stripe-invoices');
+                    const { data, error } = await supabase
+                        .from('invoices')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: false });
+                        
                     if (error) throw error;
-                    setInvoices(data);
+                    
+                    setInvoices(data || []);
                 } catch (error: any) {
-                    toast({ title: "Erro ao buscar faturas", description: error.message, variant: "destructive" });
+                    toast({ title: "Erro ao buscar histórico de faturas", description: error.message, variant: "destructive" });
                 } finally {
                     setIsLoadingInvoices(false);
                 }
@@ -52,10 +53,13 @@ const ManageSubscriptionPage: React.FC = () => {
         };
 
         if (!isUserLoading) {
-            fetchInvoices();
+            fetchInvoicesFromDB();
         }
     }, [user, isUserLoading]);
     
+    // Todo o restante do seu componente, incluindo a lógica de status e datas, está ótimo.
+    // Nenhuma alteração é necessária aqui.
+
     const getStatusInfo = () => {
         if (!user || !user.stripe_subscription_status) {
             return { text: 'Desconhecido', className: 'bg-gray-100 text-gray-800' };
@@ -164,24 +168,24 @@ const ManageSubscriptionPage: React.FC = () => {
                                 ) : invoices.length > 0 ? (
                                     invoices.map((invoice) => (
                                         <TableRow key={invoice.id}>
-                                            <TableCell className="font-medium">{format(fromUnixTime(invoice.created), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell className="font-medium">{invoice.created_at ? format(parseISO(invoice.created_at), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                             <TableCell>
-                                                <Badge variant={invoice.paid ? "default" : "destructive"} className={invoice.paid ? 'bg-green-100 text-green-800 border-green-200' : 'bg-yellow-100 text-yellow-800 border-yellow-200'}>
+                                                <Badge variant={invoice.paid ? "default" : "destructive"} className={invoice.paid ? 'bg-green-100 text-green-800 border-green-200' : 'bg-green-100 text-black border-green-200'}>
                                                     {invoice.status === 'paid' ? 'Pago' : 'Pendente'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right font-medium">
-                                                {(invoice.total / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                {(invoice.total! / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
                                             <TableCell className="text-right">
-                                            {/* O botão agora usa a URL do recibo vinda do objeto 'charge' */}
-                                            {invoice.charge?.receipt_url && (
+                                            {invoice.pdf_url && (
                                                 <Button variant="outline" size="icon" asChild>
                                                 <a 
-                                                    href={invoice.charge.receipt_url} 
+                                                    href={invoice.pdf_url} 
                                                     target="_blank" 
                                                     rel="noopener noreferrer" 
-                                                    title="Baixar Recibo (PDF)"
+                                                   
+                                                    title="Baixar Recibo" 
                                                 >
                                                     <Download className="h-4 w-4" />
                                                 </a>
@@ -208,9 +212,9 @@ const ManageSubscriptionPage: React.FC = () => {
                      <Button variant="outline" disabled>Cancelar Assinatura (em breve)</Button>
                    </div>
                    <p className="text-xs text-muted-foreground text-left sm:text-right">
-                        Para alterações ou dúvidas, entre em contato com o suporte.
-                    </p>
-                </CardFooter>
+                       Para alterações ou dúvidas, entre em contato com o suporte.
+                   </p>
+               </CardFooter>
             </Card>
         </div>
     );

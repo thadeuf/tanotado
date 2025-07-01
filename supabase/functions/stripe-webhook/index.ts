@@ -47,20 +47,17 @@ serve(async (req) => {
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Agora atualizamos TODOS os campos necessários, incluindo o 'subscription_status' do seu app.
         const { error } = await supabaseAdmin
           .from('profiles')
           .update({
             is_subscribed: true,
-            subscription_status: 'active', // <<< AQUI ESTÁ A CORREÇÃO PRINCIPAL
+            subscription_status: 'active',
             stripe_customer_id: subscription.customer as string,
             stripe_subscription_id: subscription.id,
             stripe_subscription_status: subscription.status,
             subscription_current_period_end: toDateTime(subscription.current_period_end),
           })
           .eq('id', userId);
-        // --- FIM DA CORREÇÃO ---
 
         if (error) throw error;
         console.log(`Usuário ${userId} assinou com sucesso! Status do App atualizado para 'active'.`);
@@ -71,24 +68,62 @@ serve(async (req) => {
         const invoice = receivedEvent.data.object as Stripe.Invoice;
         const subscriptionId = invoice.subscription as string;
 
+        const { data: profile, error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .select('id, subscription_current_period_end')
+            .eq('stripe_customer_id', invoice.customer)
+            .single();
+
+        if (profileError) {
+            console.error(`Webhook: Perfil não encontrado para o customer_id: ${invoice.customer}. Erro: ${profileError.message}`);
+            return new Response(JSON.stringify({ error: `Perfil não encontrado` }), { status: 200 });
+        }
+
+        // --- SUBSTITUIÇÃO SIMPLES E DIRETA ---
+        
+        // 1. Montar o objeto para salvar, usando a URL correta e sem complicações.
+        const invoiceData = {
+          id: invoice.id,
+          user_id: profile.id,
+          customer_id: invoice.customer as string,
+          created_at: toDateTime(invoice.created),
+          // A URL que você precisa, diretamente do evento, sem chamadas extras.
+          pdf_url: invoice.hosted_invoice_url, 
+          total: invoice.amount_paid,
+          status: invoice.status,
+          paid: invoice.paid,
+          next_billing_date: profile.subscription_current_period_end,
+        };
+
+        // 2. Salvar (ou atualizar) a fatura na sua tabela.
+        const { error: invoiceError } = await supabaseAdmin
+          .from('invoices')
+          .upsert(invoiceData, { onConflict: 'id' });
+
+        if (invoiceError) throw invoiceError;
+
+        console.log(`Webhook: Fatura ${invoice.id} salva com sucesso para o usuário ${profile.id}.`);
+
+        // 3. Atualizar o status da assinatura.
         if (!subscriptionId) {
-          console.log(`Fatura ${invoice.id} paga (não é de assinatura). Ignorando.`);
+          console.log(`Webhook: Fatura ${invoice.id} paga, mas não pertence a uma assinatura.`);
           break;
         }
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-
-        // Atualiza a data de expiração e o status da Stripe na renovação
-        const { error } = await supabaseAdmin
+        
+        const { error: updateProfileError } = await supabaseAdmin
           .from('profiles')
           .update({
             stripe_subscription_status: subscription.status,
             subscription_current_period_end: toDateTime(subscription.current_period_end),
           })
-          .eq('stripe_subscription_id', subscription.id);
+          .eq('id', profile.id);
 
-        if (error) throw error;
-        console.log(`Assinatura ${subscription.id} renovada. Novo status: ${subscription.status}.`);
+        if (updateProfileError) throw updateProfileError;
+
+        console.log(`Webhook: Assinatura ${subscription.id} renovada para o usuário ${profile.id}.`);
+        
         break;
       }
 
@@ -96,7 +131,7 @@ serve(async (req) => {
         // console.log(`Evento não tratado: ${receivedEvent.type}`);
     }
   } catch (error) {
-      console.error(error);
+      console.error('Erro fatal no processamento do webhook:', error);
       return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
