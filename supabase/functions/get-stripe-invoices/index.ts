@@ -38,6 +38,7 @@ serve(async (req) => {
     const invoices = await stripe.invoices.list({
       customer: customerId,
       limit: 100,
+      expand: ['data.charge'],
     });
 
     // Apenas retorna os dados diretamente, o invoice_pdf já está aqui.

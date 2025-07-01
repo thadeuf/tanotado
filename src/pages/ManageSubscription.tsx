@@ -26,6 +26,9 @@ interface StripeInvoice {
   paid: boolean;
   invoice_pdf: string | null; // <-- O campo correto para o PDF
   status: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void';
+  charge: {
+    receipt_url: string | null;
+  } | null;
 }
 
 const ManageSubscriptionPage: React.FC = () => {
@@ -171,14 +174,19 @@ const ManageSubscriptionPage: React.FC = () => {
                                                 {(invoice.total / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                {/* --- O BOTÃO AGORA USA O CAMPO invoice_pdf --- */}
-                                                {invoice.invoice_pdf && (
-                                                    <Button variant="outline" size="icon" asChild>
-                                                        <a href={invoice.invoice_pdf} target="_blank" rel="noopener noreferrer" title="Baixar Recibo (PDF)">
-                                                            <Download className="h-4 w-4" />
-                                                        </a>
-                                                    </Button>
-                                                )}
+                                            {/* O botão agora usa a URL do recibo vinda do objeto 'charge' */}
+                                            {invoice.charge?.receipt_url && (
+                                                <Button variant="outline" size="icon" asChild>
+                                                <a 
+                                                    href={invoice.charge.receipt_url} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    title="Baixar Recibo (PDF)"
+                                                >
+                                                    <Download className="h-4 w-4" />
+                                                </a>
+                                                </Button>
+                                            )}
                                             </TableCell>
                                         </TableRow>
                                     ))
