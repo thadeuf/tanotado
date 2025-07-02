@@ -170,8 +170,23 @@ const ManageSubscriptionPage: React.FC = () => {
                                         <TableRow key={invoice.id}>
                                             <TableCell className="font-medium">{invoice.created_at ? format(parseISO(invoice.created_at), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                             <TableCell>
-                                                <Badge variant={invoice.paid ? "default" : "destructive"} className={invoice.paid ? 'bg-green-100 text-green-800 border-green-200' : 'bg-green-100 text-black border-green-200'}>
-                                                    {invoice.status === 'paid' ? 'Pago' : 'Pendente'}
+                                                <Badge variant={
+                                                    invoice.status === 'paid' ? 'default' :
+                                                    // Agora inclui 'canceled'
+                                                    invoice.status === 'void' || invoice.status === 'uncollectible' || invoice.status === 'canceled' ? 'outline' :
+                                                    'destructive'
+                                                } className={
+                                                    invoice.status === 'paid' ? 'bg-green-100 text-green-800 border-green-200' :
+                                                    // Estilo para cancelada
+                                                    invoice.status === 'void' || invoice.status === 'uncollectible' || invoice.status === 'canceled' ? 'bg-gray-100 text-gray-600 line-through' :
+                                                    'bg-red-100 text-red-700'
+                                                }>
+                                                    {
+                                                        invoice.status === 'paid' ? 'Pago' :
+                                                        // Agora inclui 'canceled'
+                                                        invoice.status === 'void' || invoice.status === 'uncollectible' || invoice.status === 'canceled' ? 'Cancelada' :
+                                                        'Pendente'
+                                                    }
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right font-medium">
