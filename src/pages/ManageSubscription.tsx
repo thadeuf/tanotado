@@ -150,77 +150,86 @@ const ManageSubscriptionPage: React.FC = () => {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="border rounded-md">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Data</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Valor</TableHead>
-                                    <TableHead className="text-right">Recibo</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoadingInvoices ? (
-                                    [...Array(3)].map((_, i) => (
-                                        <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
-                                    ))
-                                ) : invoices.length > 0 ? (
-                                    invoices.map((invoice) => (
-                                        <TableRow key={invoice.id}>
-                                            <TableCell className="font-medium">{invoice.created_at ? format(parseISO(invoice.created_at), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={
-                                                    invoice.status === 'paid' ? 'default' :
-                                                    // Agora inclui 'canceled'
-                                                    invoice.status === 'void' || invoice.status === 'uncollectible' || invoice.status === 'canceled' ? 'outline' :
-                                                    'destructive'
-                                                } className={
-                                                    invoice.status === 'paid' ? 'bg-green-100 text-green-800 border-green-200' :
-                                                    // Estilo para cancelada
-                                                    invoice.status === 'void' || invoice.status === 'uncollectible' || invoice.status === 'canceled' ? 'bg-gray-100 text-gray-600 line-through' :
-                                                    'bg-red-100 text-red-700'
-                                                }>
-                                                    {
-                                                        invoice.status === 'paid' ? 'Pago' :
-                                                        // Agora inclui 'canceled'
-                                                        invoice.status === 'void' || invoice.status === 'uncollectible' || invoice.status === 'canceled' ? 'Cancelada' :
-                                                        'Pendente'
-                                                    }
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium">
-                                                {(invoice.total! / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                            {invoice.pdf_url && (
-                                                <Button variant="outline" size="icon" asChild>
-                                                <a 
-                                                    href={invoice.pdf_url} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer" 
-                                                   
-                                                    title="Baixar Recibo" 
-                                                >
+    <div className="border rounded-md">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {isLoadingInvoices ? (
+                    [...Array(3)].map((_, i) => (
+                        <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+                    ))
+                ) : invoices.length > 0 ? (
+                    invoices.map((invoice) => (
+                        <TableRow key={invoice.id}>
+                            <TableCell className="font-medium">{invoice.created_at ? format(parseISO(invoice.created_at), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                            <TableCell>
+                                <Badge variant={
+                                    invoice.status === 'paid' ? 'default' :
+                                    invoice.status === 'open' ? 'destructive' :
+                                    'outline'
+                                } className={
+                                    invoice.status === 'paid' ? 'bg-green-100 text-green-800 border-green-200' :
+                                    invoice.status === 'open' ? 'bg-red-100 text-red-700 border-red-200' :
+                                    'bg-gray-100 text-gray-600 line-through'
+                                }>
+                                    {
+                                        invoice.status === 'paid' ? 'Pago' :
+                                        invoice.status === 'open' ? 'Pendente' :
+                                        'Cancelada'
+                                    }
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                                {(invoice.total! / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </TableCell>
+                            <TableCell className="text-right">
+                                {/* --- LÓGICA CORRIGIDA E FINAL --- */}
+                                {(() => {
+                                    // Se a fatura foi paga, mostra o botão de download.
+                                    if (invoice.status === 'paid') {
+                                        return (
+                                            <Button variant="outline" size="icon" asChild>
+                                                <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer" title="Baixar Recibo">
                                                     <Download className="h-4 w-4" />
                                                 </a>
-                                                </Button>
-                                            )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                                            <FileText className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                                            Nenhum histórico de pagamento encontrado.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
+                                            </Button>
+                                        );
+                                    }
+                                    // Se a fatura estiver aberta (pendente), mostra o botão para pagar.
+                                    if (invoice.status === 'open') {
+                                        return (
+                                            <Button variant="destructive" size="sm" asChild className="h-8">
+                                                <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
+                                                    Pagar Fatura
+                                                </a>
+                                            </Button>
+                                        );
+                                    }
+                                    // Para qualquer outro status (como 'canceled', 'void', etc.), não renderiza nada.
+                                    return null;
+                                })()}
+                            </TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                            <FileText className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                            Nenhum histórico de pagamento encontrado.
+                        </TableCell>
+                    </TableRow>
+                )}
+            </TableBody>
+        </Table>
+    </div>
+</CardContent>
                  <CardFooter className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
                    <div className="space-x-2">
                      <Button disabled>Alterar Plano (em breve)</Button>

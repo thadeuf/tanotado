@@ -43,15 +43,14 @@ serve(async (req) => {
         const userId = session.client_reference_id;
         const subscriptionId = session.subscription as string;
 
-        if (!userId) throw new Error('User ID (client_reference_id) não encontrado.');
-        if (!subscriptionId) {
-          console.log('Sessão de checkout completada, mas não é uma assinatura. Ignorando.');
+        if (!userId || !subscriptionId) {
+          console.log('Sessão de checkout sem ID de usuário ou assinatura. Ignorando.');
           break;
         }
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-        const { error } = await supabaseAdmin
+        await supabaseAdmin
           .from('profiles')
           .update({
             is_subscribed: true,
@@ -61,71 +60,109 @@ serve(async (req) => {
             subscription_current_period_end: toDateTime(subscription.current_period_end),
           })
           .eq('id', userId);
-
-        if (error) throw error;
+        
         console.log(`Usuário ${userId} assinou com sucesso!`);
         break;
       }
 
-      // Bloco unificado para quando uma fatura é paga
+      // Bloco unificado e corrigido para quando uma fatura é paga
       case 'invoice.payment_succeeded':
       case 'invoice.paid': {
         const invoice = receivedEvent.data.object as Stripe.Invoice;
         
-        // **A CORREÇÃO ESTÁ AQUI**
-        // Pega a data de fim do período diretamente do item da fatura, como você apontou.
         const lineItem = invoice.lines.data[0];
         const newPeriodEnd = lineItem?.period?.end ? toDateTime(lineItem.period.end) : null;
         
         if (!newPeriodEnd) {
-          console.log(`Fatura ${invoice.id} paga, mas não foi possível determinar a nova data de renovação. Ignorando atualização de perfil.`);
+          console.log(`Fatura ${invoice.id} paga, mas não foi possível determinar a nova data de renovação.`);
           break;
         }
 
-        // Primeiro, atualiza o perfil do usuário com a nova data de renovação.
-        const { error: profileError } = await supabaseAdmin
-          .from('profiles')
-          .update({
-            is_subscribed: true,
-            stripe_subscription_status: 'active', // Garante que o status esteja ativo
-            subscription_current_period_end: newPeriodEnd,
-          })
-          .eq('stripe_customer_id', invoice.customer);
-
-        if (profileError) throw profileError;
-
-        console.log(`Perfil do cliente ${invoice.customer} atualizado com a nova data de renovação.`);
-
-        // Em seguida, salva os dados da fatura na sua tabela 'invoices'.
-        const { data: profile } = await supabaseAdmin
+        // Encontra o perfil para obter o ID do usuário
+        const { data: profile, error: findProfileError } = await supabaseAdmin
             .from('profiles')
             .select('id')
             .eq('stripe_customer_id', invoice.customer)
             .single();
+
+        if (findProfileError || !profile) {
+            console.error(`Webhook: Perfil não encontrado para o customer_id: ${invoice.customer}. Erro: ${findProfileError?.message}`);
+            break;
+        }
+
+        // Prepara os dados para as duas tabelas
+        const profileUpdateData = {
+          is_subscribed: true,
+          stripe_subscription_status: 'active',
+          subscription_current_period_end: newPeriodEnd,
+        };
+
+        const invoiceData = {
+          id: invoice.id,
+          user_id: profile.id,
+          customer_id: invoice.customer as string,
+          created_at: toDateTime(invoice.created),
+          pdf_url: invoice.hosted_invoice_url, 
+          total: invoice.amount_paid,
+          status: 'paid',
+          paid: true,
+          next_billing_date: newPeriodEnd,
+        };
+        
+        // Executa as duas atualizações em paralelo
+        const [profileResult, invoiceResult] = await Promise.all([
+            supabaseAdmin.from('profiles').update(profileUpdateData).eq('stripe_customer_id', invoice.customer),
+            supabaseAdmin.from('invoices').upsert(invoiceData, { onConflict: 'id' })
+        ]);
+
+        if (profileResult.error) {
+            console.error('Erro ao atualizar o perfil:', profileResult.error);
+            throw profileResult.error;
+        }
+        
+        if (invoiceResult.error) {
+            console.error('Erro ao salvar a fatura:', invoiceResult.error);
+            throw invoiceResult.error;
+        }
+
+        console.log(`Processo de pagamento para a fatura ${invoice.id} concluído com sucesso.`);
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = receivedEvent.data.object as Stripe.Invoice;
+
+        await supabaseAdmin
+          .from('profiles')
+          .update({ stripe_subscription_status: 'past_due' })
+          .eq('stripe_customer_id', invoice.customer);
+
+        const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('id, subscription_current_period_end')
+            .eq('stripe_customer_id', invoice.customer)
+            .single();
         
         if (profile) {
-            const invoiceData = {
+            await supabaseAdmin.from('invoices').upsert({
                 id: invoice.id,
                 user_id: profile.id,
                 customer_id: invoice.customer as string,
                 created_at: toDateTime(invoice.created),
-                pdf_url: invoice.hosted_invoice_url, 
-                total: invoice.amount_paid,
-                status: 'paid',
-                paid: true,
-                next_billing_date: newPeriodEnd,
-            };
-            await supabaseAdmin.from('invoices').upsert(invoiceData, { onConflict: 'id' });
-            console.log(`Fatura ${invoice.id} salva para o usuário ${profile.id}.`);
+                pdf_url: invoice.hosted_invoice_url,
+                total: invoice.amount_due,
+                status: 'open',
+                paid: false,
+                next_billing_date: profile.subscription_current_period_end,
+            }, { onConflict: 'id' });
+            console.log(`Fatura pendente ${invoice.id} salva.`);
         }
-        
         break;
       }
-
-      // Os outros cases permanecem como estão.
+      
       case 'customer.subscription.deleted': {
         const subscription = receivedEvent.data.object as Stripe.Subscription;
-        const { error } = await supabaseAdmin
+        await supabaseAdmin
           .from('profiles')
           .update({
             is_subscribed: false,
@@ -133,15 +170,13 @@ serve(async (req) => {
             canceled_at: toDateTime(subscription.canceled_at),
           })
           .eq('stripe_subscription_id', subscription.id);
-        if (error) throw error;
         console.log(`Assinatura ${subscription.id} cancelada.`);
         break;
       }
 
-      // ... (outros cases, como 'invoice.voided', podem ser mantidos)
     }
   } catch (error) {
-      console.error('Erro fatal no processamento do webhook:', error);
+      console.error('Erro no processamento do webhook:', error);
       return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 

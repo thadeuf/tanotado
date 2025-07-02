@@ -344,6 +344,29 @@ const Dashboard: React.FC = () => {
           </Card>
         )}
 
+        {user && (user.stripe_subscription_status === 'past_due' || user.stripe_subscription_status === 'unpaid') && (
+          <Card className="border-red-500/50 bg-gradient-to-r from-red-500/10 to-orange-500/10">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-center sm:text-left">
+                  <AlertCircle className="h-8 w-8 text-red-600 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-tanotado-navy">Pagamento da Assinatura Pendente</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Não foi possível processar sua última fatura. Regularize sua situação para continuar usando o sistema.
+                    </p>
+                  </div>
+                </div>
+                <Button asChild className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium w-full sm:w-auto">
+                  <Link to="/manage-subscription">
+                    Resolver Pendência
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {isLoading ? (
