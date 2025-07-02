@@ -19,7 +19,8 @@ import {
     Loader2,
     AlertTriangle,
     UserCheck,
-    Settings // Ícone importado
+    Settings,
+    XCircle 
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,7 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,7 +40,7 @@ import { Label } from '@/components/ui/label';
 import { ClientInfoDialog } from '@/components/admin/ClientInfoDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AdminSettingsForm } from '@/components/admin/AdminSettingsForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Imports para o Modal
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type ProfileWithCounts = Profile & {
@@ -48,14 +49,14 @@ type ProfileWithCounts = Profile & {
   last_sign_in_at: string | null;
   login_count: number | null;
   is_active: boolean;
+  stripe_subscription_id: string | null;
+  stripe_subscription_status: string | null;
 };
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Estado para controlar o modal de configurações
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const [filters, setFilters] = useState({
@@ -63,6 +64,7 @@ const AdminDashboard: React.FC = () => {
     trial: true,
     trial_expired: true,
     deactivated: true,
+    canceled: true,
   });
 
   const [isClientInfoOpen, setIsClientInfoOpen] = useState(false);
@@ -70,6 +72,27 @@ const AdminDashboard: React.FC = () => {
 
   const [userToDeactivate, setUserToDeactivate] = useState<ProfileWithCounts | null>(null);
   const [userToActivate, setUserToActivate] = useState<ProfileWithCounts | null>(null);
+  const [userToCancel, setUserToCancel] = useState<ProfileWithCounts | null>(null);
+
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: async (subscriptionId: string) => {
+      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        body: { subscriptionId },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Assinatura cancelada com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ['all_users_admin_with_counts'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao cancelar assinatura", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      setUserToCancel(null);
+    }
+  });
 
   const deactivateUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -122,6 +145,9 @@ const AdminDashboard: React.FC = () => {
     if (profile.is_active === false) {
       return { main: 'deactivated' };
     }
+    if (profile.stripe_subscription_status === 'canceled') {
+        return { main: 'active', sub: 'canceled' };
+    }
     if (profile.is_subscribed) {
       return { main: 'active', sub: 'subscribed' };
     }
@@ -130,6 +156,26 @@ const AdminDashboard: React.FC = () => {
       return { main: 'active', sub: 'trial_expired' };
     }
     return { main: 'active', sub: 'trial' };
+  };
+
+  const getStatusBadge = (profile: ProfileWithCounts) => {
+    const status = determineUserDisplayStatus(profile);
+
+    if (status.main === 'deactivated') {
+        return <div className="flex items-center gap-1.5 text-sm text-red-600 font-medium"><UserX className="h-4 w-4" /> Desativado</div>;
+    }
+
+    switch(status.sub) {
+        case 'subscribed':
+            return <div className="flex items-center gap-1.5 text-sm text-green-600 font-medium"><CheckCircle className="h-4 w-4" /> Assinante</div>;
+        case 'canceled':
+            return <div className="flex items-center gap-1.5 text-sm text-gray-600 font-medium"><XCircle className="h-4 w-4" /> Cancelado</div>;
+        case 'trial_expired':
+            return <div className="flex items-center gap-1.5 text-sm text-orange-600 font-medium"><AlertTriangle className="h-4 w-4" /> Trial Expirado</div>;
+        case 'trial':
+        default:
+            return <div className="flex items-center gap-1.5 text-sm text-blue-600 font-medium"><Clock className="h-4 w-4" /> Em Teste</div>;
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -141,6 +187,7 @@ const AdminDashboard: React.FC = () => {
         trial: status.sub === 'trial',
         trial_expired: status.sub === 'trial_expired',
         deactivated: status.main === 'deactivated',
+        canceled: status.sub === 'canceled',
       };
 
       const matchesFilter = Object.entries(filters).some(([key, value]) => {
@@ -156,25 +203,6 @@ const AdminDashboard: React.FC = () => {
         profile.whatsapp?.toLowerCase().includes(lowerCaseSearch);
     });
   }, [allUsers, searchTerm, filters]);
-
-
-  const getStatusBadge = (profile: ProfileWithCounts) => {
-    const status = determineUserDisplayStatus(profile);
-
-    if (status.main === 'deactivated') {
-        return <div className="flex items-center gap-1.5 text-sm text-red-600 font-medium"><UserX className="h-4 w-4" /> Desativado</div>;
-    }
-
-    switch(status.sub) {
-        case 'subscribed':
-            return <div className="flex items-center gap-1.5 text-sm text-green-600 font-medium"><CheckCircle className="h-4 w-4" /> Assinante</div>;
-        case 'trial_expired':
-            return <div className="flex items-center gap-1.5 text-sm text-orange-600 font-medium"><AlertTriangle className="h-4 w-4" /> Trial Expirado</div>;
-        case 'trial':
-        default:
-            return <div className="flex items-center gap-1.5 text-sm text-blue-600 font-medium"><Clock className="h-4 w-4" /> Em Teste</div>;
-    }
-  };
 
   const stats = useMemo(() => {
     if (!allUsers) return { totalUsers: 0, totalSubscribers: 0, newSubscribersCount: 0, cancellationsCount: 0 };
@@ -235,7 +263,6 @@ const AdminDashboard: React.FC = () => {
                 <History className="mr-2 h-4 w-4" /> Relatório de Envios
               </Link>
             </Button>
-            {/* NOVO BOTÃO DE CONFIGURAÇÕES */}
             <Button variant="outline" onClick={() => setIsSettingsModalOpen(true)}>
               <Settings className="mr-2 h-4 w-4" />
               Configurações
@@ -282,6 +309,10 @@ const AdminDashboard: React.FC = () => {
                          <div className="flex items-center space-x-2">
                             <Checkbox id="filter-trial_expired" checked={filters.trial_expired} onCheckedChange={(checked) => handleFilterChange('trial_expired', !!checked)} />
                             <Label htmlFor="filter-trial_expired" className="text-sm font-medium">Trial Expirado</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="filter-canceled" checked={filters.canceled} onCheckedChange={(checked) => handleFilterChange('canceled', !!checked)} />
+                            <Label htmlFor="filter-canceled" className="text-sm font-medium">Cancelados</Label>
                         </div>
                         <div className="flex items-center space-x-2">
                             <Checkbox id="filter-deactivated" checked={filters.deactivated} onCheckedChange={(checked) => handleFilterChange('deactivated', !!checked)} />
@@ -349,9 +380,17 @@ const AdminDashboard: React.FC = () => {
                                                         Forçar Login
                                                     </DropdownMenuItem>
                                                     {profile.is_active ? (
-                                                        <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setUserToDeactivate(profile); }} className="text-red-600 focus:text-red-600">
-                                                            <UserX className="mr-2 h-4 w-4" />Desativar
-                                                        </DropdownMenuItem>
+                                                        <>
+                                                            {profile.is_subscribed && (
+                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setUserToCancel(profile); }} className="text-orange-600 focus:text-orange-600">
+                                                                    <XCircle className="mr-2 h-4 w-4" />Cancelar Assinatura
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setUserToDeactivate(profile); }} className="text-red-600 focus:text-red-600">
+                                                                <UserX className="mr-2 h-4 w-4" />Desativar
+                                                            </DropdownMenuItem>
+                                                        </>
                                                     ) : (
                                                         <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setUserToActivate(profile); }} className="text-green-600 focus:text-green-600">
                                                             <UserCheck className="mr-2 h-4 w-4" />Ativar
@@ -375,6 +414,28 @@ const AdminDashboard: React.FC = () => {
         isOpen={isClientInfoOpen}
         onOpenChange={setIsClientInfoOpen}
       />
+
+      <AlertDialog open={!!userToCancel} onOpenChange={() => setUserToCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Cancelamento da Assinatura</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja cancelar a assinatura de <strong>{userToCancel?.name}</strong>? Esta ação não pode ser desfeita e o acesso premium será revogado no final do ciclo de cobrança atual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-orange-600 hover:bg-orange-700"
+              disabled={cancelSubscriptionMutation.isPending}
+              onClick={() => userToCancel?.stripe_subscription_id && cancelSubscriptionMutation.mutate(userToCancel.stripe_subscription_id)}
+            >
+              {cancelSubscriptionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sim, cancelar assinatura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!userToDeactivate} onOpenChange={() => setUserToDeactivate(null)}>
         <AlertDialogContent>
@@ -420,7 +481,6 @@ const AdminDashboard: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* NOVO MODAL DE CONFIGURAÇÕES */}
       <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
