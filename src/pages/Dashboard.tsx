@@ -38,6 +38,8 @@ const Dashboard: React.FC = () => {
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
   const [sendingLink, setSendingLink] = useState<string | null>(null);
   const [confirmingAppointment, setConfirmingAppointment] = useState<Appointment | null>(null);
+
+  const appointmentLabel = user?.appointment_label || 'Agendamento';
   
   // --- INÍCIO DA ALTERAÇÃO CORRIGIDA ---
   const { data: pendingNotesCount, isLoading: isLoadingPendingNotes } = useQuery({
@@ -78,9 +80,11 @@ const Dashboard: React.FC = () => {
   }, [appointments, isLoading]);
 
   const dashboardStats = useMemo(() => {
+   const appointmentLabel = user?.appointment_label || 'Agendamento';
+
     if (isLoading) return [
-      { title: 'Próximo Agendamento', value: '-', icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
-      { title: 'Agendamentos Hoje', value: '0', icon: Calendar, color: 'from-tanotado-orange to-tanotado-yellow' },
+      { title: `Próximo ${appointmentLabel}`, value: '-', icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
+      { title: `${appointmentLabel}s Hoje`, value: '0', icon: Calendar, color: 'from-tanotado-orange to-tanotado-yellow' },
       { title: 'Atendimentos no Mês', value: '0', icon: Users, color: 'from-tanotado-blue to-tanotado-green' },
       { title: 'Faltas no Mês', value: '0', icon: UserX, color: 'from-tanotado-purple to-tanotado-pink' }
     ];
@@ -104,12 +108,12 @@ const Dashboard: React.FC = () => {
     }).length;
 
     return [
-      { title: 'Próximo Agendamento', value: nextAppointment, icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
-      { title: 'Agendamentos Hoje', value: String(appointmentsTodayCount), icon: Calendar, color: 'from-tanotado-orange to-tanotado-yellow' },
+      { title: `Próximo ${appointmentLabel}`, value: nextAppointment, icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
+      { title: `${appointmentLabel}s Hoje`, value: String(appointmentsTodayCount), icon: Calendar, color: 'from-tanotado-orange to-tanotado-yellow' },
       { title: 'Atendimentos no Mês', value: String(completedThisMonth), icon: Users, color: 'from-tanotado-blue to-tanotado-green' },
       { title: 'Faltas no Mês', value: String(noShowThisMonth), icon: UserX, color: 'from-tanotado-purple to-tanotado-pink' }
     ];
-  }, [appointments, today, isLoading]);
+  }, [appointments, today, isLoading, user]);
 
   const birthdaysToday = useMemo(() => {
     if (isLoading) return [];
@@ -395,7 +399,7 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-tanotado-navy">Próximos Agendamentos</CardTitle>
+              <CardTitle className="text-tanotado-navy">{`Próximos ${appointmentLabel}s`}</CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="hoje" className="w-full">
