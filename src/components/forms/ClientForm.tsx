@@ -114,7 +114,25 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
         }
       });
       
-      sanitizedData.birth_date = initialData.birth_date ? new Date(initialData.birth_date) : null;
+      // sanitizedData.birth_date = initialData.birth_date ? new Date(initialData.birth_date) : null;
+
+      // --- INÍCIO DA CORREÇÃO ---
+    // Verificamos se a data de nascimento existe no dado inicial
+    if (initialData.birth_date && typeof initialData.birth_date === 'string') {
+      // A data vem como "YYYY-MM-DD". new Date() interpreta isso como UTC.
+      // Para evitar a conversão de fuso, criamos a data de uma forma que o JS
+      // entende como local, adicionando o horário T00:00:00.
+      const dateParts = initialData.birth_date.split('-');
+      // new Date(ano, mês - 1, dia) cria a data no fuso local corretamente.
+      sanitizedData.birth_date = new Date(
+        parseInt(dateParts[0]),
+        parseInt(dateParts[1]) - 1, 
+        parseInt(dateParts[2])
+      );
+    } else {
+      sanitizedData.birth_date = null;
+    }
+    // --- FIM DA CORREÇÃO ---
       
       if (initialData.approval_status) { 
           sanitizedData.approval_status = initialData.approval_status; 
@@ -165,13 +183,17 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
           console.warn('Erro ao acessar storage:', storageError);
         }
       }
+
+      const cleanCPF = values.cpf ? values.cpf.replace(/[^\d]/g, '') : undefined;
       
       const clientData = {
         ...values,
+        cpf: cleanCPF,
         avatar_url: avatarUrl,
         user_id: user.id,
         professional_responsible: values.professional_responsible || user.id,
-        birth_date: values.birth_date ? values.birth_date.toISOString().split('T')[0] : null,
+        // birth_date: values.birth_date ? values.birth_date.toISOString().split('T')[0] : null,
+        birth_date: values.birth_date ? format(values.birth_date, 'yyyy-MM-dd') : null,
         approval_status: 'approved' as Constants.public.Enums.client_approval_status,
         is_active: true,
       };
