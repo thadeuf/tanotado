@@ -58,10 +58,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (error) {
         throw error;
       } else if (profile) {
-        // --- INÍCIO DA ÁREA CORRIGIDA ---
-        // Mapeamos todos os campos do perfil para o nosso objeto User.
-        // O `select('*')` acima garante que todos os campos, incluindo os
-        // novos da Stripe, sejam buscados do banco.
         const userData: User = {
           id: profile.id,
           email: profile.email,
@@ -91,13 +87,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           public_booking_url_slug: profile.public_booking_url_slug,
           receita_saude_enabled: profile.receita_saude_enabled ?? false,
           procuracao_receita_saude_url: profile.procuracao_receita_saude_url,
-          // Mapeamento dos campos da assinatura Stripe
           stripe_customer_id: profile.stripe_customer_id,
           stripe_subscription_id: profile.stripe_subscription_id,
           stripe_subscription_status: profile.stripe_subscription_status,
           subscription_current_period_end: profile.subscription_current_period_end,
+          appointment_label: profile.appointment_label,
+          specialty_label: profile.specialty_label,
         };
-        // --- FIM DA ÁREA CORRIGIDA ---
+        
         
         setUser(userData);
       }
@@ -229,6 +226,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         specialty: updates.specialty,
         public_booking_enabled: updates.public_booking_enabled,
         public_booking_url_slug: updates.public_booking_url_slug,
+        appointment_label: updates.appointment_label,
+        specialty_label: updates.specialty_label,
       };
       const { error } = await supabase.from('profiles').update(profileUpdates).eq('id', user.id);
       if (error) throw error;

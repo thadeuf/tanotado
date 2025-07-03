@@ -29,6 +29,8 @@ export interface User {
   stripe_subscription_id?: string | null;
   stripe_subscription_status?: string | null;
   subscription_current_period_end?: string | null;
+  appointment_label?: string | null;
+  specialty_label?: string | null;
 }
 
 export interface AuthContextType {

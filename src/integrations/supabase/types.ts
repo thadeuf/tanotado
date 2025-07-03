@@ -354,6 +354,8 @@ export type Database = {
           public_booking_enabled: boolean | null
           procuracao_receita_saude_url: string | null
           receita_saude_enabled: boolean | null
+          appointment_label: string | null
+          specialty_label: string | null
         }
         Insert: {
           client_nomenclature?: string | null
@@ -390,6 +392,8 @@ export type Database = {
           public_booking_enabled?: boolean | null
           procuracao_receita_saude_url?: string | null
           receita_saude_enabled?: boolean | null
+          appointment_label?: string | null
+          specialty_label?: string | null
         }
         Update: {
           client_nomenclature?: string | null
@@ -426,6 +430,8 @@ export type Database = {
           public_booking_enabled?: boolean | null
           procuracao_receita_saude_url?: string | null
           receita_saude_enabled?: boolean | null
+          appointment_label?: string | null
+          specialty_label?: string | null
         }
         Relationships: [
           {
