@@ -1,6 +1,6 @@
 // src/pages/Financial.tsx
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO, isPast, addMonths, subMonths, addYears, subYears } from 'date-fns';
@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DollarSign, TrendingUp, TrendingDown, Plus, Search, MoreHorizontal, Edit, Trash2, CheckCircle, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronRight, FileSignature, FileCheck } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 
@@ -55,6 +56,9 @@ const Financial: React.FC = () => {
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
+
+  const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
+
 
   const { data: allPayments = [], isLoading } = useQuery<PaymentWithClient[], Error>({
     queryKey: ['payments', user?.id],
@@ -126,11 +130,16 @@ const Financial: React.FC = () => {
       if (filterType === 'expense') {
         return (p.amount || 0) < 0;
       }
-      return true; // para o caso 'all'
+      return true;
     });
   }, [periodPayments, searchTerm, filterType]);
 
-  // --- FUNÇÕES AUXILIARES ---
+  // EFEITO PARA LIMPAR A SELEÇÃO QUANDO OS FILTROS MUDAM
+  useEffect(() => {
+    setSelectedPayments([]);
+  }, [searchTerm, filterType, currentDate, viewMode]);
+
+
   const formatCurrency = (v: number | null) => v?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00';
   const formatDate = (d: string | null) => d ? format(parseISO(d), 'dd/MM/yyyy') : '—';
   
@@ -162,6 +171,22 @@ const Financial: React.FC = () => {
     onSuccess: () => { toast({ title: "Lançamento atualizado para PAGO!"}); queryClient.invalidateQueries({ queryKey: ['payments'] }); },
     onError: (e: any) => toast({ title: "Erro ao atualizar.", description: e.message, variant: 'destructive'}),
     onSettled: () => setPaymentToPay(null),
+  });
+
+  const batchPayMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('payments')
+        .update({ status: 'paid', payment_date: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast({ title: `${variables.length} lançamento(s) atualizado(s) para PAGO!` });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      setSelectedPayments([]);
+    },
+    onError: (e: any) => toast({ title: "Erro ao atualizar.", description: e.message, variant: 'destructive' }),
   });
   
   const createReceiptMutation = useMutation({
@@ -218,6 +243,25 @@ const Financial: React.FC = () => {
     setCurrentDate(fn(currentDate, 1));
   };
   
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
+      const allPendingIds = filteredPayments
+        .filter(p => p.status !== 'paid')
+        .map(p => p.id);
+      setSelectedPayments(allPendingIds);
+    } else {
+      setSelectedPayments([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedPayments(prev => [...prev, id]);
+    } else {
+      setSelectedPayments(prev => prev.filter(paymentId => paymentId !== id));
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -246,25 +290,50 @@ const Financial: React.FC = () => {
       
       <Card>
       <CardHeader className="flex-row items-center justify-between">
-    <div className="relative w-full md:max-w-xs">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar por descrição ou cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
-    </div>
-            <div className="flex items-center gap-4">
+        <div className="relative w-full md:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar por descrição ou cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+        </div>
+        <div className="flex items-center gap-2">
+            {selectedPayments.length > 0 && (
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white animate-fade-in"
+                onClick={() => batchPayMutation.mutate(selectedPayments)}
+                disabled={batchPayMutation.isPending}
+              >
+                {batchPayMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                )}
+                Marcar como Pago ({selectedPayments.length})
+              </Button>
+            )}
             <ToggleGroup type="single" value={filterType} onValueChange={(value) => value && setFilterType(value as any)} size="sm">
                 <ToggleGroupItem value="all">Todas</ToggleGroupItem>
                 <ToggleGroupItem value="income">Receitas</ToggleGroupItem>
                 <ToggleGroupItem value="expense">Despesas</ToggleGroupItem>
             </ToggleGroup>
         
-        <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'month' | 'year')} size="sm">
-            <ToggleGroupItem value="month">Mês</ToggleGroupItem>
-            <ToggleGroupItem value="year">Ano</ToggleGroupItem>
-        </ToggleGroup>
-    </div>
+            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'month' | 'year')} size="sm">
+                <ToggleGroupItem value="month">Mês</ToggleGroupItem>
+                <ToggleGroupItem value="year">Ano</ToggleGroupItem>
+            </ToggleGroup>
+        </div>
             
         </CardHeader>
         <CardContent className="p-0"><Table><TableHeader><TableRow>
+          <TableHead className="w-[40px] px-2 text-center">
+            <Checkbox
+              onCheckedChange={handleSelectAll}
+              checked={
+                filteredPayments.filter(p => p.status !== 'paid').length > 0 &&
+                selectedPayments.length === filteredPayments.filter(p => p.status !== 'paid').length
+              }
+              aria-label="Selecionar todos"
+            />
+          </TableHead>
           <TableHead className="w-[40px] text-center">Tipo</TableHead><TableHead>Descrição / Cliente</TableHead><TableHead className="text-right">Valor</TableHead>
           <TableHead className="text-center">Status</TableHead><TableHead>Vencimento</TableHead><TableHead className="text-right">Ações</TableHead>
         </TableRow></TableHeader><TableBody>
@@ -276,7 +345,16 @@ const Financial: React.FC = () => {
               const receipt = receiptMap.get(payment.id);
 
               return (
-                <TableRow key={payment.id} className="hover:bg-muted/50">
+                <TableRow key={payment.id} className="hover:bg-muted/50" data-state={selectedPayments.includes(payment.id) ? 'selected' : ''}>
+                  <TableCell className="px-2 text-center">
+                    {payment.status !== 'paid' && (
+                      <Checkbox
+                        checked={selectedPayments.includes(payment.id)}
+                        onCheckedChange={(checked) => handleSelectOne(payment.id, !!checked)}
+                        aria-label="Selecionar pagamento"
+                      />
+                    )}
+                  </TableCell>
                   <TableCell className="text-center">{isExpense ? <ArrowDown className="h-5 w-5 text-red-500 mx-auto" /> : <ArrowUp className="h-5 w-5 text-green-500 mx-auto" />}</TableCell>
                   <TableCell>
                     <div className="font-medium text-gray-800 flex items-center gap-2">
@@ -298,7 +376,6 @@ const Financial: React.FC = () => {
                   </TableCell>
                   <TableCell>{formatDate(payment.due_date)}</TableCell>
                   <TableCell className="text-right">
-                    {/* --- INÍCIO DA ALTERAÇÃO FINAL --- */}
                     {(() => {
                         if (receipt) {
                             if (receipt.status === 'Emitido') {
@@ -310,7 +387,7 @@ const Financial: React.FC = () => {
                                         </Badge>
                                     </a>
                                 );
-                            } else { // Pendente
+                            } else { 
                                 return (
                                     <Badge className="mr-2 gap-2 text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
                                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -318,7 +395,7 @@ const Financial: React.FC = () => {
                                     </Badge>
                                 );
                             }
-                        } else if (user?.receita_saude_enabled && payment.status === 'paid' && !isExpense) { // <<-- SÓ MOSTRA SE FOR RECEITA
+                        } else if (user?.receita_saude_enabled && payment.status === 'paid' && !isExpense) {
                             return (
                                 <Badge 
                                     role="button"
@@ -332,7 +409,6 @@ const Financial: React.FC = () => {
                         }
                         return null;
                     })()}
-                    {/* --- FIM DA ALTERAÇÃO FINAL --- */}
                     <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleOpenForm(payment)}><Edit className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
@@ -344,7 +420,7 @@ const Financial: React.FC = () => {
                 </TableRow>
               );
             })
-          ) : (<TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">Nenhum lançamento encontrado para este período.</TableCell></TableRow>)}
+          ) : (<TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">Nenhum lançamento encontrado para este período.</TableCell></TableRow>)}
         </TableBody></Table></CardContent>
       </Card>
       
