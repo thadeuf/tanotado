@@ -12,17 +12,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Appointment } from '@/hooks/useAppointments';
 import { toast } from '@/hooks/use-toast';
-import { addMessageToThread, checkRunStatus, createThread, getAssistantResponse, runAssistant, transcribeAudio } from '@/lib/openai';
+import { transcribeAudio } from '@/lib/openai';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Form, FormControl, FormItem, FormMessage } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
-import { Loader2, Save, User, Mic, Sparkles } from 'lucide-react';
+import { Loader2, User, Mic, Sparkles, Square } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 
 import { InsightsAIDialog } from './InsightsAIDialog';
 import { Client } from '@/hooks/useClients';
+import { RecordingNoticeModal } from './RecordingNoticeModal';
 
 type SessionNote = {
   id: string;
@@ -53,21 +54,17 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [insights, setInsights] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   
   const [isInsightsModalOpen, setIsInsightsModalOpen] = useState(false);
+  const [isRecordingNoticeOpen, setIsRecordingNoticeOpen] = useState(false);
 
   const { data: fetchedNote, isLoading: isLoadingNote } = useQuery({
     queryKey: ['session_note', appointment?.id],
     queryFn: async () => {
       if (!appointment) return null;
-      const { data, error } = await supabase
-        .from('session_notes')
-        .select('*, appointments(*)')
-        .eq('appointment_id', appointment.id)
-        .maybeSingle();
+      const { data, error } = await supabase.from('session_notes').select('*, appointments(*)').eq('appointment_id', appointment.id).maybeSingle();
       if (error) throw error;
       return data as SessionNote;
     },
@@ -78,15 +75,11 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
   const isLoading = isLoadingNote && !note;
   const targetAppointment = note?.appointments || appointment;
   
-    const { data: allNotes = [] } = useQuery<SessionNote[]>({
+  const { data: allNotes = [] } = useQuery<SessionNote[]>({
     queryKey: ['session_notes_list', targetAppointment?.client_id],
     queryFn: async () => {
       if (!targetAppointment?.client_id) return [];
-      const { data, error } = await supabase
-        .from('session_notes')
-        .select('*, appointments(*)')
-        .eq('client_id', targetAppointment.client_id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('session_notes').select('*, appointments(*)').eq('client_id', targetAppointment.client_id).order('created_at', { ascending: false });
       if (error) throw error;
       return data as SessionNote[];
     },
@@ -97,17 +90,12 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
     queryKey: ['client_details_for_insights', targetAppointment?.client_id],
     queryFn: async () => {
         if (!targetAppointment?.client_id) return null;
-        const { data, error } = await supabase
-            .from('clients')
-            .select('*')
-            .eq('id', targetAppointment.client_id)
-            .single();
+        const { data, error } = await supabase.from('clients').select('*').eq('id', targetAppointment.client_id).single();
         if (error) throw new Error(error.message);
         return data;
     },
     enabled: !!targetAppointment?.client_id && isInsightsModalOpen,
   });
-
 
   const form = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema),
@@ -115,11 +103,8 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
   });
 
   useEffect(() => {
-    if (effectiveNote) {
-      form.reset({ content: effectiveNote.content || '' });
-    } else {
-      form.reset({ content: '' });
-    }
+    if (effectiveNote) form.reset({ content: effectiveNote.content || '' });
+    else form.reset({ content: '' });
   }, [effectiveNote, form]);
 
   const upsertMutation = useMutation({
@@ -133,8 +118,13 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
         appointment_id: targetAppointment.id,
         content: data.content,
       };
-      const { error } = await supabase.from('session_notes').upsert(payload, { onConflict: 'appointment_id' });
-      if (error) throw error;
+      
+      const { error } = await supabase.from('session_notes').upsert(payload);
+
+      if (error) {
+        console.error("Supabase upsert error:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({ title: "Anotação salva com sucesso!" });
@@ -147,11 +137,53 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
     },
   });
 
-  const handleStartRecording = () => { /* ... */ };
-  const handleStopRecording = () => { /* ... */ };
-  const handleGetInsights = () => {
-    setIsInsightsModalOpen(true);
+  const handleStartRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast({ title: 'Erro de Compatibilidade', description: 'A gravação de áudio não é suportada neste navegador.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
+        
+        setIsTranscribing(true);
+        try {
+          const transcribedText = await transcribeAudio(audioFile);
+          if (transcribedText) editorRef.current?.chain().focus().insertContent(` ${transcribedText}`).run();
+          toast({ title: "Sucesso!", description: "Áudio transcrito e inserido no texto." });
+        } catch (error) {
+          toast({ title: "Erro na Transcrição", description: "Não foi possível processar o áudio.", variant: "destructive" });
+        } finally {
+          setIsTranscribing(false);
+          setIsRecordingNoticeOpen(false);
+        }
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setIsRecordingNoticeOpen(true);
+    } catch (err) {
+      toast({ title: 'Permissão Negada', description: 'É necessário permitir o acesso ao microfone para gravar.', variant: 'destructive' });
+    }
   };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleGetInsights = () => setIsInsightsModalOpen(true);
 
   if (!isOpen) return null;
 
@@ -219,6 +251,14 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
           </div>
         </DialogContent>
       </Dialog>
+      
+      <RecordingNoticeModal
+        isOpen={isRecordingNoticeOpen}
+        isRecording={isRecording}
+        isTranscribing={isTranscribing}
+        onStopRecording={handleStopRecording}
+      />
+      
       {clientData && (
         <InsightsAIDialog
           isOpen={isInsightsModalOpen}

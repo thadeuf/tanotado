@@ -1,6 +1,5 @@
 // src/components/ui/RichTextEditor.tsx
-
-import React, { useState, useRef, useEffect } from 'react'; // Adicionado useEffect
+import React, { useState, useRef, useEffect } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { 
@@ -10,8 +9,6 @@ import {
 import { Toggle } from '@/components/ui/toggle';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { transcribeAudio } from '@/lib/openai'; 
-import { toast } from '@/hooks/use-toast';
 
 const Toolbar = ({ 
   editor, 
@@ -21,10 +18,10 @@ const Toolbar = ({
   isTranscribing 
 }: { 
   editor: Editor | null;
-  onStartRecording: () => void;
-  onStopRecording: () => void;
-  isRecording: boolean;
-  isTranscribing: boolean;
+  onStartRecording?: () => void;
+  onStopRecording?: () => void;
+  isRecording?: boolean;
+  isTranscribing?: boolean;
 }) => {
   if (!editor) {
     return null;
@@ -58,7 +55,7 @@ const Toolbar = ({
       <Toggle
         size="sm"
         pressed={isRecording}
-        onPressedChange={isRecording ? onStopRecording : onStartRecording}
+        onPressedChange={() => (isRecording ? onStopRecording?.() : onStartRecording?.())}
         className={isRecording ? 'bg-red-500/20 text-red-600 hover:bg-red-500/30' : ''}
         disabled={isTranscribing}
       >
@@ -74,18 +71,33 @@ const Toolbar = ({
   );
 };
 
+// --- INÍCIO DA ALTERAÇÃO: Interface de props atualizada ---
 interface RichTextEditorProps {
   content: any;
   onChange?: (richText: any) => void;
   tags?: Record<string, string>;
   editable?: boolean;
+  onEditorInstance?: (editor: Editor | null) => void;
+  isRecording?: boolean;
+  isTranscribing?: boolean;
+  onStartRecording?: () => void;
+  onStopRecording?: () => void;
 }
+// --- FIM DA ALTERAÇÃO ---
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChange, tags, editable = true }) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({
+  content,
+  onChange,
+  tags,
+  editable = true,
+  // --- INÍCIO DA ALTERAÇÃO: Novas props recebidas ---
+  onEditorInstance,
+  isRecording = false,
+  isTranscribing = false,
+  onStartRecording,
+  onStopRecording,
+  // --- FIM DA ALTERAÇÃO ---
+}) => {
 
   const editor = useEditor({
     extensions: [StarterKit.configure({
@@ -103,56 +115,23 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
     },
   });
 
-  const handleStartRecording = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      toast({ title: 'Erro de Compatibilidade', description: 'A gravação de áudio não é suportada neste navegador.', variant: 'destructive' });
-      return;
+  // --- INÍCIO DA ALTERAÇÃO: Lógica de gravação removida daqui ---
+  // A lógica de handleStartRecording e handleStopRecording foi movida para SessionNotesDialog.tsx
+  // --- FIM DA ALTERAÇÃO ---
+
+  // --- INÍCIO DA ALTERAÇÃO: Passando a instância do editor para o componente pai ---
+  useEffect(() => {
+    if (onEditorInstance) {
+      onEditorInstance(editor);
     }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
-        
-        setIsTranscribing(true);
-        try {
-          toast({ title: "Processando...", description: "Transcrevendo o áudio, aguarde." });
-          const transcribedText = await transcribeAudio(audioFile);
-          if (transcribedText) {
-            editor?.chain().focus().insertContent(` ${transcribedText}`).run();
-          }
-          toast({ title: "Sucesso!", description: "Áudio transcrito e inserido." });
-        } catch (error) {
-          toast({ title: "Erro na Transcrição", description: "Não foi possível processar o áudio.", variant: "destructive" });
-        } finally {
-          setIsTranscribing(false);
-        }
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-      toast({ title: "Gravando...", description: "Clique no botão novamente para parar." });
-    } catch (err) {
-      toast({ title: 'Permissão Negada', description: 'É necessário permitir o acesso ao microfone para gravar.', variant: 'destructive' });
-    }
-  };
-
-  const handleStopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
+    return () => {
+      if (onEditorInstance) {
+        onEditorInstance(null);
+      }
+    };
+  }, [editor, onEditorInstance]);
+  // --- FIM DA ALTERAÇÃO ---
+  
   useEffect(() => {
     if (editor && content) {
       if (JSON.stringify(editor.getJSON()) !== JSON.stringify(content)) {
@@ -172,13 +151,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
   return (
     <div className="border border-input rounded-lg bg-transparent">
       {editable && (
+        // --- INÍCIO DA ALTERAÇÃO: Passando as props para a Toolbar ---
         <Toolbar 
           editor={editor} 
-          onStartRecording={handleStartRecording} 
-          onStopRecording={handleStopRecording} 
+          onStartRecording={onStartRecording} 
+          onStopRecording={onStopRecording} 
           isRecording={isRecording}
           isTranscribing={isTranscribing}
         />
+        // --- FIM DA ALTERAÇÃO ---
       )}
       
       {tags && editable && (
