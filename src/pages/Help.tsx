@@ -265,7 +265,7 @@ const HelpPage: React.FC = () => {
                 <li><strong>Ativação:</strong> A página de cadastro é habilitada automaticamente quando a <strong>Página Pública de Agendamento</strong> está ativa. Ambas usam a mesma URL amigável (<code>/seu-nome</code>) para criar uma experiência unificada, sendo <code>/agendar/seu-nome</code> para agendamentos e <code>/cadastrar/seu-nome</code> para cadastros.</li>
                 <li><strong>Fluxo de Cadastro:</strong> O cliente acessa sua página de cadastro, preenche as informações essenciais e envia. O sistema então o identifica ou cria um novo cadastro.</li>
                 <li><strong>Requisitos de Cadastro:</strong> Para garantir a integridade dos dados, é obrigatório que o profissional cadastre, no mínimo, o <strong>nome completo, CPF e data de nascimento</strong> do paciente/cliente <strong>antes</strong> de enviar o link.</li>
-                <li><strong>Dados Salvos:</strong> Diferente do auto-agendamento, todo novo cadastro feito pela página pública é salvo diretamente na ficha do Paciente/Cliente. <strong>Revise os dados.</strong></li>
+                <li><strong>Dados Salvos:</strong> Diferente do auto-agendamento, todo novo cadastro feito pela página pública chega para você com o status "Pendente". Você deve ir à tela de <strong>Clientes</strong> para revisar e aprovar o cadastro, tornando-o ativo no sistema.</li>
             </ul>
         </div>
       )
