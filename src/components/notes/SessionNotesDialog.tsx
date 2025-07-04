@@ -15,12 +15,14 @@ import { toast } from '@/hooks/use-toast';
 import { addMessageToThread, checkRunStatus, createThread, getAssistantResponse, runAssistant, transcribeAudio } from '@/lib/openai';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Form, FormControl, FormItem, FormMessage } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Loader2, Save, User, Mic, Sparkles } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
+
+import { InsightsAIDialog } from './InsightsAIDialog';
+import { Client } from '@/hooks/useClients';
 
 type SessionNote = {
   id: string;
@@ -54,6 +56,8 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
   const [insights, setInsights] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  
+  const [isInsightsModalOpen, setIsInsightsModalOpen] = useState(false);
 
   const { data: fetchedNote, isLoading: isLoadingNote } = useQuery({
     queryKey: ['session_note', appointment?.id],
@@ -73,6 +77,37 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
   const effectiveNote = note || fetchedNote;
   const isLoading = isLoadingNote && !note;
   const targetAppointment = note?.appointments || appointment;
+  
+    const { data: allNotes = [] } = useQuery<SessionNote[]>({
+    queryKey: ['session_notes_list', targetAppointment?.client_id],
+    queryFn: async () => {
+      if (!targetAppointment?.client_id) return [];
+      const { data, error } = await supabase
+        .from('session_notes')
+        .select('*, appointments(*)')
+        .eq('client_id', targetAppointment.client_id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as SessionNote[];
+    },
+    enabled: !!targetAppointment?.client_id && isInsightsModalOpen,
+  });
+
+  const { data: clientData } = useQuery<Client | null>({
+    queryKey: ['client_details_for_insights', targetAppointment?.client_id],
+    queryFn: async () => {
+        if (!targetAppointment?.client_id) return null;
+        const { data, error } = await supabase
+            .from('clients')
+            .select('*')
+            .eq('id', targetAppointment.client_id)
+            .single();
+        if (error) throw new Error(error.message);
+        return data;
+    },
+    enabled: !!targetAppointment?.client_id && isInsightsModalOpen,
+  });
+
 
   const form = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema),
@@ -112,10 +147,11 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
     },
   });
 
-  // ... (As funções de IA permanecem aqui, sem alterações na lógica interna)
   const handleStartRecording = () => { /* ... */ };
   const handleStopRecording = () => { /* ... */ };
-  const handleGetInsights = () => { /* ... */ };
+  const handleGetInsights = () => {
+    setIsInsightsModalOpen(true);
+  };
 
   if (!isOpen) return null;
 
@@ -151,7 +187,7 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
                           <RichTextEditor
                             content={field.value}
                             onChange={field.onChange}
-                            onEditorInstance={(editor) => { editorRef.current = editor; }}
+                            onEditorInstance={(editor: Editor | null) => { editorRef.current = editor; }}
                             isRecording={isRecording}
                             isTranscribing={isTranscribing}
                             onStartRecording={handleStartRecording}
@@ -183,6 +219,14 @@ export const SessionNotesDialog: React.FC<SessionNotesDialogProps> = ({ note, ap
           </div>
         </DialogContent>
       </Dialog>
+      {clientData && (
+        <InsightsAIDialog
+          isOpen={isInsightsModalOpen}
+          onOpenChange={setIsInsightsModalOpen}
+          client={clientData}
+          notes={allNotes}
+        />
+      )}
     </>
   );
 };
