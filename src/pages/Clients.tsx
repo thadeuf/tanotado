@@ -156,7 +156,7 @@ const Clients: React.FC = () => {
     },
     onSuccess: (data, variables) => { 
       toast({ title: "Status do cliente atualizado!", description: `Cliente marcado como ${variables.status}.` }); 
-      queryClient.invalidateQueries({ queryKey: ['clients'] }); 
+      fetchClients(); //  <<<<< ALTERAÇÃO AQUI
       setClientToChangeStatus(null); 
       setTargetApprovalStatus(null); 
     },
