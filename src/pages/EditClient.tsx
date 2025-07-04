@@ -115,11 +115,12 @@ const EditClient: React.FC = () => {
           )}
 
           {activeView === 'prontuario' && clientData && (
-              <ProntuarioContainer client={clientData} />
+              // --- ✅ ALTERAÇÃO APLICADA AQUI ---
+              <ProntuarioContainer client={clientData} prontuarioLabel={user?.specialty_label || 'Prontuário'} />
           )}
 
           {activeView === 'agendamentos' && clientData && (
-              <ClientAppointmentsList client={clientData} />
+              <ClientAppointmentsList client={clientData} appointmentLabel={user?.appointment_label || 'Agendamento'}/>
           )}
 
           {activeView === 'anotacoes' && clientData && (

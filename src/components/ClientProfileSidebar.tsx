@@ -1,5 +1,6 @@
 // src/components/ClientProfileSidebar.tsx
 import React from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,13 +45,27 @@ const getInitials = (name: string) => {
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 };
 
+const formatBirthDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    const dateParts = dateString.split('-').map(part => parseInt(part, 10));
+    const localDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+    return format(localDate, 'dd/MM/yyyy');
+}
+
 export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ client, activeView, onViewChange, onGenerateDocument }) => {
+  const { user } = useAuth();
+
   if (!client) return null;
+  
+  const appointmentLabel = user?.appointment_label || 'Agendamento';
+  // --- ✅ NOVA ALTERAÇÃO AQUI ---
+  const prontuarioLabel = user?.specialty_label || 'Prontuário';
 
   const menuItems = [
     { id: 'dados', label: 'Dados principais', icon: User },
-    { id: 'prontuario', label: 'Prontuário', icon: FileText },
-    { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
+    // --- ✅ 'label' ATUALIZADO ---
+    { id: 'prontuario', label: prontuarioLabel, icon: FileText },
+    { id: 'agendamentos', label: `${appointmentLabel}s`, icon: Calendar },
     { id: 'anotacoes', label: 'Anotações da Sessão', icon: MessageSquare },
     { id: 'generate-doc', label: 'Criar Documento', icon: FileSignature },
     { id: 'documentos', label: 'Documentos Salvos', icon: Paperclip },
@@ -63,7 +78,7 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
       Nome: client.name,
       WhatsApp: client.whatsapp || '-',
       Email: client.email || '-',
-      'Data de Nascimento': client.birth_date ? format(new Date(client.birth_date), 'dd/MM/yyyy') : '-',
+      'Data de Nascimento': formatBirthDate(client.birth_date),
       CPF: client.cpf || '-',
       Sexo: client.gender || '-',
       'Estado Civil': client.marital_status || '-',
@@ -109,7 +124,7 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         {client.birth_date && (
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            {format(new Date(client.birth_date), 'dd/MM/yyyy')}
+            {formatBirthDate(client.birth_date)}
           </p>
         )}
       </div>

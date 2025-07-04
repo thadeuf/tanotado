@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, FileText, Stethoscope, ClipboardList, PencilRuler, Heart, Info, FlaskConical, Plus, Save, Pencil, Trash2 } from 'lucide-react';
 
-// Tipos e Estruturas de Dados (sem alterações)
+// Tipos e Estruturas de Dados
 type ProntuarioField = { id: string; label: string; };
 type ProntuarioSection = { id: string; title: string; icon: string; fields: ProntuarioField[]; };
 const recordContentSchema = z.record(z.string().optional());
@@ -50,9 +50,12 @@ const defaultProntuarioStructure: ProntuarioSection[] = [
 type ProntuarioSectionState = Omit<ProntuarioSection, 'icon'> & { icon: React.ElementType; }
 type ItemToDelete = { type: 'section' | 'field'; sectionId: string; fieldId?: string; label: string; };
 
-interface ProntuarioContainerProps { client: Client; }
+// --- ✅ ALTERAÇÃO 1: Interface atualizada para receber 'prontuarioLabel' ---
+interface ProntuarioContainerProps {
+  client: Client;
+  prontuarioLabel: string;
+}
 
-// INÍCIO DA MUDANÇA: O componente SortableAccordionItem agora recebe todas as props diretamente
 function SortableAccordionItem(props: {
     section: ProntuarioSectionState;
     form: any;
@@ -147,10 +150,9 @@ function SortableAccordionItem(props: {
     </div>
   );
 }
-// FIM DA MUDANÇA
 
-
-export const ProntuarioContainer: React.FC<ProntuarioContainerProps> = ({ client }) => {
+// --- ✅ ALTERAÇÃO 2: Assinatura do componente atualizada ---
+export const ProntuarioContainer: React.FC<ProntuarioContainerProps> = ({ client, prontuarioLabel }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -285,8 +287,9 @@ export const ProntuarioContainer: React.FC<ProntuarioContainerProps> = ({ client
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <div>
-                <CardTitle>Prontuário</CardTitle>
-                <CardDescription>Informações principais do prontuário.</CardDescription>
+                {/* --- ✅ ALTERAÇÃO 3: Título e descrição atualizados --- */}
+                <CardTitle>{prontuarioLabel}</CardTitle>
+                <CardDescription>Informações principais do {prontuarioLabel.toLowerCase()}.</CardDescription>
               </div>
               <Button type="submit" disabled={saveMutation.isPending} className="gap-2">
                   {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

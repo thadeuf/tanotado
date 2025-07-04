@@ -22,9 +22,10 @@ type AppointmentWithSessionNotes = Appointment & {
 
 interface ClientAppointmentsListProps {
   client: Client;
+  appointmentLabel: string;
 }
 
-export const ClientAppointmentsList: React.FC<ClientAppointmentsListProps> = ({ client }) => {
+export const ClientAppointmentsList: React.FC<ClientAppointmentsListProps> = ({ client, appointmentLabel }) => {
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
 
   const { data: appointments = [], isLoading } = useQuery<AppointmentWithSessionNotes[], Error>({
@@ -79,7 +80,7 @@ export const ClientAppointmentsList: React.FC<ClientAppointmentsListProps> = ({ 
       <TooltipProvider>
         <Card>
           <CardHeader>
-            <CardTitle>Histórico de Agendamentos</CardTitle>
+            <CardTitle>Histórico de {appointmentLabel}s</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="border rounded-md">
