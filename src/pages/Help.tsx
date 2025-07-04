@@ -23,7 +23,8 @@ import {
   FileSignature,
   Rocket,
   Sparkles,
-  HeartPulse
+  HeartPulse,
+  UserPlus // Ícone para a nova seção
 } from 'lucide-react';
 
 const HelpPage: React.FC = () => {
@@ -248,6 +249,23 @@ const HelpPage: React.FC = () => {
                 <li><strong>Identificação Segura:</strong> O cliente se identifica com CPF e data de nascimento. Se já for seu cliente ativo, ele pode agendar diretamente.</li>
                 <li><strong>Novos Clientes:</strong> Se for um novo cliente, ele preencherá um formulário de cadastro simplificado e o pedido de agendamento ficará como "Pendente" para sua aprovação na tela de Clientes.</li>
                 <li><strong>Disponibilidade Real:</strong> A página mostra apenas seus horários realmente livres, respeitando seus agendamentos e bloqueios existentes.</li>
+            </ul>
+        </div>
+      )
+    },
+    // --- NOVA SEÇÃO DE CADASTRO PÚBLICO ---
+    {
+      id: 'public-registration',
+      icon: UserPlus,
+      title: 'Página Pública de Cadastro',
+      content: (
+        <div className="space-y-4">
+            <p>Permita que novos pacientes/clientes se cadastrem diretamente através de um link exclusivo, agilizando a entrada de novas informações no seu sistema.</p>
+            <ul className="list-disc space-y-2 pl-5">
+                <li><strong>Ativação:</strong> A página de cadastro é habilitada automaticamente quando a <strong>Página Pública de Agendamento</strong> está ativa. Ambas usam a mesma URL amigável (<code>/seu-nome</code>) para criar uma experiência unificada, sendo <code>/agendar/seu-nome</code> para agendamentos e <code>/cadastrar/seu-nome</code> para cadastros.</li>
+                <li><strong>Fluxo de Cadastro:</strong> O cliente acessa sua página de cadastro, preenche as informações essenciais e envia. O sistema então o identifica ou cria um novo cadastro.</li>
+                <li><strong>Requisitos de Cadastro:</strong> Para garantir a integridade dos dados, é obrigatório que o profissional cadastre, no mínimo, o <strong>nome completo, CPF e data de nascimento</strong> do paciente/cliente <strong>antes</strong> de enviar o link.</li>
+                <li><strong>Dados Salvos:</strong> Diferente do auto-agendamento, todo novo cadastro feito pela página pública é salvo diretamente na ficha do Paciente/Cliente. <strong>Revise os dados.</strong></li>
             </ul>
         </div>
       )
