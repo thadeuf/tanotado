@@ -6,9 +6,9 @@ import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { format, parse, isValid } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format, parse } from 'date-fns';
 
+// Componentes de UI
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,16 +16,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, User, MapPin, DollarSign, Heart, Shield, Briefcase, Upload, Camera } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { CustomPhoneInput } from '@/components/ui/phone-input';
 import { CpfInput } from '@/components/ui/CpfInput';
 import { DateInput } from '@/components/ui/DateInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Constants } from '@/integrations/supabase/types'; 
+import { Constants } from '@/integrations/supabase/types';
 
+// Schema de validação do formulário
 const formSchema = z.object({
   id: z.string().optional(),
   avatar_url: z.string().nullable().optional(),
@@ -70,169 +69,114 @@ const formSchema = z.object({
 
 type ClientFormData = z.infer<typeof formSchema>;
 
+// Interface de props atualizada para incluir o 'contexto'
 interface ClientFormProps {
   onSuccess: () => void;
   initialData?: Partial<ClientFormData> | null;
   onAvatarChange: (preview: string | null) => void;
+  contexto?: 'interno' | 'publico'; // 'interno' é o padrão
 }
 
-export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, onAvatarChange }) => {
+export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, onAvatarChange, contexto = 'interno' }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<ClientFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '', whatsapp: '', professional_responsible: '', group: '',
-      video_call_link: '', email: '', cpf: '', rg: '', cep: '',
-      address: '', address_number: '', address_neighborhood: '',
-      address_city: '', address_state: '', address_complement: '',
-      // --- INÍCIO DA CORREÇÃO ---
-      session_value: '' as any,
-      billing_day: '' as any,
-      // --- FIM DA CORREÇÃO ---
-      send_billing_reminder: false, financial_responsible_name: '',
-      financial_responsible_whatsapp: '', financial_responsible_email: '',
-      financial_responsible_cpf: '', financial_responsible_rg: '',
+      name: '', whatsapp: '', email: '', cpf: '', rg: '', video_call_link: '',
+      cep: '', address: '', address_number: '', address_neighborhood: '', address_city: '', address_state: '', address_complement: '',
+      financial_responsible_name: '', financial_responsible_whatsapp: '', financial_responsible_email: '', financial_responsible_cpf: '', financial_responsible_rg: '',
       emergency_contact_name: '', emergency_contact_whatsapp: '',
-      gender: '', birth_date: null, nationality: '', education: '',
-      occupation: '', forwarding: '', marital_status: '', notes: '',
-      send_session_reminder: true, 
-      is_active: true, 
-      approval_status: 'approved', 
-      avatar_url: null,
+      gender: '', birth_date: null, nationality: '', education: '', occupation: '', forwarding: '', marital_status: '',
+      // Campos exclusivos do modo interno
+      professional_responsible: '', group: '', session_value: '' as any, billing_day: '' as any,
+      send_billing_reminder: false, notes: '', send_session_reminder: true, is_active: true, 
+      approval_status: 'pending', avatar_url: null,
     },
   });
 
   useEffect(() => {
     if (initialData) {
-      const sanitizedData = { ...initialData };
-
-      Object.keys(formSchema.shape).forEach(key => {
-        if (sanitizedData[key as keyof typeof sanitizedData] === null) {
-          (sanitizedData as any)[key] = '';
-        }
+      const sanitizedData: any = { ...initialData };
+      Object.keys(sanitizedData).forEach(key => {
+        if (sanitizedData[key] === null) sanitizedData[key] = '';
       });
-      
-      // sanitizedData.birth_date = initialData.birth_date ? new Date(initialData.birth_date) : null;
 
-      // --- INÍCIO DA CORREÇÃO ---
-    // Verificamos se a data de nascimento existe no dado inicial
-    if (initialData.birth_date && typeof initialData.birth_date === 'string') {
-      // A data vem como "YYYY-MM-DD". new Date() interpreta isso como UTC.
-      // Para evitar a conversão de fuso, criamos a data de uma forma que o JS
-      // entende como local, adicionando o horário T00:00:00.
-      const dateParts = initialData.birth_date.split('-');
-      // new Date(ano, mês - 1, dia) cria a data no fuso local corretamente.
-      sanitizedData.birth_date = new Date(
-        parseInt(dateParts[0]),
-        parseInt(dateParts[1]) - 1, 
-        parseInt(dateParts[2])
-      );
-    } else {
-      sanitizedData.birth_date = null;
-    }
-    // --- FIM DA CORREÇÃO ---
-      
-      if (initialData.approval_status) { 
-          sanitizedData.approval_status = initialData.approval_status; 
+      if (initialData.birth_date && typeof initialData.birth_date === 'string') {
+        const dateParts = initialData.birth_date.split('-');
+        sanitizedData.birth_date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+      } else if (initialData.birth_date instanceof Date) {
+        sanitizedData.birth_date = initialData.birth_date;
+      } else {
+        sanitizedData.birth_date = null;
       }
       
-      form.reset(sanitizedData as any);
+      form.reset(sanitizedData);
+      if (initialData.avatar_url) onAvatarChange(initialData.avatar_url);
     }
-  }, [initialData, form]);
+  }, [initialData, form, onAvatarChange]);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        onAvatarChange(reader.result as string);
-      };
+      reader.onloadend = () => onAvatarChange(reader.result as string);
       reader.readAsDataURL(file);
       form.setValue('avatar_file', file);
     }
   };
 
   const onSubmit = async (values: ClientFormData) => {
-    if (!user) return;
+    const professionalId = (contexto === 'interno' && user?.id) || initialData?.professional_responsible;
+    if (!professionalId) {
+      toast({ title: "Erro", description: "ID do profissional não encontrado.", variant: "destructive" });
+      return;
+    }
     
     setIsLoading(true);
     try {
       let avatarUrl = values.avatar_url;
-      
-      if (values.avatar_file && values.avatar_file instanceof File) {
-        try {
-          const fileExt = values.avatar_file.name.split('.').pop();
-          const fileName = `client-avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          
-          const { data, error: uploadError } = await supabase.storage
-            .from('photos')
-            .upload(fileName, values.avatar_file);
-          
-          if (uploadError) {
-            console.warn('Erro no upload da imagem:', uploadError);
-          } else {
-            const { data: { publicUrl } } = supabase.storage
-              .from('photos')
-              .getPublicUrl(fileName);
-            
-            avatarUrl = publicUrl;
-          }
-        } catch (storageError) {
-          console.warn('Erro ao acessar storage:', storageError);
-        }
+      if (values.avatar_file instanceof File) {
+        const fileExt = values.avatar_file.name.split('.').pop();
+        const fileName = `client-avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('photos').upload(fileName, values.avatar_file, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(fileName);
+        avatarUrl = publicUrl;
       }
 
-      const cleanCPF = values.cpf ? values.cpf.replace(/[^\d]/g, '') : undefined;
-      
-      const clientData = {
+      const clientData: any = {
         ...values,
-        cpf: cleanCPF,
+        cpf: values.cpf ? values.cpf.replace(/[^\d]/g, '') : undefined,
         avatar_url: avatarUrl,
-        user_id: user.id,
-        professional_responsible: values.professional_responsible || user.id,
-        // birth_date: values.birth_date ? values.birth_date.toISOString().split('T')[0] : null,
+        user_id: professionalId,
         birth_date: values.birth_date ? format(values.birth_date, 'yyyy-MM-dd') : null,
-        approval_status: 'approved' as Constants.public.Enums.client_approval_status,
-        is_active: true,
       };
+      
+      if (contexto === 'interno') {
+          clientData.professional_responsible = values.professional_responsible || professionalId;
+          clientData.approval_status = values.is_active ? 'approved' : 'rejected';
+      } else {
+          clientData.approval_status = 'pending';
+          clientData.is_active = false;
+      }
       
       delete clientData.avatar_file;
       
-      if (initialData?.id) {
-        const { error } = await supabase
-          .from('clients')
-          .update(clientData)
-          .eq('id', initialData.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Cliente atualizado com sucesso!",
-          description: "As informações foram salvas.",
-        });
+      const { id, ...updateData } = clientData;
+
+      if (id) {
+        await supabase.from('clients').update(updateData).eq('id', id).throwOnError();
+        toast({ title: "Dados atualizados com sucesso!" });
       } else {
-        const { error } = await supabase
-          .from('clients')
-          .insert([clientData]);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Cliente cadastrado com sucesso!",
-          description: "O cliente foi adicionado à sua lista.",
-        });
+        await supabase.from('clients').insert(clientData).throwOnError();
+        toast({ title: "Cadastro enviado com sucesso!" });
       }
       
       onSuccess();
-    } catch (error) {
-      console.error('Erro ao salvar cliente:', error);
-      toast({
-        title: "Erro ao salvar",
-        description: "Ocorreu um erro ao salvar o cliente. Tente novamente.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      toast({ title: "Erro ao salvar", description: error.message || "Ocorreu um erro.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -240,32 +184,19 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
 
   const handleCepBlur = async (event: React.FocusEvent<HTMLInputElement>) => {
     const cep = event.target.value.replace(/\D/g, '');
-
-    if (cep.length !== 8) {
-      return;
-    }
-
+    if (cep.length !== 8) return;
     try {
-      const response = await fetch(`https://cep.awesomeapi.com.br/json/${cep}`);
-      if (!response.ok) {
-        throw new Error('CEP não encontrado');
-      }
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      if (!response.ok) throw new Error('CEP não encontrado');
       const data = await response.json();
-      
-      form.setValue('address', data.address || '');
-      form.setValue('address_neighborhood', data.district || '');
-      form.setValue('address_city', data.city || '');
-      form.setValue('address_state', data.state || '');
-
+      if (data.erro) throw new Error('CEP inválido');
+      form.setValue('address', data.logradouro || '');
+      form.setValue('address_neighborhood', data.bairro || '');
+      form.setValue('address_city', data.localidade || '');
+      form.setValue('address_state', data.uf || '');
       form.setFocus('address_number');
-
     } catch (error) {
-      console.error("Erro ao buscar CEP:", error);
-      toast({
-        title: "CEP não encontrado",
-        description: "Verifique o CEP digitado e tente novamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao buscar CEP", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -273,109 +204,114 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-6">
-            
-            <div className="space-y-4 p-4 border rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                    <Camera className="h-5 w-5" /> 
-                    Foto de Perfil
-                </h3>
-                <FormField 
-                    name="avatar_file" 
-                    render={() => ( 
-                        <FormItem>
-                            <FormControl>
-                                <Button asChild variant="outline" size="sm" className="w-full">
-                                    <Label className="cursor-pointer flex items-center justify-center gap-2">
-                                        <Upload className="h-4 w-4" /> 
-                                        Enviar / Trocar foto
-                                        <Input 
-                                            type="file" 
-                                            className="hidden" 
-                                            accept="image/png, image/jpeg, image/webp" 
-                                            onChange={handleFileChange} 
-                                        />
-                                    </Label>
-                                </Button>
-                            </FormControl>
-                        </FormItem>
-                    )} 
-                />
-            </div>
+          
+          <div className="space-y-4 p-4 border rounded-lg">
+            <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                <Camera className="h-5 w-5" /> Foto de Perfil
+            </h3>
+            <FormField name="avatar_file" render={() => ( 
+                <FormItem>
+                    <FormControl>
+                        <Button asChild variant="outline" size="sm" className="w-full">
+                            <Label className="cursor-pointer flex items-center justify-center gap-2">
+                                <Upload className="h-4 w-4" /> Enviar / Trocar foto
+                                <Input type="file" className="hidden" accept="image/png, image/jpeg, image/webp" onChange={handleFileChange} />
+                            </Label>
+                        </Button>
+                    </FormControl>
+                </FormItem>
+            )} />
+          </div>
 
-            <FormField control={form.control} name="professional_responsible" render={({ field }) => (<FormItem><FormLabel>Profissional Responsável</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um profissional..." /></SelectTrigger></FormControl><SelectContent><SelectItem value={user?.id || ''}>{user?.name}</SelectItem></SelectContent></Select></FormItem>)} />
-            
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><User className="h-5 w-5" />Informações</h3> 
+          {contexto === 'interno' && (
+            <FormField control={form.control} name="professional_responsible" render={({ field }) => (<FormItem><FormLabel>Profissional Responsável</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value={user?.id || ''}>{user?.name}</SelectItem></SelectContent></Select></FormItem>)} />
+          )}
+          
+          <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><User className="h-5 w-5" />Informações</h3> 
+            {contexto === 'interno' && (
               <FormField control={form.control} name="group" render={({ field }) => (<FormItem><FormLabel>Grupo</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="adolescentes">Adolescentes</SelectItem><SelectItem value="adultos">Adultos</SelectItem><SelectItem value="casal">Casal</SelectItem><SelectItem value="criancas">Crianças</SelectItem><SelectItem value="familias">Famílias</SelectItem><SelectItem value="idosos">Idosos</SelectItem></SelectContent></Select></FormItem>)} />
-              <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome *</FormLabel><FormControl><Input placeholder="Nome completo do cliente" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="whatsapp" render={({ field }) => ( <FormItem><FormLabel>WhatsApp *</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="video_call_link" render={({ field }) => (<FormItem><FormLabel>Link de video chamada</FormLabel><FormControl><Input placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="email@exemplo.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <Controller control={form.control} name="cpf" render={({ field }) => (<FormItem><FormLabel>CPF</FormLabel><FormControl><CpfInput {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="rg" render={({ field }) => (<FormItem><FormLabel>RG</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-              </div>
+            )}
+            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome *</FormLabel><FormControl><Input placeholder="Nome completo do cliente" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="whatsapp" render={({ field }) => ( <FormItem><FormLabel>WhatsApp *</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="video_call_link" render={({ field }) => (<FormItem><FormLabel>Link de video chamada</FormLabel><FormControl><Input placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="email@exemplo.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <Controller control={form.control} name="cpf" render={({ field }) => (<FormItem><FormLabel>CPF</FormLabel><FormControl><CpfInput {...field} disabled={!!initialData?.cpf} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="rg" render={({ field }) => (<FormItem><FormLabel>RG</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
             </div>
+          </div>
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><MapPin className="h-5 w-5" />Endereço</h3> 
-              <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} onBlur={handleCepBlur} /></FormControl></FormItem>)} />
-              <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Rua, Avenida, etc." {...field} /></FormControl></FormItem>)} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="address_number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="address_neighborhood" render={({ field }) => (<FormItem><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="address_city" render={({ field }) => (<FormItem><FormLabel>Cidade</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="address_state" render={({ field }) => (<FormItem><FormLabel>Estado</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-              </div>
-              <FormField control={form.control} name="address_complement" render={({ field }) => (<FormItem><FormLabel>Complemento</FormLabel><FormControl><Input placeholder="Apto, bloco, casa..." {...field} /></FormControl></FormItem>)} />
+          <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><MapPin className="h-5 w-5" />Endereço</h3> 
+            <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} onBlur={handleCepBlur} /></FormControl></FormItem>)} />
+            <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Rua, Avenida, etc." {...field} /></FormControl></FormItem>)} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="address_number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="address_neighborhood" render={({ field }) => (<FormItem><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="address_city" render={({ field }) => (<FormItem><FormLabel>Cidade</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="address_state" render={({ field }) => (<FormItem><FormLabel>Estado</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
             </div>
+            <FormField control={form.control} name="address_complement" render={({ field }) => (<FormItem><FormLabel>Complemento</FormLabel><FormControl><Input placeholder="Apto, bloco, casa..." {...field} /></FormControl></FormItem>)} />
+          </div>
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><DollarSign className="h-5 w-5" />Financeiro</h3> 
+          {/* ***** INÍCIO DA ALTERAÇÃO ***** */}
+          {/* A seção inteira agora é condicional */}
+          {contexto === 'interno' && (
+            <div className="space-y-4 p-4 border rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Financeiro
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="session_value" render={({ field }) => (<FormItem><FormLabel>Valor por sessão</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
                 <FormField control={form.control} name="billing_day" render={({ field }) => (<FormItem><FormLabel>Dia de Cobrança</FormLabel><FormControl><Input type="number" min="1" max="31" {...field} /></FormControl></FormItem>)} />
               </div>
               <FormField control={form.control} name="send_billing_reminder" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><FormLabel>Enviar lembrete mensal de cobrança</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
             </div>
+          )}
+          {/* ***** FIM DA ALTERAÇÃO ***** */}
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Shield className="h-5 w-5" />Responsável Financeiro</h3> 
-              <FormField control={form.control} name="financial_responsible_name" render={({ field }) => (<FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="financial_responsible_whatsapp" render={({ field }) => (<FormItem><FormLabel>WhatsApp</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="financial_responsible_email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl></FormItem>)} />
-                <Controller control={form.control} name="financial_responsible_cpf" render={({ field }) => (<FormItem><FormLabel>CPF</FormLabel><FormControl><CpfInput {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="financial_responsible_rg" render={({ field }) => (<FormItem><FormLabel>RG</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+          <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Shield className="h-5 w-5" />Responsável Financeiro</h3> 
+            <FormField control={form.control} name="financial_responsible_name" render={({ field }) => (<FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="financial_responsible_whatsapp" render={({ field }) => (<FormItem><FormLabel>WhatsApp</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="financial_responsible_email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl></FormItem>)} />
+              <Controller control={form.control} name="financial_responsible_cpf" render={({ field }) => (<FormItem><FormLabel>CPF</FormLabel><FormControl><CpfInput {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="financial_responsible_rg" render={({ field }) => (<FormItem><FormLabel>RG</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+            </div>
+          </div>
+
+          <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Heart className="h-5 w-5" />Contato de emergência</h3> 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="emergency_contact_name" render={({ field }) => (<FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="emergency_contact_whatsapp" render={({ field }) => (<FormItem><FormLabel>WhatsApp</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl></FormItem>)} />
+            </div>
+          </div>
+
+          <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Briefcase className="h-5 w-5" />Dados Adicionais do {user?.clientNomenclature}</h3> 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              <FormField control={form.control} name="gender" render={({ field }) => (<FormItem><FormLabel>Gênero</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="feminino">Feminino</SelectItem><SelectItem value="masculino">Masculino</SelectItem><SelectItem value="outro">Outro</SelectItem><SelectItem value="nao-informar">Prefiro não informar</SelectItem></SelectContent></Select></FormItem>)} />
+              <Controller control={form.control} name="birth_date" render={({ field }) => (<FormItem className="flex flex-col gap-1"><FormLabel>Data de Nascimento</FormLabel><FormControl><DateInput value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="nationality" render={({ field }) => (<FormItem><FormLabel>Naturalidade</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="education" render={({ field }) => (<FormItem><FormLabel>Escolaridade</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="occupation" render={({ field }) => (<FormItem><FormLabel>Profissão</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="forwarding" render={({ field }) => (<FormItem><FormLabel>Encaminhamento</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+              <FormField control={form.control} name="marital_status" render={({ field }) => (<FormItem><FormLabel>Estado Civil</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+            </div>
+          </div>
+          
+          {contexto === 'interno' && (
+            <>
+              <div className="space-y-2">
+                  <Label>Observações</Label>
+                  <FormField control={form.control} name="notes" render={({ field }) => (<FormControl><Textarea placeholder="Adicione observações importantes..." {...field} /></FormControl>)} />
               </div>
-            </div>
 
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Heart className="h-5 w-5" />Contato de emergência</h3> 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="emergency_contact_name" render={({ field }) => (<FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="emergency_contact_whatsapp" render={({ field }) => (<FormItem><FormLabel>WhatsApp</FormLabel><FormControl><CustomPhoneInput {...field} /></FormControl></FormItem>)} />
+              <div className='space-y-3 pt-4'>
+                  <FormField control={form.control} name="send_session_reminder" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Ativar lembrete de sessão</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+                  <FormField control={form.control} name="is_active" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Cadastro Ativo</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
               </div>
-            </div>
-
-            <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Briefcase className="h-5 w-5" />Dados Adicionais do {user?.clientNomenclature}</h3> 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                <FormField control={form.control} name="gender" render={({ field }) => (<FormItem><FormLabel>Gênero</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="feminino">Feminino</SelectItem><SelectItem value="masculino">Masculino</SelectItem><SelectItem value="outro">Outro</SelectItem><SelectItem value="nao-informar">Prefiro não informar</SelectItem></SelectContent></Select></FormItem>)} />
-                <Controller control={form.control} name="birth_date" render={({ field }) => (<FormItem className="flex flex-col gap-1"><FormLabel>Data de Nascimento</FormLabel><FormControl><DateInput value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="nationality" render={({ field }) => (<FormItem><FormLabel>Naturalidade</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="education" render={({ field }) => (<FormItem><FormLabel>Escolaridade</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="occupation" render={({ field }) => (<FormItem><FormLabel>Profissão</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="forwarding" render={({ field }) => (<FormItem><FormLabel>Encaminhamento</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                <FormField control={form.control} name="marital_status" render={({ field }) => (<FormItem><FormLabel>Estado Civil</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-                <Label>Observações</Label>
-                <FormField control={form.control} name="notes" render={({ field }) => (<FormControl><Textarea placeholder="Adicione observações importantes..." {...field} /></FormControl>)} />
-            </div>
-
-            <div className='space-y-3 pt-4'>
-                <FormField control={form.control} name="send_session_reminder" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Ativar lembrete de sessão</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                {/* O campo is_active agora é controlado pelo approval_status para clientes criados via autoagendamento
-                    Mas ainda é útil para o profissional desativar/ativar manualmente independentemente do fluxo de aprovação. */}
-                <FormField control={form.control} name="is_active" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Cadastro Ativo</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-            </div>
+            </>
+          )}
 
         </div>
         <div className="pt-6 flex justify-end space-x-2">

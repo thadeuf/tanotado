@@ -109,6 +109,7 @@ const EditClient: React.FC = () => {
                         onSuccess={handleFormSuccess} 
                         initialData={clientData} 
                         onAvatarChange={handleAvatarChange} 
+                        contexto="interno"
                       />
                   </CardContent>
               </Card>

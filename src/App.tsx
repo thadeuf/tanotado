@@ -40,6 +40,7 @@ import PatientBooking from './pages/PatientBooking';
 import HelpPage from './pages/Help';
 import AiPosts from './pages/AiPosts';
 import IntegracaoReceitaSaude from './pages/IntegracaoReceitaSaude';
+import PatientRegistration from './pages/PatientRegistration';
 
 const queryClient = new QueryClient();
 
@@ -212,6 +213,7 @@ const AppContent: React.FC = () => {
           <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />
           <Route path="/register" element={ <PublicRoute> <Register /> </PublicRoute> } />
           <Route path="/agendar/:slug" element={ <PatientBooking /> } />
+          <Route path="/cadastrar/:slug" element={ <PatientRegistration /> } />
 
           {/* Rota para a página de assinatura */}
           <Route path="/assinatura" element={ <SubscriptionRoute> <Subscription /> </SubscriptionRoute> } />
