@@ -40,6 +40,8 @@ import HelpPage from './pages/Help';
 import AiPosts from './pages/AiPosts';
 import IntegracaoReceitaSaude from './pages/IntegracaoReceitaSaude';
 import PatientRegistration from './pages/PatientRegistration';
+import ForgotPasswordForm from './components/auth/ForgotPasswordForm';
+import ResetPasswordForm from './components/auth/ResetPasswordForm';
 
 const queryClient = new QueryClient();
 
@@ -200,6 +202,8 @@ const AppContent: React.FC = () => {
           {/* Rotas públicas */}
           <Route path="/login" element={ <PublicRoute> <Login /> </PublicRoute> } />
           <Route path="/register" element={ <PublicRoute> <Register /> </PublicRoute> } />
+          <Route path="/esqueci-senha" element={ <PublicRoute> <ForgotPasswordForm /> </PublicRoute> } />
+          <Route path="/redefinir-senha" element={ <PublicRoute> <ResetPasswordForm /> </PublicRoute> } />
           <Route path="/agendar/:slug" element={ <PatientBooking /> } />
           <Route path="/cadastrar/:slug" element={ <PatientRegistration /> } />
 

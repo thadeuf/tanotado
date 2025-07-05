@@ -29,6 +29,8 @@ CREATE TABLE profiles (
     trial_ends_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
     is_subscribed BOOLEAN DEFAULT FALSE,
     subscription_status TEXT DEFAULT 'trial',
+    recovery_code TEXT,
+    recovery_code_expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

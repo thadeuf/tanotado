@@ -51,7 +51,7 @@ const LoginForm: React.FC = () => {
           </div>
           <div className="text-right">
             <Link 
-              to="/forgot-password" 
+              to="/esqueci-senha" 
               className="text-sm text-tanotado-pink hover:underline"
             >
               Esqueceu a senha?
