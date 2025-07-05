@@ -1,3 +1,5 @@
+//src/components/ui/CpfInput.tsx -- Ajustei o nome do arquivo
+
 import React, { useEffect } from 'react';
 import { useIMask } from 'react-imask';
 import { Input } from '@/components/ui/input';
