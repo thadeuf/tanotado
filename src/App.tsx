@@ -13,7 +13,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import SplashScreen from './components/SplashScreen';
 import OnboardingFlow from './components/OnboardingFlow';
 import { AppSidebar } from './components/AppSidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -193,17 +192,6 @@ const SubscriptionRoute: React.FC<{ children: React.ReactNode }> = ({ children }
 
 
 const AppContent: React.FC = () => {
-  const [isSplashActive, setIsSplashActive] = useState(!sessionStorage.getItem('splashScreenShown'));
-
-  const handleSplashComplete = () => {
-    sessionStorage.setItem('splashScreenShown', 'true'); 
-    setIsSplashActive(false); 
-  };
-
-  if (isSplashActive) {
-    return <SplashScreen onComplete={handleSplashComplete} />;
-  }
-
   return (
     <AuthProvider>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
