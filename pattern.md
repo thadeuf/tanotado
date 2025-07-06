@@ -374,3 +374,238 @@ Para garantir a escalabilidade, manutenibilidade e a qualidade geral do software
 
 -   **Variáveis de Ambiente:** Chaves de API e outras informações sensíveis (Supabase URL/Key, OpenAI Key) são armazenadas em um arquivo `.env` na raiz do projeto. O acesso a essas variáveis no código é feito de forma segura através de `import.meta.env.VITE_*`, conforme o padrão do Vite, garantindo que essas chaves não sejam expostas diretamente no código-fonte.
 -   **Políticas de Acesso (Supabase RLS):** Embora não visível diretamente no frontend, a estrutura do código (ex: `user_id` em todas as tabelas) sugere fortemente o uso de Row Level Security (RLS) no Supabase, onde os usuários só podem acessar ou modificar os dados que lhes pertencem.
+
+## 8. Arquitetura de Backend e Serviços Externos
+
+Além da aplicação frontend, o projeto depende de uma arquitetura de backend e de serviços externos para funcionalidades críticas.
+
+### 8.1. Supabase Edge Functions
+
+As **Edge Functions** do Supabase são usadas para executar lógica de backend segura e sensível, que não deve ser exposta no lado do cliente.
+
+-   **Propósito:** Lidar com lógica de negócio, integrações seguras com APIs de terceiros e tarefas que exigem chaves de API secretas.
+-   **Funções Identificadas:**
+    -   `reset-password` / `send-recovery-code`: Gerencia a lógica de recuperação de senha de forma segura.
+    -   `cancel-subscription`: Comunica-se com a API do Stripe para cancelar a assinatura de um usuário.
+    -   `google-auth-callback` / `google-revoke-token`: Lidam com o fluxo de autenticação OAuth com o Google para a integração com o Google Calendar.
+    -   `create-google-event`: Sincroniza os agendamentos da plataforma com a agenda do Google do usuário.
+-   **Segurança:** A invocação dessas funções a partir do frontend é feita através do cliente Supabase (`supabase.functions.invoke()`), garantindo que as chaves de API e a lógica interna permaneçam no servidor.
+
+### 8.2. Automações com n8n
+
+O **n8n** é utilizado como uma ferramenta de automação de fluxos de trabalho (workflow automation) para lidar com o envio de mensagens e notificações.
+
+-   **Propósito:** Orquestrar o envio de mensagens automáticas (lembretes de sessão, cobranças) via WhatsApp.
+-   **Funcionamento:**
+    1.  A aplicação frontend ou uma função agendada no Supabase adiciona uma tarefa na tabela `message_queue`.
+    2.  Um webhook no n8n é acionado ou consulta periodicamente esta fila.
+    3.  O n8n processa a mensagem, formata o conteúdo e utiliza a API do WhatsApp para realizar o envio.
+    -   *Referência:* A página `MessageReports.tsx` interage com a tabela `message_queue`, mostrando o status das mensagens gerenciadas por este fluxo.
+
+### 8.3. Worker Python para Integração com Receita Saúde
+
+Para a funcionalidade específica de emissão de recibos via **Receita Saúde**, foi desenvolvido um serviço separado (worker) em Python.
+
+-   **Propósito:** Automatizar o processo de login no portal do e-CAC e a emissão de recibos no sistema Carnê Leão, uma tarefa que requer automação de navegador (browser automation).
+-   **Funcionamento:**
+    1.  Na aplicação, um usuário com a integração ativa solicita a emissão de um recibo (visto em `Financial.tsx`).
+    2.  Esta solicitação cria um registro na tabela `recibos_ecac` com o status "Pendente".
+    3.  O worker Python monitora esta tabela. Ao encontrar um registro pendente, ele utiliza bibliotecas como Selenium ou Playwright para:
+        -   Acessar o e-CAC.
+        -   Realizar o login em nome do profissional (utilizando a procuração digital fornecida).
+        -   Preencher e emitir o recibo com os dados do pagamento.
+        -   Baixar o PDF do recibo e atualizar o registro na tabela com o status "Emitido" e a URL do arquivo.
+-   **Motivação:** A escolha de um worker em Python se deve à robustez das bibliotecas de automação web disponíveis nesse ecossistema, que são ideais para interagir com portais governamentais complexos como o da Receita Federal.
+
+### 9. Funcionalidades e Padrões da Área de Administração
+
+O projeto conta com uma área de administração (`/admin`) robusta, projetada para dar aos administradores uma visão completa e controle sobre a plataforma. O acesso é restrito através do `<AdminRoute>` em `App.tsx`, que verifica se o `user.role` é 'admin'.
+
+#### 9.1. Dashboard do Administrador (`AdminDashboard.tsx`)
+
+É a página central da área de administração, fornecendo métricas chave e uma visão geral de todos os usuários cadastrados.
+
+-   **Métricas Globais:** Apresenta estatísticas vitais da plataforma, como "Total de Usuários", "Total de Assinantes", "Novos Assinantes (mês)" e "Cancelamentos (mês)". Estes dados são calculados através da RPC `get_all_profiles_with_counts` do Supabase.
+-   **Listagem e Filtragem de Usuários:** Exibe uma tabela com todos os usuários da plataforma.
+    -   **Filtros:** Permite filtrar usuários por status (`Assinantes`, `Em Teste`, `Trial Expirado`, `Cancelados`, `Desativados`), facilitando a segmentação e análise.
+    -   **Busca:** Um campo de busca permite encontrar usuários rapidamente por nome, email ou WhatsApp.
+-   **Ações de Gerenciamento:** Para cada usuário, um menu de ações (`DropdownMenu`) permite que o administrador:
+    -   **Visualize Detalhes:** Abre um modal (`ClientInfoDialog`) com informações completas do perfil do usuário.
+    -   **Ative/Desative Usuários:** Controla o acesso do usuário à plataforma, utilizando as mutações `activateUserMutation` e `deactivateUserMutation`.
+    -   **Cancele Assinaturas:** Invoca a Supabase Edge Function `cancel-subscription` para cancelar a assinatura de um usuário no Stripe.
+
+#### 9.2. Gerenciamento de Instâncias do WhatsApp (`WhatsappInstances.tsx`)
+
+Esta seção é dedicada ao gerenciamento das conexões com a API do WhatsApp, que são essenciais para o envio de lembretes e notificações.
+
+-   **Criação e Conexão:** Administradores podem criar novas instâncias, conectar via QR Code e desconectar instâncias ativas. O processo interage diretamente com a API da Evolution.
+-   **Sincronização de Status:** Um `useEffect` executa uma rotina de sincronização periódica que verifica o status real de cada instância na API da Evolution e atualiza o banco de dados do Supabase, garantindo que a informação de status (`connected`/`disconnected`) esteja sempre correta.
+-   **Gerenciamento de Usuários:** A tela exibe a contagem de usuários associados a cada instância e permite a migração de usuários entre instâncias através do `MigrateUsersDialog`, que utiliza a RPC `migrate_random_users_between_instances`.
+-   **Webhook de Respostas:** Há uma opção para ativer um webhook global para receber as respostas dos clientes aos lembretes, configurável através do `AdminSettingsForm`.
+
+#### 9.3. Relatório de Envios de Mensagens (`MessageReports.tsx`)
+
+Fornece um log detalhado de todas as mensagens que passam pela fila de envio do sistema (`message_queue`).
+
+-   **Visualização e Filtragem:** Permite visualizar o histórico de mensagens e filtrar por status (`Pendente`, `Enviado`, `Erro`), além de uma busca por qualquer campo da mensagem.
+-   **Análise de Erros:** Em caso de falha no envio, o motivo do erro (`error_message`) é exibido, permitindo um diagnóstico rápido do problema.
+-   **Ações na Fila:** Administradores podem:
+    -   **Reenfileirar (`requeue`):** Marcar uma mensagem que falhou para ser enviada novamente.
+    -   **Excluir:** Remover uma mensagem permanentemente da fila.
+
+#### 9.4. Configurações Gerais do Administrador (`AdminSettingsForm.tsx`)
+
+Um modal centraliza as configurações globais que afetam o comportamento de todo o sistema.
+
+-   **Webhook de Respostas:** Permite configurar a URL do webhook que receberá as respostas dos clientes, como visto na seção de instâncias do WhatsApp.
+-   **Persistência:** As configurações são salvas na tabela `admin_settings`, permitindo que outros serviços e funções as consultem quando necessário.
+
+### 10. Fluxo de Autenticação e Gerenciamento de Perfil
+
+A arquitetura de autenticação e gerenciamento de perfis da aplicação é projetada para ser robusta, resiliente e segura, garantindo que os dados do usuário estejam sempre sincronizados com o estado de autenticação. O `AuthContext` é o orquestrador central deste fluxo.
+
+-   **Separação entre Autenticação e Dados de Perfil:** O projeto faz uma distinção clara entre o serviço de autenticação do Supabase (`supabase.auth`) e a tabela de dados do perfil do usuário (`profiles`). O primeiro lida apenas com a identidade (email, senha, sessões), enquanto o segundo armazena todas as informações de negócio e preferências do usuário (nome, CPF, configurações, etc.).
+
+-   **Gatilho de Criação de Perfil (Database Trigger):** A criação de um novo perfil de usuário é automatizada e segura, sendo delegada a um gatilho (trigger) no banco de dados do Supabase.
+    -   **Fluxo:** Quando um novo usuário se cadastra com `supabase.auth.signUp`, o Supabase cria um novo registro na sua tabela interna `auth.users`. Um gatilho PostgreSQL configurado no banco de dados "escuta" essa inserção e, em resposta, cria automaticamente uma linha correspondente na tabela `public.profiles`, copiando o `id`, `email`, `name` e outros metadados fornecidos no cadastro.
+    -   **Vantagem:** Esta abordagem desacopla a lógica de criação de perfil da aplicação frontend, garantindo que todo usuário autenticado terá um perfil associado, mesmo que a chamada do frontend falhe após o cadastro.
+
+-   **Carregamento e Sincronização de Perfil (`loadUserProfile`):** O `AuthContext` implementa uma função resiliente para carregar os dados do perfil, lidando com possíveis estados de inconsistência.
+    -   **Verificação Proativa:** A função `loadUserProfile` é chamada sempre que o estado de autenticação muda. Ela não assume que um perfil já existe.
+    -   **Tratamento do Erro `PGRST116`:** Ela primeiro tenta buscar o perfil com `.select().eq('id', user.id).single()`. Se o Supabase retornar o erro com código `PGRST116`, significa que "nenhuma linha foi encontrada". O `AuthContext` interpreta isso como um sinal de que o gatilho pode ainda não ter sido executado ou falhou.
+    -   **Resiliência e Tentativa de Criação:** Ao encontrar o erro `PGRST116`, em vez de falhar, o `AuthContext` chama a função `createNewProfile`. Esta função aguarda um curto período (1 segundo) e tenta recarregar o perfil, dando tempo para o gatilho do banco de dados concluir sua execução. Isso torna a aplicação robusta a pequenos atrasos de replicação no backend.
+    -   **Mapeamento de Dados:** Uma vez que o perfil é carregado com sucesso, a função mapeia os dados brutos do banco para a interface `User` definida em `src/types/auth.ts`, garantindo a consistência dos tipos em toda a aplicação.
+
+-   **Sincronização de Estado em Tempo Real (`onAuthStateChange`):** O `AuthContext` utiliza o listener `supabase.auth.onAuthStateChange` para se inscrever a todas as mudanças de estado de autenticação (LOGIN, LOGOUT, TOKEN_REFRESHED).
+    -   **Fonte Única da Verdade:** Este listener é a única fonte que dispara a atualização do estado global do usuário. Sempre que um evento ocorre, a função `loadUserProfile` é chamada com a nova sessão, garantindo que o objeto `user` no contexto React esteja sempre sincronizado com o backend. Isso é crucial para que as rotas protegidas e os dados exibidos na UI reflitam o estado de autenticação real.
+
+    ### 11. Padrão de Feedback ao Usuário (UX)
+
+A aplicação adota uma estratégia de comunicação com o usuário que é clara, consistente e não intrusiva. O objetivo é manter o usuário informado sobre o estado do sistema em todos os momentos, seja durante operações em segundo plano, ações bem-sucedidas ou falhas. Este padrão de feedback é fundamental para construir confiança e garantir uma boa experiência de uso (UX).
+
+#### 11.1. Notificações Não-Bloqueantes (Toasts)
+
+O sistema utiliza "toasts" (pequenas notificações que aparecem e desaparecem automaticamente) como o principal meio de comunicação para eventos assíncronos. O projeto emprega duas bibliotecas para isso, `Toaster` e `Sonner`, com a implementação encapsulada no hook `useToast`.
+
+-   **Confirmação de Sucesso:** Após uma operação de escrita (criar, atualizar, deletar) ser concluída com sucesso no `onSuccess` de uma `useMutation`, um toast de sucesso é invocado para confirmar a ação.
+    -   *Exemplo:* Após salvar as configurações da agenda, a notificação `toast({ title: "Configurações da agenda salvas!" })` é exibida. Similarmente, ao deletar um agendamento, o usuário vê "Evento(s) excluído(s)!".
+
+-   **Relato de Erros:** Quando uma operação falha (no `onError` de uma `useMutation`), um toast com a variante `destructive` é exibido. Crucialmente, a mensagem de erro retornada pela API (`error.message`) é incluída na descrição, fornecendo um contexto claro sobre o que deu errado.
+    -   *Exemplo:* Se a criação de uma instância do WhatsApp falha, o sistema mostra `toast({ title: 'Erro ao criar instância', description: error.message, variant: 'destructive' })`.
+
+-   **Informações de Progresso:** Toasts também são usados para informar o início de processos que podem levar algum tempo, como `toast({ title: "Iniciando importação de pacientes..." })`.
+
+#### 11.2. Indicadores de Carregamento (Loaders e Skeletons)
+
+Para gerenciar a percepção de tempo do usuário durante o carregamento de dados ou a execução de ações, o projeto utiliza dois tipos de indicadores visuais:
+
+-   **Carregamento de Página/Componente (`<Skeleton />`):** Quando uma página ou um componente principal está buscando seus dados iniciais, o componente `<Skeleton>` é usado para renderizar uma "casca" da interface.
+    -   **Prevenção de Layout Shift:** Essa técnica melhora a experiência percebida, pois o usuário vê uma estrutura familiar que será preenchida com dados, em vez de uma tela em branco ou um layout que "pula" quando os dados chegam.
+    -   *Exemplos:* Visto em `AdminDashboard.tsx` para os cards de estatísticas e a tabela de usuários, e em `Clients.tsx` para a lista de clientes.
+
+-   **Carregamento de Ação do Usuário (`<Loader2 />`):** Quando o usuário aciona uma ação que dispara uma mutação (como clicar em "Salvar" ou "Excluir"), o feedback é imediato e contextual.
+    -   **Feedback no Próprio Elemento:** O ícone `<Loader2 className="... animate-spin" />` é inserido diretamente no botão que iniciou a ação.
+    -   **Desabilitar Ação:** O botão é desabilitado (`disabled={mutation.isPending}`) durante a execução para prevenir múltiplos envios e deixar claro que uma ação está em andamento.
+    -   *Exemplos:* Presente em quase todos os botões de submissão de formulários, como em `MyAccountForm.tsx` e nos diálogos de confirmação de exclusão em `Agenda.tsx`.
+
+#### 11.3. Diálogos de Confirmação (`<AlertDialog />`)
+
+Para ações destrutivas ou irreversíveis, como exclusão de dados ou cancelamento de assinaturas, a aplicação utiliza um diálogo de confirmação (`AlertDialog`) para garantir que a ação seja intencional.
+
+-   **Prevenção de Ações Acidentais:** Antes de executar uma mutação de exclusão, um modal é exibido pedindo confirmação explícita do usuário.
+-   **Contexto Claro:** A descrição dentro do diálogo (`AlertDialogDescription`) explica claramente o que acontecerá se a ação for confirmada, como em: `Tem certeza que deseja excluir a instância ...? Esta ação não pode ser desfeita.`.
+-   **Exemplos de Uso:** Implementado para deletar instâncias do WhatsApp, agendamentos, modelos de documentos, e para ações de segurança como sair de todos os dispositivos.
+
+### 12. Comunicação com o Banco de Dados (RPC vs. Query Direta)
+
+A aplicação utiliza duas estratégias distintas e complementares para interagir com o banco de dados Supabase, cada uma escolhida com base na complexidade e nos requisitos de segurança da operação.
+
+#### 12.1. Queries Diretas (CRUD Padrão)
+
+Para operações de Leitura, Criação, Atualização e Deleção (CRUD) que são diretas e envolvem uma única tabela, o projeto utiliza a API padrão de consulta do Supabase. Esta abordagem é preferida pela sua clareza, simplicidade e legibilidade.
+
+-   **Leitura (`select`):** Usada para buscar dados. Permite a junção de dados de tabelas relacionadas de forma declarativa.
+    -   *Exemplo:* Em `usePayments.ts`, a query busca pagamentos e, ao mesmo tempo, os dados relacionados da tabela de clientes: `supabase.from('payments').select('*, clients (name, avatar_url, cpf)')`.
+-   **Criação (`insert`):** Usada para adicionar novos registros a uma tabela.
+    -   *Exemplo:* Em `ClientForm.tsx`, um novo cliente é criado com `supabase.from('clients').insert(clientData)`.
+-   **Atualização (`update`):** Usada para modificar registros existentes, geralmente combinada com `.eq()` para especificar qual registro atualizar.
+    -   *Exemplo:* Em `MyAccountForm.tsx`, o perfil do usuário é atualizado com `supabase.from('profiles').update(profileData).eq('id', user.id)`.
+-   **Deleção (`delete`):** Usada para remover registros.
+    -   *Exemplo:* Em `SessionNotesList.tsx`, uma anotação é deletada com `supabase.from('session_notes').delete().eq('id', noteId)`.
+
+#### 12.2. Chamadas de Procedimento Remoto (RPC)
+
+Para operações mais complexas, que envolvem múltiplas tabelas, cálculos agregados ou lógica de negócio que deve ser executada atomicamente no servidor, o projeto utiliza **Chamadas de Procedimento Remoto (RPC)**. Isso invoca funções PostgreSQL customizadas definidas diretamente no banco de dados do Supabase.
+
+-   **Lógica de Negócio Complexa:** RPCs são ideais para encapsular regras de negócio.
+    -   *Exemplo:* A função `find_or_create_pending_client` na página de agendamento público verifica se um cliente com um determinado CPF já existe. Se existir, retorna seus dados; se não, cria um novo cliente com status "pendente". Tudo isso ocorre em uma única chamada de função, garantindo consistência.
+-   **Queries Agregadas e com Joins Complexos:** Para evitar múltiplas chamadas de rede e realizar cálculos no lado do banco (que é mais performático), as RPCs são a escolha certa.
+    -   *Exemplo:* A função `get_all_profiles_with_counts` no `AdminDashboard.tsx` retorna uma lista de todos os usuários e, para cada um, calcula a contagem de clientes e agendamentos associados, uma operação que seria ineficiente de se fazer no lado do cliente.
+    -   *Exemplo:* `get_client_details_with_stats` em `EditClient.tsx` busca todos os dados de um cliente e, ao mesmo tempo, calcula estatísticas como total de sessões e valor devido.
+-   **Lógica de Busca Especializada:** Funções RPC são perfeitas para encapsular lógicas de busca complexas.
+    -   *Exemplo:* `get_available_slots` em `PatientBooking.tsx` executa uma lógica sofisticada para determinar os horários disponíveis de um profissional em uma data específica. Ela considera os horários de trabalho, a duração das sessões e os agendamentos já existentes para retornar apenas os "slots" livres.
+
+    ### 13. Arquitetura de Páginas Públicas
+
+O sistema possui uma arquitetura de "front-office" bem definida, composta por páginas que podem ser acessadas publicamente para que clientes novos ou existentes possam interagir com o profissional sem a necessidade de login. Essas páginas, como `/agendar/:slug` e `/cadastrar/:slug`, seguem padrões específicos para garantir segurança e uma experiência de usuário fluida.
+
+-   **Ponto de Entrada via Slug:** O acesso a essas páginas é feito através de um `slug` amigável na URL (ex: `/agendar/nome-do-profissional`). Este `slug` serve como um identificador público para o profissional, evitando a exposição de IDs internos (UUIDs). A aplicação busca as informações públicas do profissional utilizando a RPC `get_public_profile_by_slug`, que retorna apenas os dados necessários para a página, como nome, especialidade e horários de trabalho.
+
+-   **Fluxo de Identificação Obrigatória:** Antes de qualquer ação (agendamento ou cadastro), o cliente deve se identificar fornecendo seu CPF e data de nascimento.
+    -   Essa etapa é gerenciada pelo `identificationSchema` do Zod e pelo formulário `identificationForm`.
+    -   A validação é centralizada na função RPC `find_or_create_pending_client`. Esta função segura no backend verifica se um cliente com aquele CPF já existe e se a data de nascimento corresponde.
+    -   A função também lida com a criação de um novo cliente com status `pending` caso ele não exista, retornando um estado consistente para o frontend.
+
+-   **Renderização Condicional de Etapas:** A UI dessas páginas é dividida em "passos" (`currentStep`) gerenciados por um estado local (`useState`). O fluxo do usuário é guiado condicionalmente com base no resultado do passo anterior:
+    1.  **`identification`:** Exibe o formulário de CPF e data de nascimento.
+    2.  **`new_client_form`:** É exibido se a RPC `find_or_create_pending_client` indica que o cliente é novo ou seu cadastro está incompleto. O usuário preenche dados básicos como nome e WhatsApp.
+    3.  **`schedule_selection`:** É exibido para clientes já ativos e identificados, permitindo que eles escolham uma data e horário. A disponibilidade é carregada dinamicamente pela RPC `get_available_slots`.
+    4.  **`confirmation_pending` ou `scheduling_success`:** Telas finais que informam o resultado da ação, seja o envio do cadastro para aprovação ou a confirmação do agendamento.
+
+-   **Segregação de Formulários:** Cada etapa do fluxo utiliza sua própria instância do `useForm` e seu próprio schema Zod (`identificationSchema`, `newClientSchema`, `scheduleSchema`). Isso mantém a lógica de cada passo isolada e fácil de gerenciar.
+
+-   **Reutilização de Componentes:** A página de cadastro (`PatientRegistration.tsx`) reutiliza de forma inteligente o componente `ClientForm` (usado na área interna do sistema), mas passando o `contexto="publico"`. Isso permite que o mesmo formulário se adapte, ocultando campos sensíveis ou irrelevantes para o cadastro público, como "Valor da Sessão".
+
+### 14. Fluxo de Onboarding de Novos Usuários
+
+Para garantir que os novos usuários configurem suas contas de maneira eficaz antes de começarem a usar a plataforma, o projeto implementa um fluxo de onboarding dedicado. Este processo é uma etapa crucial e obrigatória, acionada para qualquer usuário que tenha se cadastrado mas ainda não completou a configuração inicial (identificado pelo campo `hasCompletedOnboarding: false` em seu perfil).
+
+#### 14.1. Arquitetura e Componente Central
+
+O coração deste processo é o componente `OnboardingFlow.tsx`, que funciona como uma máquina de estados finitos, guiando o usuário por uma série de telas de configuração.
+
+-   **Componente Orquestrador:** `OnboardingFlow.tsx` encapsula toda a lógica, o estado e a interface do processo. Ele é renderizado condicionalmente pelo `ProtectedRoute` em `App.tsx` sempre que um usuário não onboardado tenta acessar a plataforma.
+-   **Gerenciamento de Estado Local:** O componente utiliza o hook `useState` para controlar o passo atual (`currentStep`) e para armazenar as seleções do usuário em cada etapa (ex: `specialty`, `nomenclature`, `recordLabel`, etc.).
+-   **Interface do Usuário com `shadcn/ui`:** A interface é construída com componentes `shadcn/ui`, garantindo consistência visual com o resto da aplicação.
+    -   **`<Card>`:** Envolve todo o fluxo, apresentando-o de forma limpa e focada.
+    -   **`<Progress />`:** Uma barra de progresso no topo do card fornece feedback visual imediato sobre o avanço do usuário no processo (`Etapa X de 5`), melhorando a experiência e gerenciando expectativas.
+
+#### 14.2. Detalhamento das Etapas de Configuração
+
+O fluxo é dividido em cinco etapas sequenciais, cada uma projetada para coletar uma informação específica e personalizar a plataforma para o profissional.
+
+1.  **Especialidade Profissional:**
+    -   **Objetivo:** Entender a área de atuação do profissional.
+    -   **UI:** Utiliza um componente `<Popover>` que contém um `<Command>` com busca (`CommandInput`), permitindo que o usuário encontre rapidamente sua especialidade em uma longa lista (`specialtyOptions`). Se a especialidade não estiver listada, a seleção de "Outro" revela um campo de input (`<Input />`) para digitação manual (`customSpecialty`).
+
+2.  **Nomenclatura do Cliente:**
+    -   **Objetivo:** Personalizar a linguagem da plataforma (ex: "Paciente" vs. "Cliente").
+    -   **UI:** Apresenta uma série de botões que funcionam como um grupo de rádio. O botão selecionado recebe um destaque visual (`border-tanotado-pink`) e um ícone `<CheckCircle />`. A lógica para um valor customizado ("Outro") também está presente.
+
+3.  **Rótulo do Agendamento:**
+    -   **Objetivo:** Definir como os eventos na agenda serão chamados (ex: "Agendamento", "Sessão").
+    -   **UI:** Segue o mesmo padrão de botões da etapa anterior, garantindo uma experiência de seleção consistente para o usuário.
+
+4.  **Rótulo do Prontuário:**
+    -   **Objetivo:** Adaptar o nome do registro clínico à área do profissional.
+    -   **UI:** Reutiliza o padrão de botões de seleção. Além disso, esta etapa possui uma lógica condicional: se a especialidade selecionada na primeira etapa for da área da saúde (`isHealthProfessional`), um componente `<Alert>` é exibido, informando sobre a obrigatoriedade legal de manter um prontuário.
+
+5.  **Finalização:**
+    -   **Objetivo:** Confirmar que a configuração está completa.
+    -   **UI:** Uma tela de sucesso com um ícone `<Sparkles />` informa ao usuário que tudo está pronto. O botão "Finalizar e Ir para a Agenda" aciona a função que salva os dados.
+
+#### 14.3. Integração e Conclusão do Fluxo
+
+-   **Submissão dos Dados:** Ao clicar no botão de finalização, a função `handleFinish` é chamada. Ela consolida todas as seleções feitas pelo usuário (incluindo os valores customizados, se houver) em um único objeto.
+-   **Atualização do Perfil:** Este objeto é então passado para a função `updateUser` do `AuthContext`. Esta função, por sua vez, faz uma chamada para o Supabase, atualizando o perfil do usuário na tabela `profiles` com as novas preferências e, crucialmente, definindo `has_completed_onboarding` como `true`.
+-   **Redirecionamento:** Uma vez que o perfil é atualizado, o estado do `user` no `AuthContext` é atualizado. O `ProtectedRoute` em `App.tsx` detectará a mudança no valor de `hasCompletedOnboarding` em sua próxima renderização e, em vez de mostrar o `OnboardingFlow`, permitirá o acesso ao dashboard principal da aplicação.
