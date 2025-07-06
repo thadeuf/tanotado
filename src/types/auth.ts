@@ -38,6 +38,7 @@ export interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  signOutFromAllDevices: () => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
   refetchUser: () => Promise<void>; // Adicionada função para recarregar dados do usuário

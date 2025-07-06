@@ -14,16 +14,23 @@ import {
   LogOut,
   ChevronRight,
   RefreshCw,
+  Download,
   // Ícone para a nova integração, pode ser qualquer um da lucide-react
   HeartPulse 
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MyAccountForm } from '@/components/settings/MyAccountForm';
 import { GroupSettingsForm } from '@/components/settings/GroupSettingsForm';
 import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import { ResetPasswordForm } from '@/components/settings/ResetPasswordForm'; 
+import { Button } from '@/components/ui/button';
 
 type SettingItem = {
   id: string;
@@ -40,6 +47,8 @@ const Settings: React.FC = () => {
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false); 
   const [isSignOutAlertOpen, setIsSignOutAlertOpen] = useState(false);
   const [isUpdateAlertOpen, setIsUpdateAlertOpen] = useState(false);
+  const [isExportOptionsModalOpen, setIsExportOptionsModalOpen] = useState(false); // New state for export options modal
+  const [isExporting, setIsExporting] = useState(false);
   const navigate = useNavigate();
 
   const { user, signOutFromAllDevices, forceAppUpdate } = useAuth();
@@ -53,7 +62,158 @@ const Settings: React.FC = () => {
     await forceAppUpdate();
     setIsUpdateAlertOpen(false);
   };
+
+  // Helper function to extract text from a TipTap/ProseMirror-like JSON structure
+  const extractTextFromContent = (content: any): string => {
+    if (!content) return '';
+    if (Array.isArray(content)) {
+      return content.map(extractTextFromContent).join('\n');
+    }
+    if (typeof content === 'object') {
+      if (content.type === 'text' && typeof content.text === 'string') {
+        return content.text;
+      }
+      if (content.content) {
+        return extractTextFromContent(content.content);
+      }
+    }
+    return '';
+  };
   
+  const exportPatientsToXLSX = async () => {
+    setIsExporting(true);
+    setIsExportOptionsModalOpen(false);
+    toast({
+      title: "Iniciando exportação de pacientes...",
+      description: "Aguarde enquanto preparamos a listagem de pacientes.",
+    });
+
+    try {
+      const { data: clients, error } = await supabase
+        .from('clients')
+        .select(`
+          name, email, whatsapp, cpf, birth_date, address, notes,
+          rg, cep, address_number, address_neighborhood, address_city,
+          address_state, address_complement, session_value,
+          financial_responsible_name, financial_responsible_whatsapp,
+          financial_responsible_email, financial_responsible_cpf,
+          financial_responsible_rg, emergency_contact_name,
+          emergency_contact_whatsapp, gender, nationality, education,
+          occupation, forwarding, marital_status
+        `)
+        .eq('user_id', user?.id)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      const formattedData = clients.map(client => ({
+        "Nome": client.name || '-',
+        "Email": client.email || '-',
+        "WhatsApp": client.whatsapp || '-',
+        "CPF": client.cpf || '-',
+        "Data de Nascimento": client.birth_date ? format(new Date(client.birth_date), 'dd/MM/yyyy') : '-',
+        "Endereço": client.address || '-',
+        "Observações": client.notes || '-',
+        "RG": client.rg || '-',
+        "CEP": client.cep || '-',
+        "Número do Endereço": client.address_number || '-',
+        "Bairro": client.address_neighborhood || '-',
+        "Cidade": client.address_city || '-',
+        "Estado": client.address_state || '-',
+        "Complemento do Endereço": client.address_complement || '-',
+        "Valor da Sessão": client.session_value || '-',
+        "Nome do Responsável Financeiro": client.financial_responsible_name || '-',
+        "WhatsApp do Responsável Financeiro": client.financial_responsible_whatsapp || '-',
+        "Email do Responsável Financeiro": client.financial_responsible_email || '-',
+        "CPF do Responsável Financeiro": client.financial_responsible_cpf || '-',
+        "RG do Responsável Financeiro": client.financial_responsible_rg || '-',
+        "Nome do Contato de Emergência": client.emergency_contact_name || '-',
+        "WhatsApp do Contato de Emergência": client.emergency_contact_whatsapp || '-',
+        "Gênero": client.gender || '-',
+        "Nacionalidade": client.nationality || '-',
+        "Escolaridade": client.education || '-',
+        "Ocupação": client.occupation || '-',
+        "Encaminhamento": client.forwarding || '-',
+        "Estado Civil": client.marital_status || '-',
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Pacientes');
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+      saveAs(blob, 'pacientes_tanotado.xlsx');
+
+      toast({
+        title: "Exportação de pacientes concluída!",
+        description: "A listagem de pacientes foi baixada com sucesso.",
+      });
+
+    } catch (error: any) {
+      console.error("Erro na exportação de pacientes:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível gerar o arquivo de pacientes. Tente novamente mais tarde ou contate o suporte.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportSessionNotesToXLSX = async () => {
+    setIsExporting(true);
+    setIsExportOptionsModalOpen(false);
+    toast({
+      title: "Iniciando exportação de anotações...",
+      description: "Aguarde enquanto preparamos suas anotações de sessão.",
+    });
+
+    try {
+      const { data: sessionNotes, error: notesError } = await supabase
+        .from('session_notes')
+        .select(`
+          created_at,
+          content,
+          clients (
+            name
+          )
+        `)
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (notesError) throw notesError;
+
+      const formattedData = sessionNotes.map(note => ({
+        "Nome do Paciente": note.clients?.name || 'Paciente Desconhecido',
+        "Data da Sessão": note.created_at ? format(new Date(note.created_at), 'dd/MM/yyyy HH:mm') : '-',
+        "Anotações": extractTextFromContent(note.content),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Anotacoes_Sessoes');
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+      saveAs(blob, 'anotacoes_sessoes_tanotado.xlsx');
+
+      toast({
+        title: "Exportação de anotações concluída!",
+        description: "As anotações de sessão foram baixadas com sucesso.",
+      });
+
+    } catch (error: any) {
+      console.error("Erro na exportação de anotações:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível gerar o arquivo de anotações. Tente novamente mais tarde ou contate o suporte.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Função para verificar se a especialidade do usuário é da área de saúde
   const isHealthProfessional = () => {
     if (!user?.specialty) return false;
@@ -113,6 +273,13 @@ const Settings: React.FC = () => {
       title: 'Minha Assinatura',
       description: 'Gerencie seu plano, faturas e método de pagamento.',
       action: () => navigate('/assinatura'),
+    },
+    {
+      id: 'export-all-data',
+      icon: Download,
+      title: 'Exportar todos os dados',
+      description: 'Baixe uma planilha com seus pacientes e anotações de sessões.',
+      action: () => setIsExportOptionsModalOpen(true),
     },
     // Inserção condicional do novo item de menu
     ...(isHealthProfessional() ? [{
@@ -258,6 +425,43 @@ const Settings: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal para Opções de Exportação */}
+      <Dialog open={isExportOptionsModalOpen} onOpenChange={setIsExportOptionsModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Opções de Exportação</DialogTitle>
+            <DialogDescription>
+              Escolha qual tipo de dado você gostaria de exportar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Button 
+              onClick={exportPatientsToXLSX} 
+              disabled={isExporting} 
+              className="w-full"
+            >
+              Exportar dados de todos os pacientes
+            </Button>
+            <Button 
+              onClick={exportSessionNotesToXLSX} 
+              disabled={isExporting} 
+              className="w-full"
+            >
+              Exportar Anotações de Sessão
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsExportOptionsModalOpen(false)} 
+              disabled={isExporting}
+            >
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

@@ -1,0 +1,15 @@
+{
+  "imports": {
+    "std/": "https://deno.land/std@0.177.0/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "exceljs": "https://esm.sh/exceljs",
+    "zip": "https://deno.land/x/zip@v1.2.0/mod.ts"
+  },
+  "compilerOptions": {
+    "lib": [
+      "deno.ns",
+      "deno.window",
+      "esnext"
+    ]
+  }
+}
