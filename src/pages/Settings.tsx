@@ -15,6 +15,7 @@ import {
   ChevronRight,
   RefreshCw,
   Download,
+  Upload,
   // Ícone para a nova integração, pode ser qualquer um da lucide-react
   HeartPulse 
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import { saveAs } from 'file-saver';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MyAccountForm } from '@/components/settings/MyAccountForm';
+import { ImportClientsForm } from '@/components/settings/ImportClientsForm';
 import { GroupSettingsForm } from '@/components/settings/GroupSettingsForm';
 import { AgendaSettingsForm } from '@/components/settings/AgendaSettingsForm';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,6 +50,7 @@ const Settings: React.FC = () => {
   const [isSignOutAlertOpen, setIsSignOutAlertOpen] = useState(false);
   const [isUpdateAlertOpen, setIsUpdateAlertOpen] = useState(false);
   const [isExportOptionsModalOpen, setIsExportOptionsModalOpen] = useState(false); // New state for export options modal
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const navigate = useNavigate();
 
@@ -184,8 +187,8 @@ const Settings: React.FC = () => {
 
       if (notesError) throw notesError;
 
-      const formattedData = sessionNotes.map(note => ({
-        "Nome do Paciente": note.clients?.name || 'Paciente Desconhecido',
+      const formattedData = sessionNotes.map((note: any) => ({
+        "Nome do Paciente": note.clients[0]?.name || 'Paciente Desconhecido',
         "Data da Sessão": note.created_at ? format(new Date(note.created_at), 'dd/MM/yyyy HH:mm') : '-',
         "Anotações": extractTextFromContent(note.content),
       }));
@@ -277,9 +280,16 @@ const Settings: React.FC = () => {
     {
       id: 'export-all-data',
       icon: Download,
-      title: 'Exportar todos os dados',
+      title: 'Exportar Todos os Dados',
       description: 'Baixe uma planilha com seus pacientes e anotações de sessões.',
       action: () => setIsExportOptionsModalOpen(true),
+    },
+    {
+      id: 'import-clients',
+      icon: Upload,
+      title: `Importar ${user?.clientNomenclature || 'Clientes'}`,
+      description: `Adicione ${user?.clientNomenclature || 'Clientes'} em massa a partir de uma planilha.`,
+      action: () => setIsImportModalOpen(true),
     },
     // Inserção condicional do novo item de menu
     ...(isHealthProfessional() ? [{
@@ -292,14 +302,14 @@ const Settings: React.FC = () => {
     {
       id: 'reset-password',
       icon: Lock,
-      title: 'Redefinir senha',
+      title: 'Redefinir Senha',
       description: 'Altere sua senha de acesso para manter sua conta segura.',
       action: () => setIsResetPasswordModalOpen(true),
     },
     {
       id: 'logout-all',
       icon: LogOut,
-      title: 'Sair em todos os dispositivos',
+      title: 'Sair em Todos os Dispositivos',
       description: 'Desconecte sua conta de todos os outros computadores e celulares.',
       action: () => setIsSignOutAlertOpen(true),
     },
@@ -460,6 +470,19 @@ const Settings: React.FC = () => {
               Cancelar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Importar Clientes */}
+      <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Importar {user?.clientNomenclature || 'Clientes'}</DialogTitle>
+            <DialogDescription>
+              Selecione um arquivo XLSX para importar seus {user?.clientNomenclature || 'clientes'}.
+            </DialogDescription>
+          </DialogHeader>
+          <ImportClientsForm onSuccess={() => setIsImportModalOpen(false)} />
         </DialogContent>
       </Dialog>
     </>
