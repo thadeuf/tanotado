@@ -80,11 +80,21 @@ const Dashboard: React.FC = () => {
   }, [appointments, isLoading]);
 
   const dashboardStats = useMemo(() => {
-   const appointmentLabel = user?.appointment_label || 'Agendamento';
+    const appointmentLabel = user?.appointment_label || 'Agendamento';
+
+    const getPluralLabel = (label: string) => {
+      if (label.toLowerCase() === 'reunião') return 'Reuniões';
+      return `${label}s`;
+    };
+
+    const getGenderSpecificPrefix = (label: string) => {
+      if (label.toLowerCase() === 'reunião') return 'Próxima';
+      return 'Próximo';
+    };
 
     if (isLoading) return [
-      { title: `Próximo ${appointmentLabel}`, value: '-', icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
-      { title: `${appointmentLabel}s Hoje`, value: '0', icon: Calendar, color: 'from-tanotado-orange to-tanotado-yellow' },
+      { title: `${getGenderSpecificPrefix(appointmentLabel)} ${appointmentLabel}`, value: '-', icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
+      { title: `${getPluralLabel(appointmentLabel)} Hoje`, value: '0', icon: Calendar, color: 'from-tanotado-orange to-tanotado-yellow' },
       { title: 'Atendimentos no Mês', value: '0', icon: Users, color: 'from-tanotado-blue to-tanotado-green' },
       { title: 'Faltas no Mês', value: '0', icon: UserX, color: 'from-tanotado-purple to-tanotado-pink' }
     ];
@@ -108,8 +118,8 @@ const Dashboard: React.FC = () => {
     }).length;
 
     return [
-      { title: `Próximo ${appointmentLabel}`, value: nextAppointment, icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
-      { title: `${appointmentLabel}s Hoje`, value: String(appointmentsTodayCount), icon: Calendar, color: 'from-tanotado-orange to-tanotado-yellow' },
+      { title: `${getGenderSpecificPrefix(appointmentLabel)} ${appointmentLabel}`, value: nextAppointment, icon: Clock, color: 'from-tanotado-pink to-tanotado-purple' },
+      { title: `${getPluralLabel(appointmentLabel)} Hoje`, value: String(appointmentsTodayCount), icon: Calendar, color: 'from-tanotado-orange to-tanotado-yellow' },
       { title: 'Atendimentos no Mês', value: String(completedThisMonth), icon: Users, color: 'from-tanotado-blue to-tanotado-green' },
       { title: 'Faltas no Mês', value: String(noShowThisMonth), icon: UserX, color: 'from-tanotado-purple to-tanotado-pink' }
     ];
@@ -230,7 +240,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const renderAppointment = (appointment: Appointment, index: number) => {
+  const renderAppointment = (appointment: Appointment, index: number, showDate = false) => {
     const client = appointment.client_id ? clientMap.get(appointment.client_id) : null;
     const timeLabel = `${format(parseISO(appointment.start_time), 'HH:mm')} - ${format(parseISO(appointment.end_time), 'HH:mm')}`;
     const displayName = client?.name || appointment.title;
@@ -252,6 +262,12 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-col items-start gap-2 text-sm text-muted-foreground">
+              {showDate && (
+                  <div className="flex items-center gap-2 font-medium text-tanotado-pink">
+                      <Calendar className="h-4 w-4" />
+                      <span>{format(parseISO(appointment.start_time), 'dd/MM/yyyy')}</span>
+                  </div>
+              )}
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 <span>{timeLabel}</span>
@@ -399,7 +415,13 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-tanotado-navy">{`Próximos ${appointmentLabel}s`}</CardTitle>
+              <CardTitle className="text-tanotado-navy">{
+                (() => {
+                  const label = user?.appointment_label || 'Agendamento';
+                  if (label.toLowerCase() === 'reunião') return `Próximas Reuniões`;
+                  return `Próximos ${label}s`;
+                })()
+              }</CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="hoje" className="w-full">
@@ -410,15 +432,15 @@ const Dashboard: React.FC = () => {
                 </TabsList>
                 
                 <TabsContent value="hoje" className="space-y-4 mt-4">
-                  {isLoading ? renderLoadingSkeleton() : today.length > 0 ? today.map(renderAppointment) : renderEmptyState("Nenhum agendamento para hoje.")}
+                  {isLoading ? renderLoadingSkeleton() : today.length > 0 ? today.map((app, index) => renderAppointment(app, index)) : renderEmptyState("Nenhum agendamento para hoje.")}
                 </TabsContent>
                 
                 <TabsContent value="amanha" className="space-y-4 mt-4">
-                  {isLoading ? renderLoadingSkeleton() : tomorrow.length > 0 ? tomorrow.map(renderAppointment) : renderEmptyState("Nenhum agendamento para amanhã.")}
+                  {isLoading ? renderLoadingSkeleton() : tomorrow.length > 0 ? tomorrow.map((app, index) => renderAppointment(app, index)) : renderEmptyState("Nenhum agendamento para amanhã.")}
                 </TabsContent>
                 
                 <TabsContent value="semana" className="space-y-4 mt-4">
-                  {isLoading ? renderLoadingSkeleton() : week.length > 0 ? week.map(renderAppointment) : renderEmptyState("Nenhum agendamento para esta semana.")}
+                  {isLoading ? renderLoadingSkeleton() : week.length > 0 ? week.map((app, index) => renderAppointment(app, index, true)) : renderEmptyState("Nenhum agendamento para esta semana.")}
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -435,7 +457,7 @@ const Dashboard: React.FC = () => {
                               <div>
                                   <p className="font-bold text-lg">Anotações Pendentes</p>
                                   <p className="text-sm opacity-90">
-                                      Você tem {pendingNotesCount} sessões para atualizar as anotações.
+                                      Você tem {pendingNotesCount} anotações para atualizar.
                                   </p>
                               </div>
                           </div>
@@ -467,7 +489,6 @@ const Dashboard: React.FC = () => {
                                           <div>
                                               <p className="font-medium text-tanotado-navy">{client.name}</p>
                                               {client.birth_date && <p className="text-sm text-muted-foreground">{calculateAge(client.birth_date)} anos</p>}
-                                              {client.phone && <p className="text-xs text-muted-foreground">{client.phone}</p>}
                                           </div>
                                       </div>
                                       <div className="text-right">
@@ -476,7 +497,7 @@ const Dashboard: React.FC = () => {
                                               size="sm"
                                               className="bg-gradient-to-r from-tanotado-green to-tanotado-blue hover:shadow-lg text-white mt-1 h-8 px-3 text-xs"
                                           >
-                                              <a href={formatWhatsAppLink(client.phone)} target='_blank' rel='noopener noreferrer'>
+                                              <a href={formatWhatsAppLink(client.whatsapp)} target='_blank' rel='noopener noreferrer'>
                                                   <MessageSquare className="h-4 w-4 mr-2" />
                                                   Parabenizar
                                               </a>

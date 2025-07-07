@@ -28,6 +28,13 @@ interface ClientAppointmentsListProps {
 export const ClientAppointmentsList: React.FC<ClientAppointmentsListProps> = ({ client, appointmentLabel }) => {
   const [selectedAppointmentForNotes, setSelectedAppointmentForNotes] = useState<Appointment | null>(null);
 
+  const getPluralAppointmentLabel = (label: string) => {
+    if (label.toLowerCase() === 'reunião') {
+      return 'Reuniões';
+    }
+    return `${label}s`;
+  };
+
   const { data: appointments = [], isLoading } = useQuery<AppointmentWithSessionNotes[], Error>({
     queryKey: ['client_appointments_full', client.id],
     queryFn: async () => {
@@ -80,7 +87,7 @@ export const ClientAppointmentsList: React.FC<ClientAppointmentsListProps> = ({ 
       <TooltipProvider>
         <Card>
           <CardHeader>
-            <CardTitle>Histórico de {appointmentLabel}s</CardTitle>
+            <CardTitle>Histórico de {getPluralAppointmentLabel(appointmentLabel)}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="border rounded-md">

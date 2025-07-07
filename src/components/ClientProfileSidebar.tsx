@@ -57,7 +57,10 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
 
   if (!client) return null;
   
-  const appointmentLabel = user?.appointment_label || 'Agendamento';
+  let appointmentLabel = user?.appointment_label || 'Agendamento';
+  if (appointmentLabel === 'Reunião') {
+    appointmentLabel = 'Reuniões';
+  }
   // --- ✅ NOVA ALTERAÇÃO AQUI ---
   const prontuarioLabel = user?.specialty_label || 'Prontuário';
 
@@ -65,7 +68,7 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
     { id: 'dados', label: 'Dados principais', icon: User },
     // --- ✅ 'label' ATUALIZADO ---
     { id: 'prontuario', label: prontuarioLabel, icon: FileText },
-    { id: 'agendamentos', label: `${appointmentLabel}`, icon: Calendar },
+    { id: 'agendamentos', label: appointmentLabel, icon: Calendar },
     { id: 'anotacoes', label: 'Anotações da Sessão', icon: MessageSquare },
     { id: 'generate-doc', label: 'Criar Documento', icon: FileSignature },
     { id: 'documentos', label: 'Documentos Salvos', icon: Paperclip },

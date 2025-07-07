@@ -15,7 +15,7 @@ export type Appointment = {
   start_time: string; // ISO 8601 string
   end_time: string;   // ISO 8601 string
   description: string | null;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'confirmed';
   price: number | null;
   is_online: boolean; // Campo existente no seu form, mas não no hook. Adicionando.
   online_url: string | null;
