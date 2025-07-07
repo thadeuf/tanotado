@@ -65,7 +65,7 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
     { id: 'dados', label: 'Dados principais', icon: User },
     // --- ✅ 'label' ATUALIZADO ---
     { id: 'prontuario', label: prontuarioLabel, icon: FileText },
-    { id: 'agendamentos', label: `${appointmentLabel}s`, icon: Calendar },
+    { id: 'agendamentos', label: `${appointmentLabel}`, icon: Calendar },
     { id: 'anotacoes', label: 'Anotações da Sessão', icon: MessageSquare },
     { id: 'generate-doc', label: 'Criar Documento', icon: FileSignature },
     { id: 'documentos', label: 'Documentos Salvos', icon: Paperclip },

@@ -64,7 +64,7 @@ const formSchema = z.object({
   notes: z.string().optional(),
   send_session_reminder: z.boolean().default(true),
   is_active: z.boolean().default(true),
-  approval_status: z.nativeEnum(Constants.public.Enums.client_approval_status).optional(),
+  approval_status: z.enum(['pending', 'approved', 'rejected']).optional(), // FIX: Changed to z.enum
 });
 
 type ClientFormData = z.infer<typeof formSchema>;
@@ -72,12 +72,13 @@ type ClientFormData = z.infer<typeof formSchema>;
 // Interface de props atualizada para incluir o 'contexto'
 interface ClientFormProps {
   onSuccess: () => void;
+  onCancel: () => void; // New prop for cancellation
   initialData?: Partial<ClientFormData> | null;
   onAvatarChange: (preview: string | null) => void;
   contexto?: 'interno' | 'publico'; // 'interno' é o padrão
 }
 
-export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, onAvatarChange, contexto = 'interno' }) => {
+export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, initialData, onAvatarChange, contexto = 'interno' }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   
@@ -104,7 +105,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
       });
 
       if (initialData.birth_date && typeof initialData.birth_date === 'string') {
-        const dateParts = initialData.birth_date.split('-');
+        const dateParts = (initialData.birth_date as string).split('-'); // FIX: Added type assertion
         sanitizedData.birth_date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
       } else if (initialData.birth_date instanceof Date) {
         sanitizedData.birth_date = initialData.birth_date;
@@ -168,10 +169,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
 
       if (id) {
         await supabase.from('clients').update(updateData).eq('id', id).throwOnError();
-        toast({ title: "Dados atualizados com sucesso!" });
       } else {
         await supabase.from('clients').insert(clientData).throwOnError();
-        toast({ title: "Cadastro enviado com sucesso!" });
       }
       
       onSuccess();
@@ -315,7 +314,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, initialData, 
 
         </div>
         <div className="pt-6 flex justify-end space-x-2">
-            <Button type="button" variant="ghost" onClick={onSuccess}>Cancelar</Button>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
             <Button type="submit" disabled={isLoading} className="bg-gradient-to-r from-tanotado-pink to-tanotado-purple">
                 {isLoading ? 'Salvando...' : 'Salvar'}
             </Button>

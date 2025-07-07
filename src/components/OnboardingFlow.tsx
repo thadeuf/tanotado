@@ -60,22 +60,22 @@ const OnboardingFlow: React.FC = () => {
   }, [search]);
 
   const nomenclatureOptions = [
-    { value: 'paciente', label: 'Paciente' },
-    { value: 'cliente', label: 'Cliente' },
+    { value: 'Paciente', label: 'Paciente' },
+    { value: 'Cliente', label: 'Cliente' },
     { value: 'outro', label: 'Outro (personalizar)' }
   ];
 
   const appointmentLabelOptions = [
-    { value: 'agendamento', label: 'Agendamento' },
-    { value: 'reuniao', label: 'Reunião' },
-    { value: 'evento', label: 'Evento' },
+    { value: 'Agendamento', label: 'Agendamento' },
+    { value: 'Reunião', label: 'Reunião' },
+    { value: 'Evento', label: 'Evento' },
     { value: 'outro', label: 'Outro (personalizar)' }
   ];
   
   // Opções para a nova etapa
   const recordLabelOptions = [
-    { value: 'prontuario', label: 'Prontuário' },
-    { value: 'ficha_cliente', label: 'Ficha do Cliente' },
+    { value: 'Prontuario', label: 'Prontuário' },
+    { value: 'Ficha do Cliente', label: 'Ficha do Cliente' },
     { value: 'outro', label: 'Outro (personalizar)' }
   ];
 

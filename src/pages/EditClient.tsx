@@ -1,6 +1,6 @@
 // src/pages/EditClient.tsx
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom'; // Import useNavigate
 import { supabase } from '@/integrations/supabase/client';
 import { ClientForm } from '@/components/forms/ClientForm';
 import { ClientProfileSidebar } from '@/components/ClientProfileSidebar';
@@ -23,6 +23,7 @@ const EditClient: React.FC = () => {
   const [activeView, setActiveView] = useState('dados');
   
   const { user } = useAuth();
+  const navigate = useNavigate(); // Initialize useNavigate
   const [isGenerateDocOpen, setIsGenerateDocOpen] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
@@ -45,7 +46,7 @@ const EditClient: React.FC = () => {
       if (fetchError) throw fetchError;
       
       setClientData(data);
-      setAvatarPreview(data?.avatar_url || null);
+      setAvatarPreview((data as any)?.avatar_url || null); // FIX: Add type assertion
     } catch (e: any) {
       console.error("Erro ao buscar detalhes do cliente:", e);
       setError("Não foi possível carregar os dados do cliente.");
@@ -64,6 +65,10 @@ const EditClient: React.FC = () => {
     fetchClient(); 
   };
   
+  const handleCancel = () => {
+    navigate('/clientes'); // Navigate back to the client list
+  };
+
   const handleAvatarChange = (newPreview: string | null) => {
     setAvatarPreview(newPreview);
   };
@@ -107,6 +112,7 @@ const EditClient: React.FC = () => {
                   <CardContent>
                       <ClientForm 
                         onSuccess={handleFormSuccess} 
+                        onCancel={handleCancel} // Pass the handleCancel function
                         initialData={clientData} 
                         onAvatarChange={handleAvatarChange} 
                         contexto="interno"
