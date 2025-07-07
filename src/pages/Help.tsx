@@ -24,7 +24,9 @@ import {
   Rocket,
   Sparkles,
   HeartPulse,
-  UserPlus // Ícone para a nova seção
+  UserPlus, // Ícone para a nova seção
+  Download, // Ícone para exportação
+  Upload // Ícone para importação
 } from 'lucide-react';
 
 const HelpPage: React.FC = () => {
@@ -266,6 +268,56 @@ const HelpPage: React.FC = () => {
                 <li><strong>Fluxo de Cadastro:</strong> O cliente acessa sua página de cadastro, preenche as informações essenciais e envia. O sistema então o identifica ou cria um novo cadastro.</li>
                 <li><strong>Requisitos de Cadastro:</strong> Para garantir a integridade dos dados, é obrigatório que o profissional cadastre, no mínimo, o <strong>nome completo, CPF e data de nascimento</strong> do paciente/cliente <strong>antes</strong> de enviar o link.</li>
                 <li><strong>Dados Salvos:</strong> Diferente do auto-agendamento, todo novo cadastro feito pela página pública chega para você com o status "Pendente". Você deve ir à tela de <strong>Clientes</strong> para revisar e aprovar o cadastro, tornando-o ativo no sistema.</li>
+            </ul>
+        </div>
+      )
+    },
+    // --- NOVA SEÇÃO DE EXPORTAÇÃO DE DADOS ---
+    {
+      id: 'exportacao-dados',
+      icon: Download,
+      title: 'Exportação de Dados',
+      content: (
+        <div className="space-y-4">
+            <p>Exporte todos os seus dados do tanotado de forma segura e prática, garantindo que você tenha sempre uma cópia das suas informações.</p>
+            <ul className="list-disc space-y-2 pl-5">
+                <li><strong>O que é Exportado:</strong> Todos os dados de clientes, agendamentos, prontuários, anotações de sessão são incluídos na exportação.</li>
+                <li><strong>Formato:</strong> Os dados são exportados em um formato estruturado (CSV), fácil de ser lido e utilizado em outras plataformas ou para backup.</li>
+                <li><strong>Como Exportar:</strong>
+                  <ol className="list-decimal space-y-1 pl-5 mt-2">
+                    <li>Vá em <strong>Configurações {'>'} Exportar Dados</strong>.</li>
+                    <li>Na seção "Exportação de Dados", clique no botão "Exportar Meus Dados".</li>
+                    <li>Você poderá exportar todos os seus pacientes de uma única vez e também as anotações de todas as sessões/reuniões.</li>
+                    <li>Aguarde a preparação dos dados. Dependendo do volume, pode levar alguns minutos.</li>
+                    <li>Em seguida seu computador fará o download automaticamente.</li>
+                  </ol>
+                </li>
+                <li><strong>Segurança:</strong> A exportação é protegida e o download é feito direto para seu computador, garantindo a segurança das suas informações.</li>
+            </ul>
+        </div>
+      )
+    },
+    // --- NOVA SEÇÃO DE IMPORTAÇÃO DE DADOS ---
+    {
+      id: 'importacao-dados',
+      icon: Upload,
+      title: 'Importação de Dados',
+      content: (
+        <div className="space-y-4">
+            <p>Importe facilmente dados de clientes para o tanotado, agilizando a migração de outras plataformas ou a inserção de novos cadastros em lote.</p>
+            <ul className="list-disc space-y-2 pl-5">
+                <li><strong>Formato Aceito:</strong> Atualmente, a importação de dados é feita através de uma planilha modelo. Certifique-se de que seu arquivo esteja formatado corretamente, de acordo com o modelo fornecido.</li>
+                <li><strong>Como Importar:</strong>
+                  <ol className="list-decimal space-y-1 pl-5 mt-2">
+                    <li>Vá em <strong>Configurações {'>'} Importar Dados</strong>.</li>
+                    <li>Baixe a planilha de modelo de importação, preencha sem alterar nenhum título ou posição de coluna. Não é preciso preencher todas as colunas, apenas Nome, CPF e Whatsapp.</li>
+                    <li>Na seção "Importação de Dados", clique em "Selecionar Arquivo" e escolha o arquivo CSV do seu computador.</li>
+                    <li>Após selecionar o arquivo, clique em "Iniciar Importação".</li>
+                    <li>O sistema irá processar o arquivo. Você receberá um relatório sobre os dados importados com sucesso e quaisquer erros encontrados (ex: CPFs duplicados, formato de data inválido).</li>
+                  </ol>
+                </li>
+                <li><strong>Validação:</strong> Durante a importação, o sistema realiza validações para garantir a integridade dos dados. Registros com informações inválidas ou incompletas podem ser ignorados ou sinalizados para correção.</li>
+                <li><strong>Aprovação:</strong> Assim como os cadastros da página pública, os clientes importados podem aparecer com status "Pendente" na tela de <strong>Clientes</strong>, aguardando sua aprovação para se tornarem ativos no sistema.</li>
             </ul>
         </div>
       )
