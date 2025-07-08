@@ -12,7 +12,7 @@ export interface Client {
   cpf: string | null;
   whatsapp: string | null;
   email: string | null; // Adicionado email, que é um campo padrão
-  photo_url: string | null; // Alterado de avatar_url para photo_url para corresponder à tabela
+  avatar_url: string | null;
   created_at: string;
   birth_date: string | null;
   address: string | null;

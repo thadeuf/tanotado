@@ -49,6 +49,7 @@ const Clients: React.FC = () => {
     const { data, error } = await supabase
       .from('clients')
       .select('*')
+      .is('deleted_at', null) // Adicionado para filtrar clientes não excluídos
       .order('name', { ascending: true }) 
       .eq('user_id', user.id); 
 
@@ -236,7 +237,7 @@ const Clients: React.FC = () => {
                     <DialogTitle>Cadastrar Novo {clientNomenclature}</DialogTitle>
                   </DialogHeader>
                   <ScrollArea className="flex-grow pr-6 -mr-6">
-                    <ClientForm onSuccess={handleCreateSuccess} onAvatarChange={() => {}} />
+                    <ClientForm onSuccess={handleCreateSuccess} onCancel={() => setIsFormOpen(false)} onAvatarChange={() => {}} />
                   </ScrollArea>
                 </DialogContent>
               </Dialog>

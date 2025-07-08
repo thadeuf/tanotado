@@ -1,16 +1,31 @@
 // src/components/ClientProfileSidebar.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Calendar, CheckCircle, XCircle, User, FileText, MessageSquare, DollarSign, Bell, Paperclip, Download, FileSignature,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Calendar, CheckCircle, XCircle, User, FileText, MessageSquare, DollarSign, Bell, Paperclip, Download, FileSignature, Trash2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 type ClientData = {
   id: string;
@@ -54,6 +69,45 @@ const formatBirthDate = (dateString: string | null | undefined): string => {
 
 export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ client, activeView, onViewChange, onGenerateDocument }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isAgreementChecked, setIsAgreementChecked] = useState(false);
+
+  const handleSoftDelete = async () => {
+    if (!client) return;
+
+    if (user?.specialty && !isAgreementChecked) {
+      toast({
+        title: "Confirmação necessária",
+        description: "Você deve concordar com os termos para excluir o prontuário.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', client.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Cliente excluído",
+        description: "O cliente foi movido para a lixeira e não será mais exibido.",
+      });
+      navigate('/clientes');
+    } catch (error: any) {
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+    }
+  };
 
   if (!client) return null;
   
@@ -181,11 +235,52 @@ export const ClientProfileSidebar: React.FC<ClientProfileSidebarProps> = ({ clie
         ))}
       </div>
 
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-2">
         <Button variant="outline" className="w-full gap-2" onClick={handleExport}>
           <Download className="h-4 w-4" />
-          Exportar
+          Exportar Dados
         </Button>
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" className="w-full gap-2">
+              <Trash2 className="h-4 w-4" />
+              Excluir Cliente
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta é uma ação irreversível. Todos os dados do cliente, incluindo prontuários, agendamentos e informações financeiras, serão marcados como excluídos e não serão mais acessíveis.
+              </AlertDialogDescription>
+              {user?.specialty && (
+                <div className="items-top flex space-x-2 mt-4 bg-yellow-50 border border-yellow-200 p-3 rounded-md">
+                  <div className="flex flex-col">
+                    <p className="text-sm font-semibold text-yellow-800">Aviso Legal para Profissionais de Saúde</p>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      Profissionais de saúde não podem excluir prontuários antes de 20 anos do último registro, conforme estabelecido pela Lei nº 13.787/2018 de 27 de dezembro de 2018.
+                    </p>
+                    <div className="flex items-center space-x-2 mt-4">
+                      <Checkbox id="terms1" onCheckedChange={(checked) => setIsAgreementChecked(checked as boolean)} />
+                      <label
+                        htmlFor="terms1"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Assumo os riscos e desejo seguir com a exclusão.
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSoftDelete} disabled={user?.specialty && !isAgreementChecked}>
+                Confirmar Exclusão
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

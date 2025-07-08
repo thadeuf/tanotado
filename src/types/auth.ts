@@ -22,6 +22,8 @@ export interface User {
   address_city?: string | null;
   address_state?: string | null;
   address_complement?: string | null;
+  is_active: boolean;
+  public_booking_enabled: boolean;
   public_booking_url_slug?: string | null;
   procuracao_receita_saude_url?: string | null;
   receita_saude_enabled?: boolean;
