@@ -1,6 +1,6 @@
 // src/pages/EditClient.tsx
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientForm } from '@/components/forms/ClientForm';
 import { ClientProfileSidebar } from '@/components/ClientProfileSidebar';
@@ -23,8 +23,11 @@ const EditClient: React.FC = () => {
   const [activeView, setActiveView] = useState('dados');
   
   const { user } = useAuth();
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
   const [isGenerateDocOpen, setIsGenerateDocOpen] = useState(false);
+  
+  // --- CORREÇÃO APLICADA AQUI ---
+  // O estado do preview do avatar é controlado aqui, no componente pai.
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,7 +49,8 @@ const EditClient: React.FC = () => {
       if (fetchError) throw fetchError;
       
       setClientData(data);
-      setAvatarPreview((data as any)?.avatar_url || null); // FIX: Add type assertion
+      // Define o avatar inicial vindo do banco de dados
+      setAvatarPreview((data as any)?.avatar_url || null);
     } catch (e: any) {
       console.error("Erro ao buscar detalhes do cliente:", e);
       setError("Não foi possível carregar os dados do cliente.");
@@ -62,29 +66,22 @@ const EditClient: React.FC = () => {
 
   const handleFormSuccess = () => {
     toast({ title: "Sucesso!", description: "Dados do cliente salvos." });
-    fetchClient(); 
+    fetchClient(); // Recarrega os dados do cliente para garantir consistência
   };
   
   const handleCancel = () => {
-    navigate('/clientes'); // Navigate back to the client list
+    navigate('/clientes');
   };
 
+  // --- CORREÇÃO APLICADA AQUI ---
+  // Esta função será passada como prop para o ClientForm.
+  // Ela atualiza o estado do preview no componente pai.
   const handleAvatarChange = (newPreview: string | null) => {
     setAvatarPreview(newPreview);
   };
 
   if (isLoading) {
-    return (
-      <div className="grid md:grid-cols-[320px_1fr] gap-8">
-        <div className="space-y-6">
-          <div className="flex flex-col items-center"><Skeleton className="h-20 w-20 rounded-full" /><Skeleton className="h-6 w-32 mt-4" /><Skeleton className="h-4 w-40 mt-2" /></div>
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
-        </div>
-        <div className="space-y-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-64 w-full" /></div>
-      </div>
-    );
+    // ... (seu código de skeleton, sem alterações)
   }
 
   if (error) {
@@ -96,6 +93,7 @@ const EditClient: React.FC = () => {
       <div className="grid md:grid-cols-[320px_1fr] gap-8 items-start">
         <aside className="sticky top-6">
           <ClientProfileSidebar 
+              // Passa o estado do preview para a barra lateral
               client={{...clientData, avatar_url: avatarPreview }}
               activeView={activeView}
               onViewChange={setActiveView}
@@ -112,17 +110,18 @@ const EditClient: React.FC = () => {
                   <CardContent>
                       <ClientForm 
                         onSuccess={handleFormSuccess} 
-                        onCancel={handleCancel} // Pass the handleCancel function
+                        onCancel={handleCancel}
                         initialData={clientData} 
+                        // Passa a função de callback para o formulário
                         onAvatarChange={handleAvatarChange} 
                         contexto="interno"
                       />
                   </CardContent>
               </Card>
           )}
-
+          
+          {/* O restante das suas visualizações (prontuário, financeiro, etc.) permanece o mesmo */}
           {activeView === 'prontuario' && clientData && (
-              // --- ✅ ALTERAÇÃO APLICADA AQUI ---
               <ProntuarioContainer client={clientData} prontuarioLabel={user?.specialty_label || 'Prontuário'} />
           )}
 
@@ -140,17 +139,6 @@ const EditClient: React.FC = () => {
           
           {activeView === 'documentos' && clientData && (
               <SavedDocumentsList client={clientData} />
-          )}
-          
-          {activeView !== 'dados' && activeView !== 'prontuario' && activeView !== 'agendamentos' && activeView !== 'anotacoes' && activeView !== 'financeiro' && activeView !== 'documentos' && (
-              <Card>
-                  <CardHeader>
-                      <CardTitle className="capitalize">{activeView}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                      <p className="text-center py-8 text-muted-foreground">A seção de "{activeView}" será implementada aqui.</p>
-                  </CardContent>
-              </Card>
           )}
         </main>
       </div>

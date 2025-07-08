@@ -21,10 +21,7 @@ import { cn } from '@/lib/utils';
 import { CustomPhoneInput } from '@/components/ui/phone-input';
 import { CpfInput } from '@/components/ui/CpfInput';
 import { DateInput } from '@/components/ui/DateInput';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Constants } from '@/integrations/supabase/types';
 
-// Schema de validação do formulário
 const formSchema = z.object({
   id: z.string().optional(),
   avatar_url: z.string().nullable().optional(),
@@ -64,18 +61,17 @@ const formSchema = z.object({
   notes: z.string().optional(),
   send_session_reminder: z.boolean().default(true),
   is_active: z.boolean().default(true),
-  approval_status: z.enum(['pending', 'approved', 'rejected']).optional(), // FIX: Changed to z.enum
+  approval_status: z.enum(['pending', 'approved', 'rejected']).optional(),
 });
 
 type ClientFormData = z.infer<typeof formSchema>;
 
-// Interface de props atualizada para incluir o 'contexto'
 interface ClientFormProps {
   onSuccess: () => void;
-  onCancel: () => void; // New prop for cancellation
+  onCancel: () => void;
   initialData?: Partial<ClientFormData> | null;
   onAvatarChange: (preview: string | null) => void;
-  contexto?: 'interno' | 'publico'; // 'interno' é o padrão
+  contexto?: 'interno' | 'publico';
 }
 
 export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, initialData, onAvatarChange, contexto = 'interno' }) => {
@@ -90,33 +86,50 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, ini
       financial_responsible_name: '', financial_responsible_whatsapp: '', financial_responsible_email: '', financial_responsible_cpf: '', financial_responsible_rg: '',
       emergency_contact_name: '', emergency_contact_whatsapp: '',
       gender: '', birth_date: null, nationality: '', education: '', occupation: '', forwarding: '', marital_status: '',
-      // Campos exclusivos do modo interno
-      professional_responsible: '', group: '', session_value: '' as any, billing_day: '' as any,
+      professional_responsible: '', group: '',
       send_billing_reminder: false, notes: '', send_session_reminder: true, is_active: true, 
       approval_status: 'pending', avatar_url: null,
+      session_value: undefined,
+      billing_day: undefined,
     },
   });
 
+  // Bloco useEffect Corrigido
   useEffect(() => {
     if (initialData) {
-      const sanitizedData: any = { ...initialData };
-      Object.keys(sanitizedData).forEach(key => {
-        if (sanitizedData[key] === null) sanitizedData[key] = '';
+      // Cria uma cópia para evitar mutação direta do prop
+      const dataToReset = { ...initialData };
+
+      // Itera sobre as chaves dos valores padrão definidos no useForm
+      Object.keys(form.formState.defaultValues || {}).forEach(key => {
+        const fieldKey = key as keyof ClientFormData;
+        
+        // Converte `null` para `''` em campos que esperam uma string
+        if (dataToReset[fieldKey] === null && typeof form.formState.defaultValues?.[fieldKey] === 'string') {
+          (dataToReset as any)[fieldKey] = '';
+        }
       });
 
-      if (initialData.birth_date && typeof initialData.birth_date === 'string') {
-        const dateParts = (initialData.birth_date as string).split('-'); // FIX: Added type assertion
-        sanitizedData.birth_date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-      } else if (initialData.birth_date instanceof Date) {
-        sanitizedData.birth_date = initialData.birth_date;
-      } else {
-        sanitizedData.birth_date = null;
+      // Trata o campo de data de nascimento
+      if (dataToReset.birth_date && typeof dataToReset.birth_date === 'string') {
+        const parsedDate = parse(dataToReset.birth_date, 'yyyy-MM-dd', new Date());
+        dataToReset.birth_date = isNaN(parsedDate.getTime()) ? null : parsedDate;
       }
       
-      form.reset(sanitizedData);
-      if (initialData.avatar_url) onAvatarChange(initialData.avatar_url);
+      // Garante que campos numéricos opcionais não sejam nulos, mas sim `undefined`
+      if (dataToReset.session_value === null) {
+          dataToReset.session_value = undefined;
+      }
+      if (dataToReset.billing_day === null) {
+          dataToReset.billing_day = undefined;
+      }
+
+      // Preenche o formulário com os dados já tratados
+      form.reset(dataToReset);
     }
-  }, [initialData, form, onAvatarChange]);
+  }, [initialData, form]);
+
+  
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -129,34 +142,42 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, ini
   };
 
   const onSubmit = async (values: ClientFormData) => {
-    const professionalId = (contexto === 'interno' && user?.id) || initialData?.professional_responsible;
-    if (!professionalId) {
-      toast({ title: "Erro", description: "ID do profissional não encontrado.", variant: "destructive" });
+    if (!user) {
+      toast({ title: "Erro de Autenticação", description: "Usuário não encontrado. Faça login novamente.", variant: "destructive" });
       return;
     }
     
     setIsLoading(true);
     try {
-      let avatarUrl = values.avatar_url;
+      let finalAvatarUrl = initialData?.avatar_url || null;
+
       if (values.avatar_file instanceof File) {
-        const fileExt = values.avatar_file.name.split('.').pop();
+        const file = values.avatar_file;
+        const fileExt = file.name.split('.').pop();
         const fileName = `client-avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('photos').upload(fileName, values.avatar_file, { upsert: true });
-        if (uploadError) throw uploadError;
+
+        const { error: uploadError } = await supabase.storage.from('photos').upload(fileName, file, {
+          upsert: false,
+        });
+
+        if (uploadError) {
+          throw new Error(`Falha no upload da foto: ${uploadError.message}`);
+        }
+
         const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(fileName);
-        avatarUrl = publicUrl;
+        finalAvatarUrl = publicUrl;
       }
 
       const clientData: any = {
         ...values,
         cpf: values.cpf ? values.cpf.replace(/[^\d]/g, '') : undefined,
-        avatar_url: avatarUrl,
-        user_id: professionalId,
+        avatar_url: finalAvatarUrl,
+        user_id: user.id,
         birth_date: values.birth_date ? format(values.birth_date, 'yyyy-MM-dd') : null,
       };
       
       if (contexto === 'interno') {
-          clientData.professional_responsible = values.professional_responsible || professionalId;
+          clientData.professional_responsible = values.professional_responsible || user.id;
           clientData.approval_status = values.is_active ? 'approved' : 'rejected';
       } else {
           clientData.approval_status = 'pending';
@@ -164,7 +185,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, ini
       }
       
       delete clientData.avatar_file;
-      
       const { id, ...updateData } = clientData;
 
       if (id) {
@@ -175,7 +195,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, ini
       
       onSuccess();
     } catch (error: any) {
-      toast({ title: "Erro ao salvar", description: error.message || "Ocorreu um erro.", variant: "destructive" });
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -203,7 +223,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, ini
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-6">
-          
           <div className="space-y-4 p-4 border rounded-lg">
             <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
                 <Camera className="h-5 w-5" /> Foto de Perfil
@@ -252,8 +271,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, ini
             <FormField control={form.control} name="address_complement" render={({ field }) => (<FormItem><FormLabel>Complemento</FormLabel><FormControl><Input placeholder="Apto, bloco, casa..." {...field} /></FormControl></FormItem>)} />
           </div>
 
-          {/* ***** INÍCIO DA ALTERAÇÃO ***** */}
-          {/* A seção inteira agora é condicional */}
           {contexto === 'interno' && (
             <div className="space-y-4 p-4 border rounded-lg">
               <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
@@ -267,7 +284,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, ini
               <FormField control={form.control} name="send_billing_reminder" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><FormLabel>Enviar lembrete mensal de cobrança</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
             </div>
           )}
-          {/* ***** FIM DA ALTERAÇÃO ***** */}
 
           <div className="space-y-4 p-4 border rounded-lg"><h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Shield className="h-5 w-5" />Responsável Financeiro</h3> 
             <FormField control={form.control} name="financial_responsible_name" render={({ field }) => (<FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
