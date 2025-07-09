@@ -45,6 +45,17 @@ const PatientRegistration: React.FC = () => {
   const [step, setStep] = useState<'identification' | 'form' | 'success'>('identification');
   const [clientData, setClientData] = useState<any>(null);
 
+  // Adicione esta função de volta ao seu componente
+const handleIdentificationSubmit = (data: z.infer<typeof identificationSchema>) => {
+  if (professionalProfile) {
+    findClientMutation.mutate({
+      cpf: data.cpf,
+      birth_date: data.birth_date,
+      professionalId: professionalProfile.id,
+    });
+  }
+};
+
   const identificationForm = useForm<z.infer<typeof identificationSchema>>({
     resolver: zodResolver(identificationSchema),
   });
@@ -74,31 +85,46 @@ const PatientRegistration: React.FC = () => {
   const findClientMutation = useMutation({
     mutationFn: async (vars: { cpf: string; birth_date: Date; professionalId: string }) => {
       const cleanCpf = vars.cpf.replace(/[^\d]/g, '');
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('cpf', cleanCpf)
-        .eq('user_id', vars.professionalId)
-        .single();
+      const birthDateString = vars.birth_date.toISOString().split('T')[0];
 
-      if (error && error.code !== 'PGRST116') throw error; // Ignora o erro "nenhuma linha encontrada"
+      // Usando a função RPC segura que já existe no seu projeto
+      const { data: rpcData, error } = await supabase.rpc('find_or_create_pending_client', {
+        p_cpf: cleanCpf,
+        p_birth_date: birthDateString,
+        p_professional_id: vars.professionalId,
+      });
 
-      if (data) {
-        // Cliente já existe, verificar data de nascimento
-        if (data.birth_date !== vars.birth_date.toISOString().split('T')[0]) {
-            throw new Error('invalid_birth_date');
-        }
-        return { ...data, isNew: false };
+      if (error) {
+          // Lança o erro para ser capturado pelo `onError`
+          throw error;
       }
-      return { cpf: cleanCpf, birth_date: vars.birth_date, isNew: true };
+      
+      const result = rpcData ? rpcData[0] : null;
+
+      if (!result) {
+        throw new Error("Não foi possível encontrar ou criar um cadastro com os dados informados.");
+      }
+      
+      // Mapeando a resposta da RPC para o formato que o formulário espera
+      return {
+        id: result.client_id,
+        name: result.client_name,
+        whatsapp: result.client_whatsapp,
+        email: result.client_email,
+        cpf: cleanCpf,
+        birth_date: vars.birth_date,
+        isNew: !result.client_exists_and_active,
+      };
     },
     onSuccess: (data) => {
+      // Agora 'data' já vem com o 'name' e outras informações da RPC
       setClientData(data);
       setStep('form');
+
       if (!data.isNew) {
-         toast({ title: "Identificação confirmada!", description: `Bem-vindo(a) de volta, ${data.name?.split(' ')[0]}! Complete ou atualize seus dados.` });
+        toast({ title: "Identificação confirmada!", description: `Bem-vindo(a) de volta, ${data.name?.split(' ')[0]}! Complete ou atualize seus dados.` });
       } else {
-         toast({ title: "Ótimo!", description: "Agora preencha os seus dados de cadastro." });
+        toast({ title: "Ótimo!", description: "Agora preencha os seus dados de cadastro." });
       }
     },
     onError: (error: any) => {
@@ -113,16 +139,6 @@ const PatientRegistration: React.FC = () => {
       }
     },
   });
-
-  const handleIdentificationSubmit = (data: z.infer<typeof identificationSchema>) => {
-    if (professionalProfile) {
-      findClientMutation.mutate({
-        cpf: data.cpf,
-        birth_date: data.birth_date,
-        professionalId: professionalProfile.id,
-      });
-    }
-  };
   
   const handleFormSuccess = () => {
     setStep('success'); // Avança para a tela de sucesso

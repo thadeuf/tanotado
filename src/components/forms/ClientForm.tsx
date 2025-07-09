@@ -142,57 +142,69 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSuccess, onCancel, ini
   };
 
   const onSubmit = async (values: ClientFormData) => {
-    if (!user) {
-      toast({ title: "Erro de Autenticação", description: "Usuário não encontrado. Faça login novamente.", variant: "destructive" });
-      return;
-    }
-    
     setIsLoading(true);
     try {
-      let finalAvatarUrl = initialData?.avatar_url || null;
-
-      if (values.avatar_file instanceof File) {
-        const file = values.avatar_file;
-        const fileExt = file.name.split('.').pop();
-        const fileName = `client-avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage.from('photos').upload(fileName, file, {
-          upsert: false,
-        });
-
-        if (uploadError) {
-          throw new Error(`Falha no upload da foto: ${uploadError.message}`);
+      // --- CONDIÇÃO ADICIONADA ---
+      // Se o formulário está no contexto público (cadastro do cliente)
+      if (contexto === 'publico') {
+        if (!initialData?.id) {
+          throw new Error("ID do cliente é necessário para a atualização pública.");
         }
-
-        const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(fileName);
-        finalAvatarUrl = publicUrl;
-      }
-
-      const clientData: any = {
-        ...values,
-        cpf: values.cpf ? values.cpf.replace(/[^\d]/g, '') : undefined,
-        avatar_url: finalAvatarUrl,
-        user_id: user.id,
-        birth_date: values.birth_date ? format(values.birth_date, 'yyyy-MM-dd') : null,
-      };
-      
-      if (contexto === 'interno') {
-          clientData.professional_responsible = values.professional_responsible || user.id;
-          clientData.approval_status = values.is_active ? 'approved' : 'rejected';
+        // Chama a função RPC segura, que não precisa de autenticação de profissional
+        const { error } = await supabase.rpc('update_client_public', {
+          p_client_id: initialData.id,
+          p_update_data: values 
+        });
+  
+        if (error) throw error;
+        
+        toast({ title: "Cadastro enviado!", description: "Suas informações foram recebidas e aguardam aprovação." });
+  
+      // --- SUA LÓGICA ORIGINAL PRESERVADA ---
+      // Se o formulário está no contexto interno (usado por você)
       } else {
-          clientData.approval_status = 'pending';
-          clientData.is_active = false;
+        if (!user) {
+          toast({ title: "Erro de Autenticação", description: "Usuário não encontrado. Faça login novamente.", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
+  
+        let finalAvatarUrl = initialData?.avatar_url || null;
+  
+        if (values.avatar_file instanceof File) {
+          const file = values.avatar_file;
+          const fileExt = file.name.split('.').pop();
+          const fileName = `client-avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage.from('photos').upload(fileName, file, { upsert: false });
+          if (uploadError) {
+            throw new Error(`Falha no upload da foto: ${uploadError.message}`);
+          }
+          const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(fileName);
+          finalAvatarUrl = publicUrl;
+        }
+  
+        const clientData: any = {
+          ...values,
+          cpf: values.cpf ? values.cpf.replace(/[^\d]/g, '') : undefined,
+          avatar_url: finalAvatarUrl,
+          user_id: user.id,
+          birth_date: values.birth_date ? format(values.birth_date, 'yyyy-MM-dd') : null,
+        };
+        
+        clientData.professional_responsible = values.professional_responsible || user.id;
+        clientData.approval_status = values.is_active ? 'approved' : 'rejected';
+        
+        delete clientData.avatar_file;
+        const { id, ...updateData } = clientData;
+  
+        if (id) {
+          await supabase.from('clients').update(updateData).eq('id', id).throwOnError();
+        } else {
+          await supabase.from('clients').insert(clientData).throwOnError();
+        }
       }
       
-      delete clientData.avatar_file;
-      const { id, ...updateData } = clientData;
-
-      if (id) {
-        await supabase.from('clients').update(updateData).eq('id', id).throwOnError();
-      } else {
-        await supabase.from('clients').insert(clientData).throwOnError();
-      }
-      
+      // Sucesso para ambos os casos
       onSuccess();
     } catch (error: any) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
