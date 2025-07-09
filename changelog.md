@@ -1,6 +1,13 @@
 Changelog
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## 09/07/2025
+
+### Novas Funcionalidades
+
+* **Histórico de Conversas com a IA:** Para te ajudar a não perder nenhuma orientação, todas as conversas com a assistente virtual (a Nina, no canto inferior direito) agora são salvas automaticamente. Isso permite que você possa consultar as interações anteriores sempre que precisar.
+
+
 [2025-07-09]
 Correções
 Correção de um bug que afetava o auto cadastro de usuários.

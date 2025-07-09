@@ -1,3 +1,5 @@
+// src/components/chat/ChatPopup.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +10,10 @@ import { Send, Loader2 } from 'lucide-react';
 import { addMessageToThread, checkRunStatus, createThread, getAssistantResponse, runAssistant } from '@/lib/openai';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+// --- INÍCIO DA ALTERAÇÃO 1: Importações adicionadas ---
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+// --- FIM DA ALTERAÇÃO 1 ---
 
 interface Message {
   id: number;
@@ -15,11 +21,12 @@ interface Message {
   sender: 'user' | 'assistant';
 }
 
-// --- INÍCIO DA ALTERAÇÃO ---
 const chatAssistantId = import.meta.env.VITE_OPENAI_CHAT_ASSISTANT_ID;
-// --- FIM DA ALTERAÇÃO ---
 
 export const ChatPopup: React.FC = () => {
+  // --- INÍCIO DA ALTERAÇÃO 2: Obter o usuário do contexto de autenticação ---
+  const { user } = useAuth();
+  // --- FIM DA ALTERAÇÃO 2 ---
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, text: 'Olá! Sou a Nina, assistente virtual do tanotado. Como posso te ajudar hoje?', sender: 'assistant' }
@@ -47,15 +54,16 @@ export const ChatPopup: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
     }
   }, [messages]);
+
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentInput = inputValue.trim();
-    // --- INÍCIO DA ALTERAÇÃO ---
     if (!currentInput || isLoading || !threadId || !chatAssistantId) {
       if (!threadId) {
         toast({ title: "Aguarde", description: "O chat ainda está sendo inicializado.", variant: "default" });
@@ -65,7 +73,6 @@ export const ChatPopup: React.FC = () => {
       }
       return;
     }
-    // --- FIM DA ALTERAÇÃO ---
 
     const userMessage: Message = { id: Date.now(), text: currentInput, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
@@ -74,10 +81,7 @@ export const ChatPopup: React.FC = () => {
 
     try {
       await addMessageToThread(threadId, currentInput);
-      // --- INÍCIO DA ALTERAÇÃO ---
-      // Passamos o ID do assistente de chat para a função.
       const runId = await runAssistant(threadId, chatAssistantId);
-      // --- FIM DA ALTERAÇÃO ---
 
       const pollStatus = async () => {
         const status = await checkRunStatus(threadId, runId);
@@ -85,6 +89,29 @@ export const ChatPopup: React.FC = () => {
           const responseText = await getAssistantResponse(threadId);
           const assistantMessage: Message = { id: Date.now() + 1, text: responseText, sender: 'assistant' };
           setMessages(prev => [...prev, assistantMessage]);
+
+          // --- INÍCIO DA ALTERAÇÃO 3: Lógica para salvar a conversa no banco de dados ---
+          if (user) {
+            const { error: insertError } = await supabase
+              .from('ai_chat_history')
+              .insert({
+                user_id: user.id,
+                user_prompt: currentInput,
+                agent_response: responseText,
+              });
+
+            if (insertError) {
+              console.error("Error saving chat history:", insertError);
+              // Opcional: Notificar o usuário que o histórico não pôde ser salvo, sem interromper o chat.
+              toast({
+                title: "Aviso",
+                description: "Não foi possível salvar esta mensagem no seu histórico de conversas.",
+                variant: "default",
+              });
+            }
+          }
+          // --- FIM DA ALTERAÇÃO 3 ---
+
           setIsLoading(false);
         } else if (status === 'failed' || status === 'cancelled' || status === 'expired') {
           throw new Error(`A execução do assistente falhou com status: ${status}`);
@@ -128,7 +155,7 @@ export const ChatPopup: React.FC = () => {
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 overflow-y-hidden">
-                    <ScrollArea className="h-full" ref={scrollAreaRef}>
+                    <ScrollArea className="h-full">
                         <div className="space-y-4 p-4">
                             {messages.map(message => (
                             <div key={message.id} className={cn('flex items-end gap-2', message.sender === 'user' ? 'justify-end' : 'justify-start')}>
