@@ -1,41 +1,44 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-// 1. Importar a biblioteca da Stripe
 import Stripe from "https://esm.sh/stripe@12.3.0?target=deno"
 
-// 2. Inicializar o cliente da Stripe com sua chave secreta da API
+// --- CORREÇÃO ---
+// 1. Inicializamos o cliente da Stripe da forma padrão, sem o CryptoProvider na configuração inicial.
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') as string, {
   httpClient: Stripe.createFetchHttpClient(),
+  apiVersion: '2024-04-10',
 })
+
+// 2. Criamos uma instância do CryptoProvider separadamente.
+const cryptoProvider = Stripe.createSubtleCryptoProvider()
 
 serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Método não permitido', { status: 405 })
   }
 
-  // 3. Validação da assinatura do webhook (Passo de Segurança Essencial)
   const signature = req.headers.get('stripe-signature')
   if (!signature) {
     return new Response('Assinatura da Stripe ausente no cabeçalho.', { status: 400 })
   }
 
-  const body = await req.text() // É crucial ler o corpo como texto bruto para a verificação
+  const body = await req.text()
   let event
 
   try {
-    // Usar o segredo do webhook para verificar se a requisição é genuína
-    event = await stripe.webhooks.constructEvent(
+    // 3. Usamos a função `constructEventAsync` e passamos o cryptoProvider que criamos.
+    event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
-      Deno.env.get('STRIPE_WEBHOOK_SIGNING_SECRET')! // Use o segredo do endpoint do webhook aqui
+      Deno.env.get('STRIPE_NFE_WEBHOOK_SECRET')!,
+      undefined,
+      cryptoProvider
     )
   } catch (err) {
     console.error(`Erro na verificação do webhook: ${err.message}`)
     return new Response(`Webhook Error: ${err.message}`, { status: 400 })
   }
-  // Fim da validação de segurança
 
-  // 4. Processar apenas o evento que nos interessa
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object
     const supabaseAdmin = createClient(
@@ -44,97 +47,42 @@ serve(async (req) => {
     )
 
     try {
-      // 5. Montar o XML da NFS-e (RPS)
-      const xmlData = `
-        <EnviarLoteRpsSincronoEnvio xmlns="http://www.abrasf.org.br/nfse.xsd">
-          <LoteRps id="lote_${invoice.id}">
-            <NumeroLote>1</NumeroLote>
-            <Cnpj>${Deno.env.get('SUA_EMPRESA_CNPJ')}</Cnpj>
-            <InscricaoMunicipal>${Deno.env.get('SUA_EMPRESA_IM')}</InscricaoMunicipal>
-            <QuantidadeRps>1</QuantidadeRps>
-            <ListaRps>
-              <Rps>
-                <InfDeclaracaoPrestacaoServico>
-                  <Rps>
-                    <IdentificacaoRps>
-                      <Numero>1</Numero>
-                      <Serie>S1</Serie>
-                      <Tipo>1</Tipo>
-                    </IdentificacaoRps>
-                    <DataEmissao>${new Date().toISOString()}</DataEmissao>
-                    <Status>1</Status>
-                  </Rps>
-                  <Competencia>${new Date().toISOString()}</Competencia>
-                  <Servico>
-                     <Valores>
-                        <ValorServicos>${(invoice.total / 100).toFixed(2)}</ValorServicos>
-                        <IssRetido>2</IssRetido>
-                     </Valores>
-                     <ItemListaServico>01.07</ItemListaServico>
-                     <Discriminacao>Pagamento da mensalidade do sistema - Fatura #${invoice.number}</Discriminacao>
-                     <CodigoMunicipio>3303302</CodigoMunicipio>
-                     <ExigibilidadeISS>1</ExigibilidadeISS>
-                     <OptanteSimplesNacional>1</OptanteSimplesNacional>
-                     <IncentivoFiscal>2</IncentivoFiscal>
-                  </Servico>
-                  <Prestador>
-                     <Cnpj>${Deno.env.get('SUA_EMPRESA_CNPJ')}</Cnpj>
-                     <InscricaoMunicipal>${Deno.env.get('SUA_EMPRESA_IM')}</InscricaoMunicipal>
-                  </Prestador>
-                  <Tomador>
-                    <IdentificacaoTomador>
-                      <CpfCnpj><Cnpj>${invoice.customer_tax_ids?.[0]?.value || 'NAO_INFORMADO'}</Cnpj></CpfCnpj>
-                    </IdentificacaoTomador>
-                    <RazaoSocial>${invoice.customer_name}</RazaoSocial>
-                    <Endereco>
-                      <Endereco>${invoice.customer_address?.line1 || 'NAO_INFORMADO'}</Endereco>
-                      <Numero>${invoice.customer_address?.line2 || 'S/N'}</Numero>
-                      <Bairro>${invoice.customer_address?.state || 'NAO_INFORMADO'}</Bairro>
-                      <CodigoMunicipio>3304557</CodigoMunicipio>
-                      <Uf>${invoice.customer_address?.state || 'RJ'}</Uf>
-                      <Cep>${invoice.customer_address?.postal_code || '20000000'}</Cep>
-                    </Endereco>
-                  </Tomador>
-                </InfDeclaracaoPrestacaoServico>
-              </Rps>
-            </ListaRps>
-          </LoteRps>
-        </EnviarLoteRpsSincronoEnvio>
-      `
+      // 1. Prepara os parâmetros para chamar a função do banco de dados.
+      const params = {
+        p_invoice_id: invoice.id,
+        p_invoice_number: invoice.number,
+        p_invoice_total: (invoice.total / 100),
+        p_customer_name: invoice.customer_name,
+        p_customer_tax_id: invoice.customer_tax_ids?.[0]?.value || 'NAO_INFORMADO',
+        p_customer_address_line1: invoice.customer_address?.line1 || 'NAO_INFORMADO',
+        p_customer_address_line2: invoice.customer_address?.line2 || 'S/N',
+        p_customer_address_state: invoice.customer_address?.state || 'RJ',
+        p_customer_address_postal_code: invoice.customer_address?.postal_code || '20000000',
+        p_stripe_customer_id: invoice.customer, // <-- Enviando o ID do cliente da Stripe
+        p_empresa_cnpj: Deno.env.get('SUA_EMPRESA_CNPJ'),
+        p_empresa_im: Deno.env.get('SUA_EMPRESA_IM'),
+        p_nfe_certificate: Deno.env.get('NFE_CERTIFICATE'), // <-- Enviando o certificado
+        p_nfe_private_key: Deno.env.get('NFE_PRIVATE_KEY')   // <-- Enviando a chave
+      };
+      
+      // 2. Chama a função do banco de dados `emitir_nfe_niteroi`.
+      const { data, error } = await supabaseAdmin.rpc('emitir_nfe_niteroi', params);
 
-      // 6. Enviar para o WebService da prefeitura (a lógica permanece a mesma)
-      const responseNfse = await fetch('https://nfse.niteroi.rj.gov.br/nfse/WSNacional2/nfse.asmx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/soap+xml; charset=utf-8' },
-        body: xmlData,
-      })
-
-      if (!responseNfse.ok) {
-        throw new Error(`Erro na API da prefeitura: ${responseNfse.statusText}`)
+      if (error) {
+        // Se a chamada RPC falhar, lança um erro para ser pego pelo catch.
+        throw new Error(`Erro ao chamar a função do banco de dados: ${error.message}`);
       }
 
-      const responseText = await responseNfse.text()
-
-      // 7. Salvar o resultado no banco
-      await supabaseAdmin.from('notas_fiscais').insert({
-        user_id: invoice.metadata.user_id,
-        stripe_invoice_id: invoice.id,
-        status: 'issued', // ou 'error' dependendo da resposta
-        // ...outros campos da nota...
-      })
+      console.log('Resposta da função de emissão de NF-e:', data);
 
     } catch (err) {
-      await supabaseAdmin.from('notas_fiscais').insert({
-        user_id: invoice.metadata.user_id,
-        stripe_invoice_id: invoice.id,
-        status: 'error',
-        error_message: err.message,
-      })
-      return new Response(`Erro interno: ${err.message}`, { status: 500 })
+      // O erro já foi (ou deveria ter sido) registrado no banco de dados pela própria função SQL.
+      // Aqui apenas logamos para depuração na Edge Function.
+      console.error(`Erro final na Edge Function: ${err.message}`);
+      return new Response(`Erro interno: ${err.message}`, { status: 500 });
     }
   }
 
-  // Resposta padrão de sucesso para a Stripe
   return new Response(JSON.stringify({ received: true }), {
     headers: { 'Content-Type': 'application/json' },
   })
